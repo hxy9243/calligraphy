@@ -32,6 +32,10 @@ To animate different text, edit `LINES` in `src/poem-animation.mjs` and fetch it
 
 See [STYLE_RESEARCH.md](STYLE_RESEARCH.md) for a reference-based style-copy plan and related research.
 
+## Different Kai hands
+
+The [four-hand 書 experiment](experiments/kai-four/README.md) applies one ordered template to four actual regular-script images, retaining the original ink. Watch [`four-kai-shu.mp4`](experiments/kai-four/four-kai-shu.mp4). This test finds that knowing the character and stroke order is enough for a rough replay, but not enough for reliable per-stroke segmentation or believable motion at crossings.
+
 ## Next experiment
 
 Replace the glyph outlines with stroke masks cut from an actual scan, align the existing median paths to the photographed strokes, and retain this animation renderer. A small editor for ambiguous crossings would make that pipeline usable.
