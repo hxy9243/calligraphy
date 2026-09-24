@@ -1,0 +1,110 @@
+{
+  "OUYANG XUN": {
+    "rms_normal_deformation_px": [
+      1.98,
+      5.76,
+      3.21,
+      1.0,
+      1.67,
+      3.0,
+      4.78,
+      5.79,
+      12.4,
+      10.04
+    ],
+    "fraction_of_scan_ink_touched_by_each_stroke": [
+      0.176,
+      0.21,
+      0.098,
+      0.147,
+      0.267,
+      0.117,
+      0.067,
+      0.136,
+      0.04,
+      0.05
+    ],
+    "union_ink_coverage": 0.947
+  },
+  "YAN ZHENQING": {
+    "rms_normal_deformation_px": [
+      6.8,
+      6.42,
+      1.41,
+      1.0,
+      2.98,
+      1.21,
+      3.43,
+      1.0,
+      2.91,
+      1.0
+    ],
+    "fraction_of_scan_ink_touched_by_each_stroke": [
+      0.13,
+      0.173,
+      0.096,
+      0.091,
+      0.201,
+      0.132,
+      0.1,
+      0.158,
+      0.055,
+      0.055
+    ],
+    "union_ink_coverage": 0.909
+  },
+  "LIU GONGQUAN": {
+    "rms_normal_deformation_px": [
+      7.53,
+      7.89,
+      1.86,
+      3.91,
+      1.0,
+      9.1,
+      1.0,
+      5.34,
+      8.04,
+      1.51
+    ],
+    "fraction_of_scan_ink_touched_by_each_stroke": [
+      0.167,
+      0.169,
+      0.079,
+      0.079,
+      0.249,
+      0.121,
+      0.084,
+      0.191,
+      0.062,
+      0.076
+    ],
+    "union_ink_coverage": 0.968
+  },
+  "ZHAO MENGFU": {
+    "rms_normal_deformation_px": [
+      2.76,
+      3.09,
+      3.32,
+      2.19,
+      3.98,
+      4.25,
+      1.47,
+      4.44,
+      2.01,
+      1.0
+    ],
+    "fraction_of_scan_ink_touched_by_each_stroke": [
+      0.188,
+      0.16,
+      0.083,
+      0.084,
+      0.173,
+      0.102,
+      0.067,
+      0.127,
+      0.06,
+      0.068
+    ],
+    "union_ink_coverage": 0.855
+  }
+}

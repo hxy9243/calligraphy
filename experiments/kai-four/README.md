@@ -46,3 +46,18 @@ After installing the root Node dependencies (`npm install`) and Python requireme
 **Finding:** This first mask warp did *not* improve the animation overall. It keeps every source-ink pixel in the final frame, but intermediate frames still break strokes into separate pieces. In the broad Zhao Mengfu sample, only 51.7% of source-ink pixels fall within any warped outline; the other hands have 84.3%, 68.5%, and 83.6% coverage respectively. Each writer still has several inferred strokes with multiple connected ink components larger than 12 pixels. These figures measure geometric registration and fragmentation, not historical accuracy. Translation alone cannot fit different calligraphers' changes in stroke proportions and local curvature. Projecting ink onto a smooth centerline also does not guarantee a connected *area* while the stroke is drawn.
 
 The next useful step is **local deformation constrained by stroke topology**, with landmarks for each stroke's start, end, and crossings. During reveal, grow a connected brush contact region along the warped stroke and transfer the scan texture into it; use the original scan as the final target. A small manual correction interface for ambiguous crossings will probably be necessary. Keeping the motion smooth is a useful regularizer, but cannot identify which overlaid ink belongs to which physical brush pass from a single finished image.
+
+## Local path deformation and connected brush sweep
+
+Run `python3 experiments/kai-four/local_warp.py` after generating the individual stroke masks above. `four-kai-local-warp.mp4` contains the result. `comparison-three-methods.mp4` places nearest median, translated masks, and local path warp **left to right** at identical times.
+
+For each stroke, `local_warp.py` searches for a smooth normal displacement of its centerline toward scan ink. A dynamic program penalizes both distance from ink and abrupt displacement changes. It estimates the stroke width from the nearest transverse ink run, limits implausibly large widths using the template mask, and sweeps overlapping disks along the path. A narrow region around the scan transfers its texture and bridges small scan gaps. The final 1-second completion blend restores the **exact original scanned pixels**, including ink outside all inferred strokes; that blend is a disclosed visual completion, not an inferred brush movement.
+
+| Hand | Ink touched by full brush sweep |
+| --- | ---: |
+| Ouyang Xun | 94.7% |
+| Yan Zhenqing | 90.9% |
+| Liu Gongquan | 96.8% |
+| Zhao Mengfu | 85.5% |
+
+These are *coverage* figures for the union of brush footprints, not per-stroke identity or animation accuracy. The connected sweep looks less fragmented than the translated-mask trial at intermediate frames, especially for broad Yan and Zhao strokes. It also exposes a different error: a wide stamp can pick up ink from the wrong stroke at crossings. Zhao's scan still has 14.5% of ink outside the swept footprint, which appears in the completion blend. For a credible writer, the next experiment needs explicit stroke ownership and crossing depth, likely corrected by hand for a few examples, plus registration of stroke **contours** rather than only median and width.
