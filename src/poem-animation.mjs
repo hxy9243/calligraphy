@@ -54,29 +54,29 @@ const grain = Array.from({ length: 650 }, (_, i) => {
   return `<circle cx="${x}" cy="${y}" r="${i % 8 ? 0.65 : 1.1}" fill="#695b48" opacity=".10"/>`;
 }).join('');
 
-function characterSVG(entry, t, index) {
+function characterSVG(entry, t, index, expansion = 0) {
   if (t < entry.start) return '';
   const { data, line, row, start, duration } = entry;
   const x = line === 0 ? 687 : 306;
   const y = 276 + row * 275;
   const strokeTime = duration / data.strokes.length;
   const outlines = data.strokes.map((path, stroke) =>
-    `<clipPath id="clip-${index}-${stroke}"><path d="${path}"/></clipPath>`
+    `<mask id="mask-${index}-${stroke}" maskUnits="userSpaceOnUse" x="-64" y="-160" width="1152" height="1280"><path d="${path}" fill="white" stroke="white" stroke-width="${expansion}" stroke-linejoin="round"/></mask>`
   ).join('');
   const marks = data.strokes.map((path, stroke) => {
     const progress = clamp((t - start - stroke * strokeTime) / strokeTime);
     if (progress <= 0) return '';
-    if (progress >= 1) return `<path d="${path}" fill="url(#ink)"/>`;
+    if (progress >= 1) return `<path d="${path}" fill="url(#ink)" stroke="url(#ink)" stroke-width="${expansion}" stroke-linejoin="round"/>`;
     const median = trace(data.medians[stroke], progress);
-    return `<g clip-path="url(#clip-${index}-${stroke})"><path d="${median}" fill="none" stroke="url(#ink)" stroke-width="174" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+    return `<g mask="url(#mask-${index}-${stroke})"><path d="${median}" fill="none" stroke="url(#ink)" stroke-width="${174 + expansion}" stroke-linecap="round" stroke-linejoin="round"/></g>`;
   }).join('');
   return `<defs>${outlines}</defs><g transform="translate(${x} ${y}) scale(.235)"><g transform="translate(0 900) scale(1 -1)">${marks}</g></g>`;
 }
 
-export function poemFrameSVG(time) {
+export function poemFrameSVG(time, options = {}) {
   const t = clamp(time, 0, DURATION);
   const count = schedule.filter(entry => t >= entry.start + entry.duration).length;
-  const chars = schedule.map((entry, i) => characterSVG(entry, t, i)).join('');
+  const chars = schedule.map((entry, i) => characterSVG(entry, t, i, options.expansion || 0)).join('');
   const barWidth = Math.round(890 * t / DURATION);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
     <defs>
@@ -87,7 +87,7 @@ export function poemFrameSVG(time) {
     ${grain}
     <path d="M 94 105 H 986 M 94 1764 H 986" fill="none" stroke="#a99c84" opacity=".55"/>
     <text x="96" y="158" font-family="Georgia,serif" font-size="29" letter-spacing="3" fill="#4c453b">MOUNTAIN DWELLING IN AUTUMN</text>
-    <text x="98" y="210" font-family="Georgia,serif" font-size="18" letter-spacing="4" fill="#92836c">A CALLIGRAPHY STUDY</text>
+    <text x="98" y="210" font-family="Georgia,serif" font-size="18" letter-spacing="4" fill="#92836c">${options.yan ? `YAN-INSPIRED KAI · ${Number(options.speed || 1)}× SPEED` : 'A CALLIGRAPHY STUDY'}</text>
     <path d="M 600 242 V 1625 M 210 242 V 1625" stroke="#ac9d84" stroke-width="1" opacity=".11" stroke-dasharray="8 13"/>
     ${chars}
     <rect x="91" y="1624" width="57" height="57" fill="#aa4c3c" opacity=".90"/>
