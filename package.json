@@ -1,0 +1,13 @@
+{
+  "name": "yong-brush-animation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "render": "node scripts/render-video.mjs"
+  },
+  "dependencies": {
+    "sharp": "^0.34.3"
+  }
+}
