@@ -61,3 +61,11 @@ For each stroke, `local_warp.py` searches for a smooth normal displacement of it
 | Zhao Mengfu | 85.5% |
 
 These are *coverage* figures for the union of brush footprints, not per-stroke identity or animation accuracy. The connected sweep looks less fragmented than the translated-mask trial at intermediate frames, especially for broad Yan and Zhao strokes. It also exposes a different error: a wide stamp can pick up ink from the wrong stroke at crossings. Zhao's scan still has 14.5% of ink outside the swept footprint, which appears in the completion blend. For a credible writer, the next experiment needs explicit stroke ownership and crossing depth, likely corrected by hand for a few examples, plus registration of stroke **contours** rather than only median and width.
+
+## Annotating the crossing problem
+
+Open `annotate-standalone.html` locally in a browser; it embeds the comparison scan, the current proposal for every stroke, and the app code, so it does not need a server. Alternatively, start `python3 -m http.server 8000` from the repo root and open `http://localhost:8000/experiments/kai-four/annotate.html`. The seeds come from `make_annotation_seeds.py` and can be regenerated after running `stroke_masks.mjs`.
+
+Pick a calligrapher, then the numbered stroke. Orange shows this stroke's current mask, blue shows other proposed masks, and the numbered pale line shows its centerline. Paint or erase its ink, then drag its centerline points to the physical brush trajectory; double-click a segment to insert an additional point. You may paint a pixel into *multiple* strokes at a crossing. Use **Download annotation JSON** to keep a portable copy. The tool also autosaves to your browser, but an exported JSON is the reproducible ground truth for subsequent experiments. There is an undo button for the latest stroke edit and a reset button for the whole current style.
+
+For the first pass, correct **one hand, ideally Yan**. Verify the first two strokes and the central intersection carefully, then finish its ten strokes. Preserve all final ink under at least one stroke mask, except scan debris. Annotated masks at crossings may overlap because the finished scan cannot show which brush pass laid the ink there. Treat the centerlines as plausible trajectories, not historical recordings.

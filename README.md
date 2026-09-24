@@ -36,6 +36,8 @@ See [STYLE_RESEARCH.md](STYLE_RESEARCH.md) for a reference-based style-copy plan
 
 The [four-hand 書 experiment](experiments/kai-four/README.md) applies one ordered template to four actual regular-script images, retaining the original ink. Watch [`four-kai-shu.mp4`](experiments/kai-four/four-kai-shu.mp4). This test finds that knowing the character and stroke order is enough for a rough replay, but not enough for reliable per-stroke segmentation or believable motion at crossings.
 
-## Next experiment
+## Annotation and style transfer prototypes
 
-Replace the glyph outlines with stroke masks cut from an actual scan, align the existing median paths to the photographed strokes, and retain this animation renderer. A small editor for ambiguous crossings would make that pipeline usable.
+Open the [offline stroke annotator](experiments/kai-four/annotate-standalone.html) to correct the ten proposed 書 stroke masks and paths for each hand. Export the corrected JSON so it can be used as ground truth. See the [annotation guide](experiments/kai-four/README.md).
+
+The [style transfer baseline](experiments/style-transfer/README.md) creates a new 永 from the Yan Zhenqing 書 scan, using the known target strokes with measured optical weight and ink texture. It produces a [still](experiments/style-transfer/yan-inspired-yong.png) and an [animation](experiments/style-transfer/yan-inspired-yong.mp4). Its target geometry remains a generic Kai template; the output is an experimental style approximation.

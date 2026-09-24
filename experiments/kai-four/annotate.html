@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kai stroke annotation · 書</title>
+<style>
+:root{font:15px/1.5 system-ui,sans-serif;color:#38362f;background:#eee9df}*{box-sizing:border-box}body{margin:0}
+header{padding:17px 28px;background:#f8f5ec;border-bottom:1px solid #d8cfbf;display:flex;align-items:center;justify-content:space-between;gap:16px}
+h1{font-family:Georgia,serif;font-weight:normal;margin:0;font-size:25px}header a{color:#655b49}main{max-width:1100px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:minmax(360px,610px) minmax(270px,1fr);gap:24px}
+.board{background:#f9f5e9;padding:12px;box-shadow:0 5px 23px #5b4c3728;border:1px solid #d5c9b8}canvas{display:block;width:100%;touch-action:none;cursor:crosshair;background:#eee4d5}
+.controls{background:#f9f5e9;padding:22px;border:1px solid #d5c9b8}label{display:block;font-weight:600;margin-bottom:8px}select,button,input[type=range]{font:inherit}select{width:100%;padding:10px;background:#fffdf8;border:1px solid #c5b9a6}
+.group{margin:19px 0}.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.row button{border:1px solid #c9bdab;background:#fffdf9;color:#514b41;border-radius:4px;padding:8px 11px;cursor:pointer}.row button.active{background:#734a3b;color:white;border-color:#734a3b}.row button:hover{border-color:#734a3b}
+#strokeList button{min-width:41px}.hint{color:#695f51;font-size:13px}.status{background:#ede7db;padding:10px;font-size:13px;border-radius:4px}input[type=range]{width:150px}
+@media(max-width:800px){main{grid-template-columns:1fr}header{align-items:start;flex-direction:column}}
+</style></head><body>
+<header><h1>Stroke annotation · 書</h1><a href="./README.md">Experiment notes</a></header>
+<main><section class="board"><canvas id="canvas" width="600" height="600" aria-label="Scanned character and editable stroke overlay"></canvas>
+<p class="hint">The scan stays visible beneath the selected orange stroke. Other proposed strokes appear in blue. Painted overlap is allowed.</p></section>
+<section class="controls">
+<label for="style">Calligrapher</label><select id="style"></select>
+<div class="group"><label>Stroke · in writing order</label><div class="row" id="strokeList"></div></div>
+<div class="group"><label>Tool</label><div class="row" id="tools"><button data-tool="paint" class="active">Paint mask</button><button data-tool="erase">Erase mask</button><button data-tool="path">Edit path</button></div></div>
+<div class="group"><label for="size">Brush size · <span id="sizeLabel">9</span> px</label><input id="size" type="range" min="2" max="30" value="9"></div>
+<div class="group row"><button id="undo">Undo stroke edit</button><button id="reset">Reset this style</button></div>
+<p class="hint">Mask: drag to paint or erase. Path: drag a numbered point; double-click a segment to insert a point. Use a separate stroke layer to mark ink at crossings. Changes save in this browser.</p>
+<div class="group row"><button id="export">Download annotation JSON</button><button id="import">Import annotation JSON</button><input id="file" type="file" accept="application/json,.json" hidden></div>
+<div class="status" id="status" role="status"></div>
+</section></main><script type="module" src="./annotate.mjs"></script></body></html>
