@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "serve": "python3 -m http.server 8000",
-    "render": "node scripts/render-video.mjs"
+    "render": "node scripts/render-video.mjs",
+    "render:poem": "node scripts/render-poem.mjs",
+    "fetch:characters": "node scripts/fetch-characters.mjs"
   },
   "dependencies": {
     "sharp": "^0.34.3"

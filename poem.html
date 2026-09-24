@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Moonlight through the pines · Calligraphy study</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #ded5c5; color: #302b28; font-family: Georgia,serif; }
+    main { width: min(92vw, 540px); padding: 24px 0; }
+    #art { width: 100%; display: block; box-shadow: 0 20px 60px #4d3e2b28; }
+    .controls { display: flex; align-items: center; gap: 15px; margin-top: 20px; }
+    button { border: 1px solid #8a7d67; background: transparent; color: inherit; padding: 10px 16px; font: inherit; cursor: pointer; min-width: 88px; }
+    button:hover { background: #eee7da; }
+    input { flex: 1; min-width: 0; accent-color: #a04738; cursor: pointer; }
+    #clock { font: 14px Georgia,serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    a { display: inline-block; margin-top: 20px; color: #615747; }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="art" aria-label="Vertical stroke animation of 明月松间照，清泉石上流"></div>
+    <div class="controls">
+      <button id="toggle">Play</button>
+      <input id="seek" aria-label="Timeline" type="range" min="0" step="0.01" value="0">
+      <span id="clock"></span>
+    </div>
+    <a href="index.html">View the single-character study →</a>
+  </main>
+  <script type="module">
+    import { poemFrameSVG, DURATION } from './src/poem-animation.mjs';
+    const art = document.querySelector('#art');
+    const seek = document.querySelector('#seek');
+    const toggle = document.querySelector('#toggle');
+    const clock = document.querySelector('#clock');
+    seek.max = DURATION;
+    let t = 0, playing = false, last = 0;
+    function draw() {
+      art.innerHTML = poemFrameSVG(t);
+      seek.value = t;
+      clock.textContent = `0:${String(Math.floor(t)).padStart(2, '0')} / 0:${String(DURATION).padStart(2, '0')}`;
+      toggle.textContent = playing ? 'Pause' : (t >= DURATION ? 'Replay' : 'Play');
+    }
+    function tick(now) {
+      if (!playing) return;
+      if (last) t = Math.min(DURATION, t + (now - last) / 1000);
+      last = now;
+      if (t >= DURATION) playing = false;
+      draw();
+      if (playing) requestAnimationFrame(tick);
+    }
+    toggle.onclick = () => {
+      if (playing) { playing = false; last = 0; draw(); return; }
+      if (t >= DURATION) t = 0;
+      playing = true; last = 0; requestAnimationFrame(tick); draw();
+    };
+    seek.oninput = () => { t = Number(seek.value); last = 0; draw(); };
+    draw();
+  </script>
+</body>
+</html>
