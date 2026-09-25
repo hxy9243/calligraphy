@@ -34,7 +34,7 @@ def bbox(mask):
     return x.min(), y.min(), x.max() + 1, y.max() + 1
 
 
-def extract_cells(path):
+def extract_cells(path, size=S):
     """2x5 sheet; move column cuts to nearby whitespace, preserve aspect ratio."""
     image = np.array(Image.open(path).convert('L'))
     height, width = image.shape
@@ -59,10 +59,10 @@ def extract_cells(path):
                 raise ValueError(f'Ink touches cell border at {row}, {col}')
             x0, y0, x1, y1 = bbox(ink)
             crop = cell[max(0,y0-2):y1+2, max(0,x0-2):x1+2]
-            scale = (S-20)/max(crop.shape)
+            scale = (size*(S-20)/S)/max(crop.shape)
             small = cv2.resize(crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-            canvas = np.full((S,S),255,np.uint8)
-            oy, ox = (S-small.shape[0])//2, (S-small.shape[1])//2
+            canvas = np.full((size,size),255,np.uint8)
+            oy, ox = (size-small.shape[0])//2, (size-small.shape[1])//2
             canvas[oy:oy+small.shape[0],ox:ox+small.shape[1]] = small
             result.append(canvas)
     return np.array(result)

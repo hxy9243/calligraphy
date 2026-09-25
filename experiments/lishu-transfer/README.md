@@ -1,5 +1,19 @@
 # Kai → 隶书: image and animation transfer experiment
 
+## Follow-up: smooth individual strokes
+
+The branch already contains current main `4e2a972`; main was checked again
+before this follow-up and had not advanced. The first experiment only improved
+registration, leaving hard raster-mask boundaries. The new
+[smooth-stroke experiment](SMOOTH_STROKES.md) fits continuous stroke ribbons,
+preserves overlapping intersections, and reconstructs every normalized target
+pixel through the stroke layers themselves.
+
+Watch [Lishu-Smooth-Strokes.mp4](Lishu-Smooth-Strokes.mp4), or inspect
+[enlarged individual strokes](Smooth-Stroke-Detail.png).
+
+The original registration experiment and its results follow below.
+
 **Result: promising with one small registration adaptation; the unchanged
 pipeline is unreliable on wider clerical forms.** This is an experiment on
 20 generated glyphs (two versions of the same ten characters), not a measured
