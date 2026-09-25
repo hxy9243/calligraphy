@@ -1,6 +1,11 @@
 # Kai → 隶书: image and animation transfer experiment
 
-Latest: [targeted junction corrections](JUNCTION_REFINEMENT.md) improve 清 and
+Latest: [explicit smooth Bézier outlines](SMOOTH_OUTLINES.md) test a geometry-first
+alternative on 清、泉、石. See [comparison video](Lishu-Smooth-Outlines.mp4)
+and [outline overlays](Outline-Comparison.png). This mode trades exact source
+pixels and texture for smooth boundaries; the previous mode remains unchanged.
+
+Previously: [targeted junction corrections](JUNCTION_REFINEMENT.md) improve 清 and
 石 with four explicit, editable path controls. Watch the
 [focused comparison](Lishu-Junction-Refinement.mp4). All 20 normalized targets
 still reconstruct exactly; corrections that made 泉's neighboring strokes worse
