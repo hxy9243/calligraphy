@@ -1,4 +1,82 @@
-# 永 — brush reveal study
+# Chinese Calligraphy Animation
+
+Experiments in turning Chinese calligraphy images into ordered stroke animations while retaining their original brush shapes and ink texture.
+
+The latest working prototype uses **separate stroke layers with preserved overlaps**. It animates Wang Wei’s 40-character **山居秋暝** in three generated, artist-inspired styles: Yan Zhenqing, Liu Gongquan, and Zhao Mengfu. The video shows synchronized enlarged characters and the accumulating poem.
+
+This is a reconstruction from static artwork—not recorded handwriting, a verified reproduction of a historical master, or a physical brush/ink simulation.
+
+## Start here: overlap-preserving stroke animation
+
+See the [implementation and detailed guide](experiments/stroke-ownership/README.md).
+
+### Requirements
+
+- Node.js 20+ and npm
+- Python 3.10+
+- FFmpeg available on PATH
+- DejaVu Sans at `/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`; on other systems, adjust `fontpath` in the renderer
+
+From the repository root:
+
+```sh
+npm ci
+python3 -m pip install -r experiments/stroke-ownership/requirements.txt
+node experiments/stroke-ownership/ownership_templates.mjs
+python3 experiments/stroke-ownership/ownership_prepare.py
+python3 -m unittest discover -s experiments/stroke-ownership -p 'test_*.py'
+python3 experiments/stroke-ownership/ownership_render.py
+```
+
+The normalized artwork inputs and required character data are included. Reproducing this experiment does not require an image-generation service.
+
+Outputs under `experiments/stroke-ownership/`:
+
+- `Stroke-Ownership-Preserved-Overlaps.mp4`: 1920 × 1080, 30 fps, approximately 74 seconds, 3× reference writing cadence, five-second final hold.
+- `Stroke-Ownership-Overlap-Audit.png`: source-versus-retained-ink comparisons.
+- `ownership-work/`: intermediate stroke masks, registration results, exposure maps, and metrics.
+
+Generated videos and intermediates are ignored by git.
+
+### How it works
+
+1. Start from isolated calligraphy glyphs. Hanzi Writer outlines and median paths provide a prior for stroke topology and order.
+2. Register that template to each artwork using smooth optical flow.
+3. Keep a bounded mask and progress map for each stroke.
+4. **Allow masks to overlap at intersections.** The first participating stroke paints the shared pixels when it reaches them; the later stroke’s arms remain outside that stroke’s mask.
+5. Composite the animated layers without double-darkening shared ink.
+
+The first-arrival exposure map is an optimization equivalent to max-compositing the layers with the same ink intensity and reveal ramp. There is no final whole-character reveal to conceal missing regions.
+
+### Why preserve overlaps?
+
+Whole-image brush sweeps can reveal neighboring branches prematurely. An earlier exclusive-ownership experiment prevented that by removing ambiguous pixels, but left visible gaps. The current implementation keeps the independent stroke shapes while restoring their shared intersection areas.
+
+Across the 120 character/style samples:
+
+| Generated style | Ink omitted with exclusive masks | Ink omitted with preserved overlaps |
+| --- | ---: | ---: |
+| Yan-inspired | 9.88% | 2.16% |
+| Liu-inspired | 10.36% | 3.42% |
+| Zhao-inspired | 10.91% | 3.37% |
+
+Every stroke retains some ink. These are **retention measurements, not ownership-accuracy scores**. Three regression tests cover shared intersections, hidden future arms, unsupported pixels, and equivalence to layer compositing.
+
+### Current limits and next steps
+
+- Registration can still misassign small regions, particularly in crowded characters.
+- Some unsupported ink and tiny disconnected fragments remain omitted.
+- Motion is still a reveal within a stroke mask; pressure, brush-tip lag, and physical ink deposition are not modeled.
+- The included artwork is artist-inspired AI output, not authenticated historical exemplars.
+- The current demonstration has a fixed 40-character layout. Different text requires new artwork/data and layout changes; it is not yet an arbitrary-text generator or mobile app.
+
+Next priorities: manually correct difficult stroke layers, evaluate junction behavior at slower playback, then test continuous brush geometry against the corrected masks. See the [experiment README](experiments/stroke-ownership/README.md) for input formats and reproduction details.
+
+## Earlier experiments
+
+The following baseline demos remain available for comparison. Their render commands use the older template-reveal pipeline, not the overlap-preserving renderer above.
+
+### 永 — brush reveal study
 
 A small, reproducible animation of the Kai-style character 永. The five ordered stroke outlines and median paths are from [Hanzi Writer Data](https://github.com/chanind/hanzi-writer-data), derived from [Make Me a Hanzi](https://github.com/skishore/makemeahanzi). That character data is distributed under the Arphic Public License; see `ARPHICPL.TXT`.
 
