@@ -1,5 +1,11 @@
 # Kai → 隶书: image and animation transfer experiment
 
+Latest: [targeted junction corrections](JUNCTION_REFINEMENT.md) improve 清 and
+石 with four explicit, editable path controls. Watch the
+[focused comparison](Lishu-Junction-Refinement.mp4). All 20 normalized targets
+still reconstruct exactly; corrections that made 泉's neighboring strokes worse
+were rejected.
+
 ## Follow-up: smooth individual strokes
 
 The branch already contains current main `4e2a972`; main was checked again

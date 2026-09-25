@@ -72,11 +72,17 @@ def ribbon_envelope(support, phase, shape):
     parameter=np.linspace(0,len(points)-1,160)
     path=PchipInterpolator(np.arange(len(points)),points)(parameter)
     radius=PchipInterpolator(np.arange(len(points)),radii)(parameter)
+    return rasterize_ribbon(path,radius,support.shape,shape)
+
+
+def rasterize_ribbon(path, radius, source_shape, shape):
+    """Rasterize a sampled centerline and radius using shared automatic/manual geometry."""
+    h,w=shape
     tangent=np.gradient(path,axis=0)
     tangent/=np.maximum(np.linalg.norm(tangent,axis=1,keepdims=True),1e-5)
     normal=np.stack([-tangent[:,1],tangent[:,0]],axis=1)
     polygon=np.concatenate([path+normal*radius[:,None],(path-normal*radius[:,None])[::-1]])
-    scale=np.array([w/support.shape[1],h/support.shape[0]])
+    scale=np.array([w/source_shape[1],h/source_shape[0]])
     envelope=np.zeros((h,w),np.uint8)
     cv2.fillPoly(envelope,[np.round(polygon*scale).astype(np.int32)],1)
     for point,rad in [(path[0],radius[0]),(path[-1],radius[-1])]:
