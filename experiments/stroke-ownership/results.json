@@ -1,0 +1,9 @@
+{
+  "character_instances": 120,
+  "completely_missing_strokes": 0,
+  "mean_omitted_ink_percent": {"Yan": 2.16, "Liu": 3.42, "Zhao": 3.37},
+  "previous_exclusive_mean_omitted_ink_percent": {"Yan": 9.88, "Liu": 10.36, "Zhao": 10.91},
+  "validation": "Three synthetic crossing/compositing regression tests passed; 120 registered samples inspected for missing strokes. Retention is not ownership accuracy.",
+  "video_seconds": 73.666667,
+  "final_hold_seconds": 5
+}
