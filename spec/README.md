@@ -7,10 +7,11 @@ public behavior, representations or dependency boundaries.
 
 Read in order:
 
-1. [Architecture and component ownership](architecture.md)
-2. [JavaScript scenes and export](scenes-and-export.md)
-3. [Python stroke and brush engines](python-engines.md)
-4. [Assets, experiments and validation](assets-and-validation.md)
+1. [From text to an image or writing video](text-to-render.md)
+2. [Architecture and component ownership](architecture.md)
+3. [JavaScript scenes and export](scenes-and-export.md)
+4. [Python stroke and brush engines](python-engines.md)
+5. [Assets, experiments and validation](assets-and-validation.md)
 
 For runnable setup commands, start with the [repository README](../README.md).
 For historical context, see the [migration plan](../docs/migration-plan.md) and

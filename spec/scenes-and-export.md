@@ -1,5 +1,8 @@
 # JavaScript scenes and export
 
+For a worked example following text through these components, read
+[From text to an image or writing video](text-to-render.md).
+
 Sources: [geometry](../src/geometry.mjs), [scene registry](../src/scenes/index.mjs),
 [Yong](../src/scenes/yong.mjs), [poem](../src/scenes/poem.mjs),
 [still export](../src/export/still.mjs), [video export](../src/export/video.mjs).
