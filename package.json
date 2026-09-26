@@ -13,7 +13,8 @@
     ".": "./src/index.mjs",
     "./geometry": "./src/geometry.mjs",
     "./scenes/yong": "./src/scenes/yong.mjs",
-    "./scenes/poem": "./src/scenes/poem.mjs"
+    "./scenes/poem": "./src/scenes/poem.mjs",
+    "./text": "./src/text/index.mjs"
   },
   "scripts": {
     "serve": "python3 -m http.server 8000",
@@ -23,7 +24,8 @@
     "render:video:poem": "node scripts/render-poem.mjs",
     "render:still": "node scripts/render-still.mjs",
     "fetch:characters": "node scripts/fetch-characters.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "render:text": "node scripts/render-text.mjs"
   },
   "dependencies": {
     "sharp": "^0.34.3"
