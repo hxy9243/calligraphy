@@ -51,7 +51,14 @@ def medial_path(mask, direction):
     skeleton = skeletonize(mask)
     yy, xx = np.where(skeleton)
     if len(xx) < 2:
-        raise ValueError('Stroke too small for a path')
+        if not mask.any(): raise ValueError('Stroke too small for a path')
+        # A compact dot can skeletonize to one point. Give it a short press
+        # trajectory instead of omitting the stroke or inventing a long arm.
+        my,mx=np.where(mask);center=np.array([mx.mean(),my.mean()])
+        direction=np.asarray(direction,float)
+        direction=direction/max(np.linalg.norm(direction),1e-6)
+        if not direction.any():direction=np.array([1.,0.])
+        return np.array([center-.5*direction,center+.5*direction])
     index = np.full(mask.shape, -1, int)
     index[yy, xx] = np.arange(len(xx))
     rows, cols, weights = [], [], []
@@ -94,9 +101,16 @@ def resample(points, spacing=.65):
     return np.column_stack([np.interp(t, arc, points[:, a]) for a in range(2)])
 
 
-def fit_brush(layer, direction):
+def fit_brush(layer, direction, guide=None):
     mask = layer > .5
-    raw = medial_path(mask, direction)
+    if guide is None:
+        raw = medial_path(mask, direction)
+    else:
+        guide = np.asarray(guide, float)
+        if guide.ndim != 2 or guide.shape[1] != 2 or len(guide) < 2 or not np.isfinite(guide).all():
+            raise ValueError('Guide needs at least two finite [x,y] points')
+        # Explicit guide order is authoritative, especially for short hooks.
+        raw = resample(guide, 1.)
     distance = ndi.distance_transform_edt(mask)
     raw = ndi.gaussian_filter1d(raw, 3, axis=0, mode='nearest')
     median_radius = float(np.median(ndi.map_coordinates(distance, raw.T[::-1], order=1)))

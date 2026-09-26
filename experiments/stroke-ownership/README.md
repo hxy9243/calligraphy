@@ -49,3 +49,10 @@ The synthetic crossing tests ensure the intersection appears during the first st
 Registration uses TV-L1 optical flow to fit per-stroke templates to each artwork. Ownership is still inferred: inaccurate registration can assign a small branch incorrectly. A one-pixel support collar and removal of components smaller than seven pixels remain from the previous experiment. Keeping overlaps fixes the intentional junction holes; it does not establish perfect stroke anatomy.
 
 This remains mask-based animation, not pressure-driven brush deposition. The next useful step is correcting a small set of difficult registered layers manually, then testing continuous brush geometry against those masks.
+
+
+## Guided brush reconstruction
+
+See [GUIDED_BRUSH.md](GUIDED_BRUSH.md) for pressure-controlled path painting
+applied to all 120 glyphs, and [the Kaishu poem study](../kaishu-poem/README.md)
+for the active-stroke animation of the requested Su Shi excerpt.

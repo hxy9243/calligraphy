@@ -46,5 +46,21 @@ class PaintBrushTests(unittest.TestCase):
         stroke=self.straight(); stroke['radius'][0]=-1
         with self.assertRaises(ValueError): BrushPainter(stroke)
 
+    def test_explicit_guide_preserves_hook_order(self):
+        layer=np.zeros((480,480),np.float32)
+        guide=np.array([[80,100],[300,100],[300,330],[260,300]])
+        cv2.polylines(layer,[guide],False,1,22)
+        stroke=fit_brush(layer,np.array([-1.,-1.]),guide=guide)
+        path=np.asarray(stroke['path'])
+        self.assertLess(np.linalg.norm(path[0]-guide[0]),5)
+        self.assertLess(np.linalg.norm(path[-1]-guide[-1]),5)
+        self.assertGreater(path[:,0].max()-path[-1,0],25)
+
+    def test_compact_dot_does_not_disappear(self):
+        layer=np.zeros((480,480),np.float32)
+        cv2.circle(layer,(200,200),2,1,-1)
+        stroke=fit_brush(layer,np.array([1.,0.]))
+        self.assertGreater(complete(stroke).sum(),1)
+
 
 if __name__=='__main__': unittest.main()
