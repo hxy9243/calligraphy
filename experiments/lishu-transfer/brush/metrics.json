@@ -1,0 +1,65 @@
+[
+  {
+    "sheet": "reference",
+    "char": "清",
+    "silhouette_iou_to_previous_outline": 0.8813145408875244,
+    "straight_strokes": [
+      2,
+      3,
+      4,
+      5,
+      10,
+      11
+    ]
+  },
+  {
+    "sheet": "reference",
+    "char": "泉",
+    "silhouette_iou_to_previous_outline": 0.8392109174435887,
+    "straight_strokes": [
+      4,
+      5,
+      6,
+      8
+    ]
+  },
+  {
+    "sheet": "reference",
+    "char": "石",
+    "silhouette_iou_to_previous_outline": 0.8875727590221187,
+    "straight_strokes": [
+      5
+    ]
+  },
+  {
+    "sheet": "light",
+    "char": "清",
+    "silhouette_iou_to_previous_outline": 0.8084463913579721,
+    "straight_strokes": [
+      1,
+      2,
+      3,
+      6,
+      10,
+      11
+    ]
+  },
+  {
+    "sheet": "light",
+    "char": "泉",
+    "silhouette_iou_to_previous_outline": 0.805414551607445,
+    "straight_strokes": [
+      4,
+      5,
+      8
+    ]
+  },
+  {
+    "sheet": "light",
+    "char": "石",
+    "silhouette_iou_to_previous_outline": 0.8266222397921726,
+    "straight_strokes": [
+      5
+    ]
+  }
+]
