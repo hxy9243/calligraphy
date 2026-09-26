@@ -13,7 +13,7 @@ The local `migration-source` remote records provenance, not a publishing destina
 
 1. **Record the plan and baseline.** Inventory tracked source, dependencies,
    experiment inputs and tests. Run existing tests before editing.
-2. **Extract experiments and reusable Python engines.** Keep all six experiment
+2. **Extract experiments and reusable Python engines.** Keep all seven experiment
    directories and their tracked assets in the lab. Promote reusable overlap
    compositing, elliptical brush and contact brush code into an installable Python
    package in the main repo. Lab scripts import that package through compatibility
