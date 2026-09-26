@@ -107,6 +107,7 @@ To fetch a different small character set, run
 The default output replaces the supported poem data, so use an explicit output
 path for exploratory data. Different text also needs scene-layout changes.
 
-This is a local migration with retained Git history. The original `caligraphy`
-checkout and its dirty Lishu worktree remain intact. Publishing remotes have not
-been created or renamed.
+The supported source is published at [hxy9243/calligraphy](https://github.com/hxy9243/calligraphy)
+on `main`, with retained Git history. The original `caligraphy` checkout and its
+unfinished Lishu worktree are preserved under the local workspace's `archive/`
+directory. Research experiments remain in the separate `calligraphy-lab` repository.
