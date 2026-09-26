@@ -53,6 +53,20 @@ brush motion. Browser interaction was not manually exercised in this migration.
 
 Local ignored outputs are retained under `outputs/migration-validation/`.
 
+## Lab validation after extraction
+
+- A fresh virtual environment installed `calligraphy-lab/requirements.txt`.
+  `PYTHON=<venv>/bin/python npm test` passed **24/24** retained regressions.
+- The restored Lishu `paint_brush.py --help` entry point works. In a temporary
+  copy, its regenerated comparison image and metrics matched original SHA-256
+  hashes exactly.
+- The contact-style-transfer Yan `--reuse` render, also run in a temporary copy,
+  reproduced the original PNG hash exactly.
+- Run metadata reports the real installed engine location and editable-install
+  provenance, the matching sibling checkout, its revision and working-tree state.
+- All 32 lab Python source files parsed and all lab JavaScript modules passed
+  syntax checks. The migration did not regenerate tracked research artifacts.
+
 ## Asset preservation
 
 `migration-assets.json` records SHA-256 hashes for all **170** original experiment
