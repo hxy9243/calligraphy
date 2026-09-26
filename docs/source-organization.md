@@ -53,7 +53,8 @@ needs across them rather than introduced as an empty abstraction now.
 
 ## Repository history and local development
 
-Both new repositories begin with the original history at `94ccee4`. This makes
+Both new repositories begin with the original history at `94ccee4`. The lab
+also retains the newer merged research history at `d944a6a`. This makes
 the split auditable without rewriting the original repository or its linked
 worktrees. Their `migration-source` remotes point to the original local checkout;
 configure separate publishing remotes when ready to publish. No GitHub repository

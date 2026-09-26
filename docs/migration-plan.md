@@ -2,7 +2,9 @@
 
 ## Baseline and scope
 
-Source: `/home/kevin/Workspace/caligraphy`, commit `94ccee4`.
+Source: `/home/kevin/Workspace/caligraphy`, core commit `94ccee4`.
+The lab also includes the already-merged contact-style-transfer experiment from
+the source repository's cached `origin/main` at `d944a6a` (no core-code changes).
 Destinations: sibling repositories `calligraphy` and `calligraphy-lab`.
 Both retain the existing Git history; no history rewrite or remote publication.
 Original source and the dirty `caligraphy-lishu` worktree remain intact. Its
@@ -13,7 +15,7 @@ The local `migration-source` remote records provenance, not a publishing destina
 
 1. **Record the plan and baseline.** Inventory tracked source, dependencies,
    experiment inputs and tests. Run existing tests before editing.
-2. **Extract experiments and reusable Python engines.** Keep all seven experiment
+2. **Extract experiments and reusable Python engines.** Keep all eight experiment
    directories and their tracked assets in the lab. Promote reusable overlap
    compositing, elliptical brush and contact brush code into an installable Python
    package in the main repo. Lab scripts import that package through compatibility
