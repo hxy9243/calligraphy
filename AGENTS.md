@@ -1,5 +1,7 @@
 # Working on Calligraphy
 
+- Start with `README.md` for setup and `spec/README.md` for component contracts,
+  design choices and source ownership. Keep specs current when behavior changes.
 - Supported JavaScript lives in `src/`; reusable Python lives in
   `python/calligraphy/`. Keep CLI and browser entry points thin.
 - Research runners, fitting studies and generated research evidence belong in
@@ -8,10 +10,11 @@
   refactors. Treat generated style studies and inferred motion as such.
 - Use the same scene/frame implementation for still and video exports. Validate
   representative partial frames as well as final images when changing rendering.
-- Run `npm test` for JavaScript changes and Python unittest discovery under
-  `tests/python` for Python changes. Shared Python changes also require relevant
-  downstream lab regressions; see the lab README.
+- Run `npm test` for JavaScript changes and
+  `.venv/bin/python -m unittest discover -s tests/python -p 'test_*.py'` for
+  Python changes after installing the package. Shared Python changes also require
+  relevant downstream lab regressions; see the lab README.
 - Do not commit local environments, caches or newly rendered outputs. Stage
   intentional files explicitly and record validation with major changes.
 
-See `docs/source-organization.md` for source ownership and promotion steps.
+See `spec/assets-and-validation.md` for promotion and validation steps.

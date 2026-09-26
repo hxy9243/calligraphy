@@ -80,7 +80,8 @@ tests/                  JavaScript and Python regressions
 docs/                   Migration, architecture and research context
 ```
 
-See [the migration plan](docs/migration-plan.md),
+Start with [the component specifications](spec/README.md) for architecture,
+interfaces and design choices. See [the migration plan](docs/migration-plan.md),
 [source organization and adding styles](docs/source-organization.md), and
 [validation results](docs/validation.md).
 
