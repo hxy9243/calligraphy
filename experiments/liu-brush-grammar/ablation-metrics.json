@@ -1,0 +1,20 @@
+[
+  {
+    "char": "月",
+    "ellipse_iou_to_corrected_geometry": 0.8209684702632348,
+    "ellipse_iou_to_reference": 0.8102904959881365,
+    "contact_iou_to_reference": 0.9670291125920729
+  },
+  {
+    "char": "千",
+    "ellipse_iou_to_corrected_geometry": 0.8494224924012158,
+    "ellipse_iou_to_reference": 0.8435146951663833,
+    "contact_iou_to_reference": 0.970625210805507
+  },
+  {
+    "char": "人",
+    "ellipse_iou_to_corrected_geometry": 0.8563300845990204,
+    "ellipse_iou_to_reference": 0.8452539612024286,
+    "contact_iou_to_reference": 0.9624415481046662
+  }
+]
