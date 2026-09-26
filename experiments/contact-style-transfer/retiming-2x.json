@@ -1,0 +1,40 @@
+[
+  {
+    "source": "Yan-Kaishu-Poem.mp4",
+    "output": "Yan-Kaishu-Poem-2x.mp4",
+    "speed": 2.0,
+    "before": {
+      "width": 1080,
+      "height": 1440,
+      "avg_frame_rate": "24/1",
+      "duration": "87.166667",
+      "nb_frames": "2092"
+    },
+    "after": {
+      "width": 1080,
+      "height": 1440,
+      "avg_frame_rate": "48/1",
+      "duration": "43.583333",
+      "nb_frames": "2092"
+    }
+  },
+  {
+    "source": "Lishu-Poem.mp4",
+    "output": "Lishu-Poem-2x.mp4",
+    "speed": 2.0,
+    "before": {
+      "width": 1080,
+      "height": 1440,
+      "avg_frame_rate": "24/1",
+      "duration": "87.166667",
+      "nb_frames": "2092"
+    },
+    "after": {
+      "width": 1080,
+      "height": 1440,
+      "avg_frame_rate": "48/1",
+      "duration": "43.583333",
+      "nb_frames": "2092"
+    }
+  }
+]
