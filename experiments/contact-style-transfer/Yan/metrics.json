@@ -1,0 +1,227 @@
+[
+  {
+    "char": "人",
+    "strokes": 2,
+    "silhouette_iou": 0.9805025996533796,
+    "ink_coverage": 0.9874909090909091,
+    "spill": 0.007165837964317052,
+    "min_stroke_iou": 0.9747734343297714,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "有",
+    "strokes": 6,
+    "silhouette_iou": 0.9749766012679464,
+    "ink_coverage": 0.9823843416370107,
+    "spill": 0.007674748818232471,
+    "min_stroke_iou": 0.9447674418604651,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "悲",
+    "strokes": 12,
+    "silhouette_iou": 0.9709579032041828,
+    "ink_coverage": 0.9786662612749569,
+    "spill": 0.00804670513105857,
+    "min_stroke_iou": 0.9482852476864453,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "歡",
+    "strokes": 22,
+    "silhouette_iou": 0.967096054007123,
+    "ink_coverage": 0.9794175175408689,
+    "spill": 0.012841381805028034,
+    "min_stroke_iou": 0.9238410596026491,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "離",
+    "strokes": 18,
+    "silhouette_iou": 0.9678065722682341,
+    "ink_coverage": 0.9810692232694183,
+    "spill": 0.013775829680651221,
+    "min_stroke_iou": 0.9175108538350217,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "合",
+    "strokes": 6,
+    "silhouette_iou": 0.9752848131061105,
+    "ink_coverage": 0.982337182010005,
+    "spill": 0.007307314502024486,
+    "min_stroke_iou": 0.965161923454367,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "月",
+    "strokes": 4,
+    "silhouette_iou": 0.9773094103074209,
+    "ink_coverage": 0.9841434835198065,
+    "spill": 0.007055279064889499,
+    "min_stroke_iou": 0.9550802139037433,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "陰",
+    "strokes": 10,
+    "silhouette_iou": 0.9587283425956195,
+    "ink_coverage": 0.9685755804352851,
+    "spill": 0.01049310862560521,
+    "min_stroke_iou": 0.881148344111307,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "晴",
+    "strokes": 12,
+    "silhouette_iou": 0.9716163141993958,
+    "ink_coverage": 0.9801145887300765,
+    "spill": 0.008845057400416056,
+    "min_stroke_iou": 0.9453125,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "圓",
+    "strokes": 13,
+    "silhouette_iou": 0.9726773888363293,
+    "ink_coverage": 0.9814176074533213,
+    "spill": 0.009072800873867507,
+    "min_stroke_iou": 0.9304577464788732,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "缺",
+    "strokes": 10,
+    "silhouette_iou": 0.973864852014739,
+    "ink_coverage": 0.9818887257692422,
+    "spill": 0.008321355624479915,
+    "min_stroke_iou": 0.9576066541454252,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "此",
+    "strokes": 6,
+    "silhouette_iou": 0.9792058460050508,
+    "ink_coverage": 0.9850810810810811,
+    "spill": 0.006053995091355332,
+    "min_stroke_iou": 0.9711841512832058,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "事",
+    "strokes": 8,
+    "silhouette_iou": 0.9725644787781293,
+    "ink_coverage": 0.9809399850230004,
+    "spill": 0.008702702702702703,
+    "min_stroke_iou": 0.9557779212395093,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "古",
+    "strokes": 5,
+    "silhouette_iou": 0.9806808688387636,
+    "ink_coverage": 0.9880929416922403,
+    "spill": 0.007591102030751889,
+    "min_stroke_iou": 0.9722345296115787,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "難",
+    "strokes": 19,
+    "silhouette_iou": 0.9712586998788357,
+    "ink_coverage": 0.9819248792855413,
+    "spill": 0.011060264815160165,
+    "min_stroke_iou": 0.7628524046434494,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "全",
+    "strokes": 6,
+    "silhouette_iou": 0.9759613290946305,
+    "ink_coverage": 0.982615367751836,
+    "spill": 0.006890745131057098,
+    "min_stroke_iou": 0.9579207920792079,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "但",
+    "strokes": 7,
+    "silhouette_iou": 0.9745076694705591,
+    "ink_coverage": 0.9818925117160235,
+    "spill": 0.007658665376786182,
+    "min_stroke_iou": 0.9622641509433962,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "願",
+    "strokes": 19,
+    "silhouette_iou": 0.9718990417060333,
+    "ink_coverage": 0.9810086918612572,
+    "spill": 0.00946406954990646,
+    "min_stroke_iou": 0.946969696969697,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "長",
+    "strokes": 8,
+    "silhouette_iou": 0.972478224728035,
+    "ink_coverage": 0.9817030902258382,
+    "spill": 0.009570258581025122,
+    "min_stroke_iou": 0.9515746698272943,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "久",
+    "strokes": 3,
+    "silhouette_iou": 0.9763687293099058,
+    "ink_coverage": 0.9850477854280135,
+    "spill": 0.008943341604631927,
+    "min_stroke_iou": 0.9706731585800826,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "千",
+    "strokes": 3,
+    "silhouette_iou": 0.9766468110560028,
+    "ink_coverage": 0.9840783525866399,
+    "spill": 0.0076730228671275545,
+    "min_stroke_iou": 0.9639377635596917,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "里",
+    "strokes": 7,
+    "silhouette_iou": 0.9793127828054299,
+    "ink_coverage": 0.9870731429222963,
+    "spill": 0.00796413275464455,
+    "min_stroke_iou": 0.9565864549739519,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "共",
+    "strokes": 6,
+    "silhouette_iou": 0.9766711693621992,
+    "ink_coverage": 0.9834751760013235,
+    "spill": 0.007033758328229683,
+    "min_stroke_iou": 0.9683139057626006,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "嬋",
+    "strokes": 15,
+    "silhouette_iou": 0.971685243719847,
+    "ink_coverage": 0.980559379511802,
+    "spill": 0.00922784638349844,
+    "min_stroke_iou": 0.9428055388320289,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "娟",
+    "strokes": 10,
+    "silhouette_iou": 0.9748356043658057,
+    "ink_coverage": 0.9828444104218498,
+    "spill": 0.008289655172413793,
+    "min_stroke_iou": 0.9595674659144334,
+    "no_new_ink_strokes": []
+  }
+]

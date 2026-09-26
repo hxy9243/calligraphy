@@ -1,0 +1,35 @@
+{
+  "Yan": {
+    "unique_characters": 25,
+    "unique_strokes": 237,
+    "poem_characters": 27,
+    "poem_strokes": 245,
+    "mean_silhouette_iou": 0.9737958940231881,
+    "min_silhouette_iou": 0.9587283425956195,
+    "mean_ink_coverage": 0.9821536886495857,
+    "weak_decompositions": [
+      "難"
+    ],
+    "monotonic_replay_passed": true,
+    "no_new_ink_strokes": []
+  },
+  "Lishu": {
+    "unique_characters": 25,
+    "unique_strokes": 237,
+    "poem_characters": 27,
+    "poem_strokes": 245,
+    "mean_silhouette_iou": 0.9636463094883502,
+    "min_silhouette_iou": 0.9338215549859636,
+    "mean_ink_coverage": 0.9746220270202819,
+    "weak_decompositions": [
+      "歡",
+      "離",
+      "陰",
+      "圓",
+      "難",
+      "長"
+    ],
+    "monotonic_replay_passed": true,
+    "no_new_ink_strokes": []
+  }
+}
