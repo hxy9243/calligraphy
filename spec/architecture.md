@@ -3,8 +3,9 @@
 ## Scope
 
 Calligraphy supplies reusable rendering code and working demonstrations. It can
-export images and videos from two fixed JavaScript scenes and exposes three
-Python stroke representations. It does not yet offer arbitrary-text layout for
+export images and videos from generic Han-text template scenes and two preserved
+fixed JavaScript scenes, and exposes three Python stroke representations. It does
+not yet offer arbitrary-text style synthesis for
 all styles, authenticated historical motion, or physical bristle simulation.
 
 ## Dependency direction
@@ -27,6 +28,7 @@ main never reaches into experiment directories for code or configuration.
 | Component | Responsibility | Boundary |
 | --- | --- | --- |
 | `src/geometry.mjs` | Polyline distance and partial traces | No scene layout or I/O |
+| `src/text/` | Text policy, glyph preparation, layout and writing plans | Network is explicit during preparation; plans contain no glyph geometry |
 | `src/scenes/` | Timing, composition and SVG frame generation | No video processes or output files |
 | `src/export/` | Rasterization, file writing and encoding | Receives a frame function; does not invent strokes |
 | `scripts/` | Environment options and CLI invocation | Keep rendering algorithms out of wrappers |
@@ -40,7 +42,8 @@ main never reaches into experiment directories for code or configuration.
 SVG template reveals; Python handles raster layers and geometric deposition.
 Their actual input models differ. Sharing algorithms within each backend removes
 duplication without forcing an artificial universal writing-plan format.
-A cross-backend schema is future work, not an existing API.
+The [generic text plan](generic-text.md) now shares page placement and stroke-count
+timing without prescribing geometry. Python brush adapters are still future work.
 
 **Separate frame generation from output.** A scene can be previewed, exported as
 an image or sampled for video using the same geometry. Encoding changes should

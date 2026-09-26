@@ -8,6 +8,7 @@ public behavior, representations or dependency boundaries.
 Read in order:
 
 1. [From text to an image or writing video](text-to-render.md)
+   — then [Generic text API and writing-plan contract](generic-text.md) for new inputs.
 2. [Architecture and component ownership](architecture.md)
 3. [JavaScript scenes and export](scenes-and-export.md)
 4. [Python stroke and brush engines](python-engines.md)

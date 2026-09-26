@@ -1,9 +1,12 @@
 # From text to an image or writing video
 
-This walkthrough describes the implemented pipeline. There is currently no
-single `render(text, style)` API. The main JavaScript scenes have fixed text and
-layout; the Python lab studies use prepared, style-specific glyph geometry.
-Both need more than a Unicode string to draw believable ordered strokes.
+The new [generic text API](generic-text.md) accepts text and builds layout and
+timing automatically: `createTextScene({text, glyphs, layout, timing})`, or
+`npm run render:text -- --text "明月松间照" --output outputs/text.png`.
+Glyph data still determines the shapes; the Python lab studies use prepared,
+style-specific geometry. Both need more than a Unicode string to draw ordered
+strokes. The worked example below describes the preserved fixed poem demo;
+its timing and placement rules are not the generic API's defaults.
 
 ## 1. Text identifies the glyphs we need
 
@@ -155,9 +158,13 @@ Other studies use raster overlap layers or elliptical brush footprints; see
 consecutive stages that every render passes through. New text needs prepared
 geometry for every required character; a style name alone cannot supply it.
 
-## What changing the input requires today
+## Changing the input
 
-For the JavaScript path, prepare records for the exact characters, update the
+For the generic JavaScript path, supply new text to the API/CLI and provide or
+explicitly fetch any missing glyphs. It handles layout, wrapping and timing.
+See [the generic spec](generic-text.md) for punctuation and page-size policies.
+
+For the two legacy demos only, prepare records for the exact characters, update the
 scene's `LINES` and imported dictionary, and adjust placement, labels and counters
 to the new content. The current counter is fixed at ten characters. Fetch into
 a separate output file when experimenting to avoid replacing the supported data.
@@ -167,7 +174,6 @@ For a Python style study, also supply appropriate reference glyphs or authored
 brush controls, rerun the study's preparation and review its inferred strokes.
 Existing input-specific controls do not generalize automatically to new glyphs.
 
-A future general text-input feature would need an explicit text/style API,
-punctuation and missing-glyph policies, adaptable layout, and a defined way to
-obtain style-specific geometry for unseen characters. Those are future design
-requirements, not functionality provided by this documentation change.
+The generic template feature now supplies an explicit API, punctuation and
+missing-glyph policies, and adaptable layout. Obtaining new style-specific brush
+geometry and integrating Python brush adapters remain separate future work.
