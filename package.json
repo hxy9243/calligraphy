@@ -1,13 +1,29 @@
 {
-  "name": "yong-brush-animation",
+  "name": "calligraphy-engine",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "files": [
+    "ARPHICPL.TXT",
+    "assets/data/",
+    "assets/presets/",
+    "src/"
+  ],
+  "exports": {
+    ".": "./src/index.mjs",
+    "./geometry": "./src/geometry.mjs",
+    "./scenes/yong": "./src/scenes/yong.mjs",
+    "./scenes/poem": "./src/scenes/poem.mjs"
+  },
   "scripts": {
     "serve": "python3 -m http.server 8000",
-    "render": "node scripts/render-video.mjs",
-    "render:poem": "node scripts/render-poem.mjs",
-    "fetch:characters": "node scripts/fetch-characters.mjs"
+    "render": "npm run render:video:yong",
+    "render:poem": "npm run render:video:poem",
+    "render:video:yong": "node scripts/render-video.mjs",
+    "render:video:poem": "node scripts/render-poem.mjs",
+    "render:still": "node scripts/render-still.mjs",
+    "fetch:characters": "node scripts/fetch-characters.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "sharp": "^0.34.3"

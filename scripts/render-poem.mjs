@@ -1,38 +1,27 @@
-import sharp from 'sharp';
-import { spawn } from 'node:child_process';
-import { poemFrameSVG, DURATION } from '../src/poem-animation.mjs';
-import styleMeasurements from '../experiments/style-transfer/diagnostics.json' with { type: 'json' };
+import { encodeVideo } from '../src/export/video.mjs';
+import { positiveInteger, positiveNumber } from '../src/export/config.mjs';
+import { getScene, sceneOptions } from '../src/scenes/index.mjs';
 
-const fps = Number(process.env.FPS || 24);
-const width = Number(process.env.WIDTH || 720);
+const scene = getScene('poem');
+const fps = positiveInteger(process.env.FPS || 24, 'FPS');
+const width = positiveInteger(process.env.WIDTH || 720, 'WIDTH', { minimum: 240, even: true });
+const height = Math.round(width * 16 / 9);
+const speed = positiveNumber(process.env.SPEED || 1, 'SPEED', { maximum: 10 });
 const output = process.env.OUTPUT || 'poem-animation.mp4';
-const speed = Number(process.env.SPEED || 1);
-const yan = process.env.STYLE === 'yan';
-const options = { yan, speed, expansion: yan ? styleMeasurements.width_offset_px * 4 : 0 };
-if (!Number.isFinite(speed) || speed <= 0 || speed > 10) throw new Error('SPEED must be in (0, 10]');
-if (!Number.isInteger(fps) || fps < 1 || !Number.isInteger(width) || width < 240 || width % 2) {
-  throw new Error('FPS must be positive; WIDTH must be an even integer >= 240');
-}
-const ffmpeg = spawn('ffmpeg', [
-  '-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'png',
-  '-framerate', String(fps), '-i', 'pipe:0', '-an', '-c:v', 'libx264',
-  '-pix_fmt', 'yuv420p', '-crf', '19', '-movflags', '+faststart', output,
-], { stdio: ['pipe', 'inherit', 'inherit'] });
-const exit = new Promise((resolve, reject) => {
-  ffmpeg.on('error', reject);
-  ffmpeg.on('close', code => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+const options = sceneOptions({ style: process.env.STYLE, speed });
+
+await encodeVideo({
+  ...scene,
+  fps,
+  width,
+  height,
+  speed,
+  output,
+  options,
+  crf: 19,
+  ffmpegPath: process.env.FFMPEG || 'ffmpeg',
+  onProgress({ index, elapsed, duration }) {
+    if (index % fps === 0) process.stdout.write(`\rRendering ${elapsed} / ${duration.toFixed(1)} s`);
+  },
 });
-try {
-  for (let i = 0; i < Math.ceil(DURATION * fps / speed); i++) {
-    const svg = poemFrameSVG(i / fps * speed, options);
-    const png = await sharp(Buffer.from(svg)).resize(width, Math.round(width * 16 / 9)).png().toBuffer();
-    if (!ffmpeg.stdin.write(png)) await new Promise(resolve => ffmpeg.stdin.once('drain', resolve));
-    if (i % fps === 0) process.stdout.write(`\rRendering ${i / fps} / ${(DURATION / speed).toFixed(1)} s`);
-  }
-  ffmpeg.stdin.end();
-  await exit;
-  console.log(`\nWrote ${output}`);
-} catch (error) {
-  ffmpeg.stdin.destroy();
-  throw error;
-}
+console.log(`\nWrote ${output}`);

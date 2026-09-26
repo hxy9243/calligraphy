@@ -1,0 +1,16 @@
+{
+  "relative_ink_density": 1.298,
+  "width_offset_px": 4.12,
+  "target_ink_fraction": 0.176,
+  "achieved_ink_fraction": 0.176,
+  "source": "Yan Zhenqing \u66f8 scan",
+  "target": "\u6c38",
+  "target_stroke_count": 5,
+  "source_ink_fraction": 0.237,
+  "method": "stroke outlines + global width + rough edge + source ink-tone stats",
+  "provenance": {
+    "promoted_from": "experiments/style-transfer/diagnostics.json",
+    "baseline_commit": "94ccee4",
+    "classification": "measured preset from an experimental Yan Zhenqing-inspired style study"
+  }
+}

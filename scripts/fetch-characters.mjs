@@ -1,7 +1,10 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Fetch only the characters required by a given text, never the full corpus.
-const [text, destination = 'data/poem-characters.json'] = process.argv.slice(2);
+const [text, destinationArgument] = process.argv.slice(2);
+const destination = destinationArgument || fileURLToPath(new URL('../assets/data/poem-characters.json', import.meta.url));
 if (!text) {
   console.error('Usage: node scripts/fetch-characters.mjs "明月松间照清泉石上流" [output.json]');
   process.exit(1);
@@ -17,5 +20,6 @@ const entries = await Promise.all(chars.map(async char => {
   }
   return [char, data];
 }));
+await mkdir(dirname(destination), { recursive: true });
 await writeFile(destination, JSON.stringify(Object.fromEntries(entries), null, 2) + '\n');
 console.log(`Wrote ${entries.length} characters to ${destination}`);
