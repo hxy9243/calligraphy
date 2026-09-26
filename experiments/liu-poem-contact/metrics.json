@@ -1,0 +1,177 @@
+[
+  {
+    "char": "人",
+    "method": "manual contacts",
+    "strokes": 2,
+    "silhouette_iou": 0.9624415481046662,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "有",
+    "method": "automatic contour contacts",
+    "strokes": 6,
+    "silhouette_iou": 0.9703801478352693,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "悲",
+    "method": "automatic contour contacts",
+    "strokes": 12,
+    "silhouette_iou": 0.9688553722774081,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "歡",
+    "method": "automatic contour contacts",
+    "strokes": 22,
+    "silhouette_iou": 0.9642152719075796,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "離",
+    "method": "automatic contour contacts",
+    "strokes": 18,
+    "silhouette_iou": 0.9688664731725112,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "合",
+    "method": "automatic contour contacts",
+    "strokes": 6,
+    "silhouette_iou": 0.9725455956538611,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "月",
+    "method": "manual contacts",
+    "strokes": 4,
+    "silhouette_iou": 0.9670291125920729,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "陰",
+    "method": "automatic contour contacts",
+    "strokes": 10,
+    "silhouette_iou": 0.9524901215238948,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "晴",
+    "method": "automatic contour contacts",
+    "strokes": 12,
+    "silhouette_iou": 0.9676288749564612,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "圓",
+    "method": "automatic contour contacts",
+    "strokes": 13,
+    "silhouette_iou": 0.9697514775522191,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "缺",
+    "method": "automatic contour contacts",
+    "strokes": 10,
+    "silhouette_iou": 0.9705191496138228,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "此",
+    "method": "automatic contour contacts",
+    "strokes": 6,
+    "silhouette_iou": 0.9760304460072999,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "事",
+    "method": "automatic contour contacts",
+    "strokes": 8,
+    "silhouette_iou": 0.9705985791657874,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "古",
+    "method": "automatic contour contacts",
+    "strokes": 5,
+    "silhouette_iou": 0.9786397936305118,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "難",
+    "method": "automatic contour contacts",
+    "strokes": 19,
+    "silhouette_iou": 0.9646079457654155,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "全",
+    "method": "automatic contour contacts",
+    "strokes": 6,
+    "silhouette_iou": 0.9738678168210072,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "但",
+    "method": "automatic contour contacts",
+    "strokes": 7,
+    "silhouette_iou": 0.9708916011009481,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "願",
+    "method": "automatic contour contacts",
+    "strokes": 19,
+    "silhouette_iou": 0.966010829357208,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "長",
+    "method": "automatic contour contacts",
+    "strokes": 8,
+    "silhouette_iou": 0.9706076462546551,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "久",
+    "method": "automatic contour contacts",
+    "strokes": 3,
+    "silhouette_iou": 0.9748872488724887,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "千",
+    "method": "manual contacts",
+    "strokes": 3,
+    "silhouette_iou": 0.970625210805507,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "里",
+    "method": "automatic contour contacts",
+    "strokes": 7,
+    "silhouette_iou": 0.9782105828410922,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "共",
+    "method": "automatic contour contacts",
+    "strokes": 6,
+    "silhouette_iou": 0.9766677248197361,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "嬋",
+    "method": "automatic contour contacts",
+    "strokes": 15,
+    "silhouette_iou": 0.9660924790117013,
+    "no_new_ink_strokes": []
+  },
+  {
+    "char": "娟",
+    "method": "automatic contour contacts",
+    "strokes": 10,
+    "silhouette_iou": 0.974483032873807,
+    "no_new_ink_strokes": []
+  }
+]
