@@ -20,14 +20,26 @@ async function invoke(style, { request, pythonPath, prepare = false, list = fals
     if (prepare) args.push('--prepare');
     else if (!request && !list) args.push('--describe');
     const child = spawn(python, args, { stdio: ['pipe', 'pipe', 'pipe'] });
-    let stdout = '', stderr = '', inputError;
+    let stdout = '', stderr = '', progressBuffer = '', inputError;
     child.stdout.on('data', chunk => { stdout += chunk; });
-    child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-16384); if (prepare) process.stderr.write(chunk); });
+    child.stderr.on('data', chunk => {
+      stderr = (stderr + chunk).slice(-16384);
+      if (prepare) {
+        progressBuffer += chunk;
+        const lines = progressBuffer.split('\n');
+        progressBuffer = lines.pop();
+        // Stream progress once; report errors once when the process exits.
+        for (const line of lines) if (line.startsWith('Prepared ')) process.stderr.write(`${line}\n`);
+      }
+    });
     child.stdin.on('error', error => { inputError = error; });
     child.once('error', error => reject(new Error(`Cannot start contact renderer (${python}): ${error.message}. Install the Python package and set CALLIGRAPHY_PYTHON if needed.`)));
     child.once('close', code => {
       if (code !== 0) {
-        reject(new Error(`Contact renderer exited ${code}: ${stderr.trim() || inputError?.message || 'no diagnostic'}. Use a Python environment with calligraphy-engine installed.`));
+        const detail = stderr.trim().split(/\r?\n/).at(-1) || inputError?.message || 'no diagnostic';
+        const hint = /ModuleNotFoundError:|No module named/.test(stderr)
+          ? ' Use a Python environment with calligraphy-engine and its dependencies installed.' : '';
+        reject(new Error(`Contact renderer exited ${code}: ${detail}${hint}`));
       } else {
         try { resolve(JSON.parse(stdout)); } catch { reject(new Error('Contact renderer returned invalid JSON')); }
       }

@@ -168,8 +168,11 @@ def fit_glyph(character, target, glyph):
     strokes, scores, contributions = [], [], []
     ink = np.zeros_like(target)
     for index, (layer, progress) in enumerate(zip(layers, phases)):
-        stroke = fit_layer(layer, progress, f'{character} stroke {index + 1}')
-        mask = complete_stroke(stroke)
+        try:
+            stroke = fit_layer(layer, progress, f'{character} stroke {index + 1}')
+            mask = complete_stroke(stroke)
+        except ValueError as error:
+            raise ValueError(f'Cannot fit {character} stroke {index + 1}: {error}') from error
         after = np.maximum(ink, mask)
         contributions.append(float((after - ink).sum()))
         scores.append(iou(mask, layer))

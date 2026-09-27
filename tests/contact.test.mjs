@@ -46,3 +46,22 @@ test('generic CLI routes prepared styles, rejects missing glyphs and never falls
 test('contact bridge rejects an unavailable Python executable cleanly', async () => {
   await assert.rejects(describeContactStyle('lishu', { pythonPath: '/definitely/missing/python' }), /Cannot start contact renderer/);
 });
+
+test('bridge reports geometry errors once without irrelevant installation advice', { skip }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'calligraphy-contact-errors-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const { writeFile } = await import('node:fs/promises');
+  // Simulate a preparation process whose progress and error arrive together.
+  const fakePython = join(dir, 'python');
+  await writeFile(fakePython, '#!/bin/sh\nprintf "Prepared 兩: 8 strokes\\nContact render failed: Cannot fit 聲 stroke 4: invalid contacts\\n" >&2\nexit 1\n', { mode: 0o755 });
+  const runner = join(dir, 'runner.mjs');
+  const bridge = new URL('../src/bridges/contact.mjs', import.meta.url).href;
+  await writeFile(runner, `import { prepareFontStyle } from ${JSON.stringify(bridge)};\ntry { await prepareFontStyle({style: 'test font', glyphs: {}, pythonPath: ${JSON.stringify(fakePython)}}); } catch(error) { console.error(error.message); process.exitCode = 1; }`);
+  const result = spawnSync(process.execPath, [runner], { encoding: 'utf8' });
+  assert.equal(result.status, 1);
+  assert.equal((result.stderr.match(/Prepared 兩/g) || []).length, 1);
+  assert.equal((result.stderr.match(/Cannot fit 聲 stroke 4/g) || []).length, 1);
+  assert.doesNotMatch(result.stderr, /Python environment|installed/);
+  await writeFile(fakePython, '#!/bin/sh\nprintf "ModuleNotFoundError: No module named calligraphy\\n" >&2\nexit 1\n', { mode: 0o755 });
+  await assert.rejects(describeContactStyle('lishu', { pythonPath: fakePython }), /Python environment with calligraphy-engine/);
+});

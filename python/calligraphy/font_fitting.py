@@ -189,7 +189,13 @@ def simplify_pairs(p,tol=.7):
   d=np.linalg.norm(flat[a+1:b]-flat[a]-u[:,None]*v,axis=1);k=a+1+d.argmax()
   if d.max()<=tol:return [a,b]
   return split(a,k)[:-1]+split(k,b)
- return p[split(0,len(p)-1)]
+ indices=split(0,len(p)-1)
+ # RDP may reduce a small straight component to just its endpoints. Contact
+ # interpolation needs at least three stations; retain an original interior
+ # pair instead of dropping the component or inventing new boundary geometry.
+ if len(indices)<3 and len(p)>=3:
+  indices=[0,len(p)//2,len(p)-1]
+ return p[indices]
 
 def contacts_from_layer(layer,guide,name):
  mask=np.uint8(gaussian_filter(layer,.65)>.45)
