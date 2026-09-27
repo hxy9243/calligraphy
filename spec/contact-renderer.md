@@ -5,7 +5,11 @@
 The main repository packages the latest contact-strip style-transfer results
 from lab revision `cc67163` (full revision and checksums are in the asset manifest).
 The existing `ContactBrush` algorithm is unchanged. Prepared geometry is copied
-byte for byte; fitting tools and reference images remain in the lab.
+byte for byte; fitting tools and reference images remain in the lab. These three
+reference styles were generated artwork, not font glyphs or historical scans.
+For Lishu, `contact-style-transfer/prompts.json` records an AI-generated reference
+sheet inspired by the Cao Quan stele. The silhouette scores below therefore
+measure reconstruction of that generated reference.
 
 | CLI style | Recorded mean silhouette IoU | Minimum |
 | --- | ---: | ---: |
@@ -104,3 +108,18 @@ it does not certify stylistic authenticity or inferred writing trajectories.
 Generated smoke outputs and the full 75-glyph score comparison are local ignored
 artifacts under `outputs/`, not package inputs. Existing notebook/animation work
 was neither changed nor included in the promotion commit.
+
+## Font-based expansion experiment
+
+The lab's `experiments/lishu-font/` now supplies a reproducible starting point:
+Wang Hanzong's HanWangLiSuMedium (王漢宗中隸書繁), version 1.3, downloaded
+from the Wang fonts project archive with its GPL-2.0-or-later notice and checksums.
+The font exposes 13,068 mapped CJK code points in the checked ranges. The first
+19-character target set includes 18 characters outside the existing Lishu bank.
+
+Font-derived silhouettes supply consistent final shapes, but not ordered brush
+strokes. The lab still needs to register stroke guides, decompose overlaps, fit
+contact strips, and validate partial and final frames before promoting these
+characters. Keep the font-derived style separate from the generated-reference
+`lishu` bank. No additional characters or font-based style are enabled in the main
+CLI by this preparation experiment.
