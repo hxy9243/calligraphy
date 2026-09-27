@@ -113,7 +113,9 @@ scene time. Video uses the existing encoder and requires even dimensions.
 Template styles are `kai` and `yan`; the latter reuses the measured width offset
 from the supported preset. The CLI also accepts `lishu`, `liu` and `yan-contact`
 using packaged prepared geometry through Python. Contact styles accept PNG/MP4
-only and reject `--fetch` and `--glyphs`. Punctuation decisions are printed by the CLI, not hidden.
+only. These three fixed banks reject `--fetch` and `--glyphs`. Registered font
+styles such as `lishu hanwang` accept those flags to prepare missing characters
+through the [font pipeline](font-preparation.md). Punctuation decisions are printed by the CLI, not hidden.
 
 ## Validation and remaining limits
 

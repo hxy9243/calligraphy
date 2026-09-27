@@ -13,7 +13,8 @@ Read in order:
 3. [JavaScript scenes and export](scenes-and-export.md)
 4. [Python stroke and brush engines](python-engines.md)
 5. [Promoted contact renderer](contact-renderer.md)
-6. [Assets, experiments and validation](assets-and-validation.md)
+6. [Downloaded fonts to animation](font-preparation.md)
+7. [Assets, experiments and validation](assets-and-validation.md)
 
 For runnable setup commands, start with the [repository README](../README.md).
 For historical context, see the [migration plan](../docs/migration-plan.md) and

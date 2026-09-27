@@ -30,6 +30,7 @@ main never reaches into experiment directories for code or configuration.
 | `src/geometry.mjs` | Polyline distance and partial traces | No scene layout or I/O |
 | `src/text/` | Text policy, glyph preparation, layout and writing plans | Network is explicit during preparation; plans contain no glyph geometry |
 | `src/scenes/` | Timing, composition and SVG frame generation | No video processes or output files |
+| `src/bridges/` | Node-to-Python rendering and font preparation | JSON requests; no lab imports |
 | `src/export/` | Rasterization, file writing and encoding | Receives a frame function; does not invent strokes |
 | `scripts/` | Environment options and CLI invocation | Keep rendering algorithms out of wrappers |
 | `examples/` | Browser playback and seeking | Reuse scene modules |
@@ -45,7 +46,8 @@ duplication without forcing an artificial universal writing-plan format.
 The [generic text plan](generic-text.md) now shares page placement and stroke-count
 timing without prescribing geometry. The Node bridge in `src/bridges/contact.mjs`
 passes this plan over JSON to `calligraphy.contact_renderer`, which loads
-packaged contact banks and exports raster frames. See [contact rendering](contact-renderer.md).
+packaged or locally registered contact banks and exports raster frames. The
+[font pipeline](font-preparation.md) prepares new banks from downloaded fonts. See [contact rendering](contact-renderer.md).
 
 **Separate frame generation from output.** A scene can be previewed, exported as
 an image or sampled for video using the same geometry. Encoding changes should

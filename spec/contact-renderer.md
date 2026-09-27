@@ -118,8 +118,7 @@ The font exposes 13,068 mapped CJK code points in the checked ranges. The first
 19-character target set includes 18 characters outside the existing Lishu bank.
 
 Font-derived silhouettes supply consistent final shapes, but not ordered brush
-strokes. The lab still needs to register stroke guides, decompose overlaps, fit
-contact strips, and validate partial and final frames before promoting these
-characters. Keep the font-derived style separate from the generated-reference
-`lishu` bank. No additional characters or font-based style are enabled in the main
-CLI by this preparation experiment.
+strokes. The implemented [font preparation pipeline](font-preparation.md) now registers
+`lishu hanwang`, fits contact geometry, and extends its local bank on explicit
+preparation requests. It stays separate from the generated-reference `lishu`
+bank. Font registrations are local user data, not additional bundled glyph banks.

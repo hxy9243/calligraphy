@@ -179,3 +179,7 @@ missing-glyph policies, and adaptable layout. Obtaining new style-specific brush
 geometry remains separate preparation work. The main CLI now integrates the
 prepared contact renderer for `lishu`, `liu` and `yan-contact`; see
 [its pipeline and coverage](contact-renderer.md).
+
+Downloaded fonts can now supply new character silhouettes to the
+[font preparation pipeline](font-preparation.md), which infers ordered contact
+strokes and registers a separately named style such as `lishu hanwang`.

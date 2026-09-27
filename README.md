@@ -49,6 +49,21 @@ scene for the existing exporters. `createTextPlan()` exposes the geometry-indepe
 layout/timing contract shared by template and contact-brush adapters. See the
 [generic text API specification](spec/generic-text.md) for examples and limits.
 
+## Animate a downloaded font
+
+The registered **`lishu hanwang`** style uses HanWangLiSuMedium. After its one-time
+registration, prepare additional characters explicitly while rendering:
+
+```sh
+npm run render:text -- --list-styles
+npm run render:text -- --style "lishu hanwang" --text "春江花月夜" --fetch --output outputs/hanwang.mp4
+```
+
+The pipeline fits ordered contact strokes to the font's shapes and caches them;
+subsequent renders are offline. It requires the Python engine and a font
+registration on this machine. See [font preparation](spec/font-preparation.md)
+for the HanWang setup command, registering other fonts, and quality limits.
+
 ## Run the browser examples
 
 Requires Node.js 22.12+ (or a current Node.js 24 release), npm and Python 3.
