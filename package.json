@@ -25,7 +25,8 @@
     "render:still": "node scripts/render-still.mjs",
     "fetch:characters": "node scripts/fetch-characters.mjs",
     "test": "node --test tests/*.test.mjs",
-    "render:text": "node scripts/render-text.mjs"
+    "render:text": "node scripts/render-text.mjs",
+    "prepare:font": "node scripts/prepare-font.mjs"
   },
   "dependencies": {
     "sharp": "^0.34.3"

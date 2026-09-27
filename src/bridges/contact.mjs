@@ -10,16 +10,19 @@ async function pythonExecutable(override) {
   try { await access(local); return local; } catch { return 'python3'; }
 }
 
-async function invoke(style, { request, pythonPath } = {}) {
-  if (!CONTACT_STYLES.includes(style)) throw new TypeError(`Unknown contact style: ${style}`);
+async function invoke(style, { request, pythonPath, prepare = false, list = false } = {}) {
+  if (!list && (typeof style !== 'string' || !/^[a-z][a-z0-9 -]{0,79}$/.test(style))) throw new TypeError(`Invalid contact style: ${style}`);
   const python = await pythonExecutable(pythonPath);
   return new Promise((resolve, reject) => {
-    const args = ['-m', 'calligraphy.contact_renderer', '--style', style];
-    if (!request) args.push('--describe');
+    const args = ['-m', 'calligraphy.contact_renderer'];
+    if (list) args.push('--list');
+    else args.push('--style', style);
+    if (prepare) args.push('--prepare');
+    else if (!request && !list) args.push('--describe');
     const child = spawn(python, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '', stderr = '', inputError;
     child.stdout.on('data', chunk => { stdout += chunk; });
-    child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-16384); });
+    child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-16384); if (prepare) process.stderr.write(chunk); });
     child.stdin.on('error', error => { inputError = error; });
     child.once('error', error => reject(new Error(`Cannot start contact renderer (${python}): ${error.message}. Install the Python package and set CALLIGRAPHY_PYTHON if needed.`)));
     child.once('close', code => {
@@ -39,4 +42,12 @@ export function describeContactStyle(style, options = {}) {
 
 export function renderContactStyle({ style, plan, output, time, fps = 24, speed = 1, ffmpeg = process.env.FFMPEG || 'ffmpeg', pythonPath }) {
   return invoke(style, { pythonPath, request: { plan, output, time, fps, speed, ffmpeg } });
+}
+
+export function prepareFontStyle({ style, glyphs, fontPath, licensePath, source, pythonPath }) {
+  return invoke(style, { pythonPath, prepare: true, request: { glyphs, fontPath, licensePath, source } });
+}
+
+export function listContactStyles(options = {}) {
+  return invoke(undefined, { ...options, list: true });
 }

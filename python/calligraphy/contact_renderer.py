@@ -15,7 +15,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-from .brush_grammar import ContactBrush, complete
+from .contact_stroke import ContactStroke, complete_stroke
 
 
 PAPER = (249, 246, 238)
@@ -30,7 +30,8 @@ def style_manifest():
 def load_style(style):
     manifest = style_manifest()
     if style not in manifest['styles']:
-        raise ValueError(f'Unknown contact style {style!r}; choose {", ".join(manifest["styles"])}')
+        from .font_pipeline import load_bank
+        return load_bank(style)['glyphs']
     entry = manifest['styles'][style]
     raw = files('calligraphy').joinpath('assets/contact', entry['file']).read_bytes()
     if hashlib.sha256(raw).hexdigest() != entry['sha256']:
@@ -93,13 +94,13 @@ class ContactScene:
         if character not in self._complete:
             mask = np.zeros((SIZE, SIZE), np.float32)
             for stroke in self.glyphs[character]:
-                mask = np.maximum(mask, complete(stroke))
+                mask = np.maximum(mask, complete_stroke(stroke))
             self._complete[character] = mask
         return self._complete[character].copy()
 
     def _partial(self, index, entry, time):
         if self._active is None or self._active['index'] != index:
-            self._active = {'index': index, 'painters': [ContactBrush(s) for s in self.glyphs[entry['character']]],
+            self._active = {'index': index, 'painters': [ContactStroke(s) for s in self.glyphs[entry['character']]],
                             'ink': np.zeros((SIZE, SIZE), np.float32), 'finished': set()}
         active = self._active
         elapsed = (time - entry['start']) / self.plan['strokeSeconds']
@@ -191,13 +192,37 @@ def export_video(scene, output, fps=24, speed=1, ffmpeg='ffmpeg'):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--style', required=True, choices=tuple(style_manifest()['styles']))
+    parser.add_argument('--style')
+    parser.add_argument('--list', action='store_true')
+    parser.add_argument('--prepare', action='store_true')
     parser.add_argument('--describe', action='store_true')
     args = parser.parse_args()
+    if args.list:
+        from .font_pipeline import registered_styles
+        builtins = [{'style': name, 'prepared': len(load_style(name)), 'preparable': False} for name in style_manifest()['styles']]
+        print(json.dumps(builtins + registered_styles(), ensure_ascii=False))
+        return
+    if not args.style:
+        parser.error('--style is required except with --list')
+    if args.prepare:
+        from .font_pipeline import prepare_style
+        request = json.load(sys.stdin)
+        result = prepare_style(args.style, request['glyphs'], request.get('fontPath'), request.get('licensePath'), request.get('source'))
+        print(json.dumps(result, ensure_ascii=False))
+        return
     glyphs = load_style(args.style)
     if args.describe:
+        sources = style_manifest()['styles']
+        if args.style in sources:
+            source = sources[args.style]
+            preparable = False
+        else:
+            from .font_pipeline import load_bank
+            bank = load_bank(args.style)
+            source = {**bank['font'], 'metrics': bank['metrics']}
+            preparable = True
         print(json.dumps({'style': args.style, 'strokeCounts': {c: len(s) for c, s in glyphs.items()},
-                          'source': style_manifest()['styles'][args.style]}, ensure_ascii=False))
+                          'preparable': preparable, 'source': source}, ensure_ascii=False))
         return
     request = json.load(sys.stdin)
     scene = ContactScene(request['plan'], glyphs)

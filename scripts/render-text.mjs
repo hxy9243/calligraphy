@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { createTextScene, createTextPlan, resolveGlyphs, bundledGlyphs } from '../src/text/index.mjs';
-import { CONTACT_STYLES, describeContactStyle, renderContactStyle } from '../src/bridges/contact.mjs';
+import { CONTACT_STYLES, describeContactStyle, renderContactStyle, prepareFontStyle, listContactStyles } from '../src/bridges/contact.mjs';
 import { exportStill } from '../src/export/still.mjs';
 import { encodeVideo } from '../src/export/video.mjs';
 import { finiteNumber, positiveInteger, positiveNumber } from '../src/export/config.mjs';
@@ -10,6 +10,7 @@ import { finiteNumber, positiveInteger, positiveNumber } from '../src/export/con
 const HELP = `Render text with template strokes or prepared contact-brush glyphs.
 Usage: npm run render:text -- --text "明月松间照，清泉石上流" --output outputs/text.png
 
+Styles:  --list-styles                  list built-in and locally registered styles
 Input:   --text TEXT | --text-file FILE   (exactly one required)
          --glyphs FILE                  additional glyph dictionary JSON
          --fetch                        explicitly fetch missing Hanzi Writer records
@@ -18,7 +19,8 @@ Output:  --output FILE                   .svg, .png, or .mp4 (default outputs/te
 Layout:  --direction vertical-rl|horizontal-lr (default vertical-rl)
          --per-line N                   wrap after N characters; otherwise automatic
          --punctuation break|omit        punctuation is not drawn (default break)
-Style:   --style kai|yan|lishu|liu|yan-contact
+Style:   --style kai|yan|lishu|liu|yan-contact|"lishu hanwang"
+         Registered font styles prepare missing characters with --fetch or --glyphs.
          kai/yan use templates; the others use prepared contact glyphs (PNG/MP4).
 Timing:  --stroke-seconds N --gap N      default .18 seconds/stroke, .15 between glyphs
          --intro N --outro N             default .5 and 1 seconds
@@ -33,9 +35,14 @@ async function main() {
     'punctuation', 'style', 'stroke-seconds', 'gap', 'intro', 'outro', 'time', 'fps', 'speed'];
   const { values } = parseArgs({ options: {
     ...Object.fromEntries(stringFlags.map(flag => [flag, { type: 'string' }])),
-    fetch: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
+    'list-styles': { type: 'boolean' }, fetch: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
   }, allowPositionals: false });
   if (values.help) { console.log(HELP); return; }
+  if (values['list-styles']) {
+    console.log('kai: template\nyan: template width preset');
+    for (const entry of await listContactStyles()) console.log(`${entry.style}: ${entry.prepared} prepared glyphs${entry.preparable ? ', extensible font' : ''}`);
+    return;
+  }
   if ((values.text !== undefined) === (values['text-file'] !== undefined)) throw new Error('Supply exactly one of --text or --text-file');
   const text = values.text ?? await readFile(values['text-file'], 'utf8');
   const output = values.output ?? 'outputs/text.png';
@@ -44,17 +51,27 @@ async function main() {
   if (format === '.mp4' && values.time !== undefined) throw new Error('--time applies only to still images');
   if (format !== '.mp4' && (values.fps !== undefined || values.speed !== undefined)) throw new Error('--fps and --speed apply only to video');
   const style = values.style ?? 'kai';
-  if (!['kai', 'yan', ...CONTACT_STYLES].includes(style)) throw new Error(`Unknown style: ${style}`);
   const layout = { width: values.width ?? 1080, height: values.height ?? 1440,
     direction: values.direction ?? 'vertical-rl', charactersPerLine: values['per-line'] };
   const timing = { strokeSeconds: values['stroke-seconds'], characterGap: values.gap, intro: values.intro, outro: values.outro };
   const punctuation = values.punctuation ?? 'break';
-  if (CONTACT_STYLES.includes(style)) {
+  if (!['kai', 'yan'].includes(style)) {
     if (format === '.svg') throw new Error('Contact brush styles export PNG or MP4, not SVG');
-    if (values.fetch || values.glyphs) throw new Error('Contact styles use their prepared glyph collection; --fetch and --glyphs are template-only');
-    const { strokeCounts } = await describeContactStyle(style);
+    if (CONTACT_STYLES.includes(style) && (values.fetch || values.glyphs)) throw new Error('Prepared contact collections cannot be extended; --fetch and --glyphs are template-only for these built-in styles');
+    let { strokeCounts, preparable, source } = await describeContactStyle(style);
     const missing = [...new Set([...text].filter(c => /\p{Script=Han}/u.test(c) && !Object.hasOwn(strokeCounts, c)))];
-    if (missing.length) throw new Error(`Missing prepared ${style} glyphs: ${missing.join(' ')}. No template fallback is applied.`);
+    if (missing.length && preparable && (values.fetch || values.glyphs)) {
+      // Validate text/layout/timing before fitting. Temporary counts are validation only.
+      createTextPlan({ text, strokeCounts: { ...strokeCounts, ...Object.fromEntries(missing.map(c => [c, 1])) }, layout, timing, punctuation });
+      const additional = values.glyphs ? JSON.parse(await readFile(values.glyphs, 'utf8')) : {};
+      if (!additional || typeof additional !== 'object' || Array.isArray(additional)) throw new Error('--glyphs must be a dictionary');
+      const glyphs = await resolveGlyphs(missing.join(''), { glyphs: { ...bundledGlyphs, ...additional }, fetchMissing: values.fetch ?? false });
+      const prepared = await prepareFontStyle({ style, glyphs });
+      strokeCounts = prepared.strokeCounts;
+      source = { metrics: prepared.metrics };
+    } else if (missing.length) throw new Error(`Missing prepared ${style} glyphs: ${missing.join(' ')}. ${preparable ? 'Use --fetch or --glyphs to prepare them from the registered font.' : 'No template fallback is applied.'}`);
+    const review = [...new Set([...text])].filter(c => source?.metrics?.[c]?.review_required);
+    if (review.length) console.warn(`Review inferred stroke fits for ${style}: ${review.join(' ')}`);
     const plan = createTextPlan({ text, strokeCounts, layout, timing, punctuation });
     if (plan.omitted.length) console.log(`Layout separators (not painted): ${JSON.stringify(plan.omitted)}`);
     const time = values.time === undefined ? undefined : finiteNumber(values.time, 'time', { minimum: 0, maximum: plan.duration });

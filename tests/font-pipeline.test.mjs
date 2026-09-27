@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import sharp from 'sharp';
+
+const python = process.env.CALLIGRAPHY_PYTHON || process.env.PYTHON || resolve('.venv/bin/python');
+const available = spawnSync(python, ['-c', 'import calligraphy.font_pipeline']).status === 0;
+const skip = available ? false : 'Install the Python engine with fonttools';
+
+test('font preparation registers a named style, renders offline and extends on explicit local guides', { skip }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'calligraphy-font-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const helper = resolve('tests/python');
+  const fixture = spawnSync(python, ['-c', `import sys,json; from pathlib import Path; sys.path.insert(0,sys.argv[1]); from test_font_pipeline import make_font,CROSS,LINE; p=Path(sys.argv[2]); make_font(p/'test.ttf'); (p/'license.txt').write_text('Synthetic fixture'); (p/'guides.json').write_text(json.dumps({'十':CROSS,'一':LINE}))`, helper, dir], { encoding: 'utf8' });
+  assert.equal(fixture.status, 0, fixture.stderr);
+  const env = { ...process.env, CALLIGRAPHY_PYTHON: python, CALLIGRAPHY_STYLE_DIR: join(dir, 'styles') };
+  const run = (script, args) => spawnSync(process.execPath, [resolve('scripts', script), ...args], { cwd: dir, env, encoding: 'utf8', timeout: 60000 });
+  let result = run('prepare-font.mjs', ['--style', 'test font', '--font', join(dir, 'test.ttf'), '--license', join(dir, 'license.txt'), '--text', '十', '--glyphs', join(dir, 'guides.json')]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Registered test font/);
+  result = run('render-text.mjs', ['--list-styles']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /test font: 1 prepared glyphs, extensible font/);
+  const bankPath = join(dir, 'styles/test-font.json');
+  const original = JSON.parse(await readFile(bankPath, 'utf8')).glyphs['十'];
+  result = run('render-text.mjs', ['--style', 'test font', '--text', '十一十', '--output', join(dir, 'missing.png')]);
+  assert.equal(result.status, 1); assert.match(result.stderr, /Use --fetch or --glyphs/);
+  result = run('render-text.mjs', ['--style', 'test-font', '--text', '十一十', '--glyphs', join(dir, 'guides.json'), '--width', '240', '--height', '320', '--output', join(dir, 'new.png')]);
+  assert.equal(result.status, 0, result.stderr);
+  const dimensions = await sharp(join(dir, 'new.png')).metadata();
+  assert.deepEqual([dimensions.width, dimensions.height], [240, 320]);
+  assert.deepEqual(JSON.parse(await readFile(bankPath, 'utf8')).glyphs['十'], original);
+  result = run('render-text.mjs', ['--style', 'test font', '--text', '十一', '--width', '240', '--height', '320', '--output', join(dir, 'offline.png')]);
+  assert.equal(result.status, 0, result.stderr);
+  result = run('render-text.mjs', ['--style', 'test font', '--text', '十', '--output', join(dir, 'unsupported.svg')]);
+  assert.equal(result.status, 1); assert.match(result.stderr, /not SVG/);
+});
