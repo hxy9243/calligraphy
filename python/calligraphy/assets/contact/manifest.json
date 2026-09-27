@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "renderer": "ContactBrush",
+  "glyph_size": 480,
+  "source_repository": "https://github.com/hxy9243/calligraphy-lab",
+  "source_revision": "cc671639f318071ca60f2333335c73c57492f6d4",
+  "interpretation": "Prepared artist/script-inspired generated glyph reconstructions, not authenticated handwriting. Metrics measure in-sample silhouette overlap, not motion quality or runtime.",
+  "styles": {
+    "yan-contact": {
+      "file": "yan-contact.json",
+      "source_path": "experiments/contact-style-transfer/Yan/contacts.json",
+      "sha256": "284f7e54ebca744b2348f227f28a0bc3a4c28bf7a99afdf411f7cccd6066eff9",
+      "characters": "人有悲歡離合月陰晴圓缺此事古難全但願長久千里共嬋娟",
+      "unique_characters": 25,
+      "strokes": 237,
+      "recorded_results": {
+        "unique_characters": 25,
+        "unique_strokes": 237,
+        "poem_characters": 27,
+        "poem_strokes": 245,
+        "mean_silhouette_iou": 0.9737958940231881,
+        "min_silhouette_iou": 0.9587283425956195,
+        "mean_ink_coverage": 0.9821536886495857,
+        "weak_decompositions": [
+          "難"
+        ],
+        "monotonic_replay_passed": true,
+        "no_new_ink_strokes": []
+      }
+    },
+    "lishu": {
+      "file": "lishu.json",
+      "source_path": "experiments/contact-style-transfer/Lishu/contacts.json",
+      "sha256": "4be8b253b8b82d9578eb2679cf43cb6f51ac369bb05bd708996601facfeb8d8f",
+      "characters": "人有悲歡離合月陰晴圓缺此事古難全但願長久千里共嬋娟",
+      "unique_characters": 25,
+      "strokes": 237,
+      "recorded_results": {
+        "unique_characters": 25,
+        "unique_strokes": 237,
+        "poem_characters": 27,
+        "poem_strokes": 245,
+        "mean_silhouette_iou": 0.9636463094883502,
+        "min_silhouette_iou": 0.9338215549859636,
+        "mean_ink_coverage": 0.9746220270202819,
+        "weak_decompositions": [
+          "歡",
+          "離",
+          "陰",
+          "圓",
+          "難",
+          "長"
+        ],
+        "monotonic_replay_passed": true,
+        "no_new_ink_strokes": []
+      }
+    },
+    "liu": {
+      "file": "liu.json",
+      "source_path": "experiments/liu-poem-contact/contacts.json",
+      "sha256": "2a1dad163ca2a85c21a6e5af00caedb9aefba3325e6a8420e5373aac939fc138",
+      "characters": "人有悲歡離合月陰晴圓缺此事古難全但願長久千里共嬋娟",
+      "unique_characters": 25,
+      "strokes": 237,
+      "recorded_results": {
+        "mean_silhouette_iou": 0.9698777633006773,
+        "min_silhouette_iou": 0.9524901215238948
+      }
+    }
+  }
+}

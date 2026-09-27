@@ -176,4 +176,6 @@ Existing input-specific controls do not generalize automatically to new glyphs.
 
 The generic template feature now supplies an explicit API, punctuation and
 missing-glyph policies, and adaptable layout. Obtaining new style-specific brush
-geometry and integrating Python brush adapters remain separate future work.
+geometry remains separate preparation work. The main CLI now integrates the
+prepared contact renderer for `lishu`, `liu` and `yan-contact`; see
+[its pipeline and coverage](contact-renderer.md).

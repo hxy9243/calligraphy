@@ -6,3 +6,4 @@ export { finiteNumber, positiveInteger, positiveNumber } from './export/config.m
 export { createTextScene } from './scenes/text.mjs';
 export { resolveGlyphs, bundledGlyphs, GLYPH_DATA_VERSION } from './text/glyphs.mjs';
 export { createTextPlan } from './text/plan.mjs';
+export { CONTACT_STYLES, describeContactStyle, renderContactStyle } from './bridges/contact.mjs';

@@ -43,7 +43,9 @@ SVG template reveals; Python handles raster layers and geometric deposition.
 Their actual input models differ. Sharing algorithms within each backend removes
 duplication without forcing an artificial universal writing-plan format.
 The [generic text plan](generic-text.md) now shares page placement and stroke-count
-timing without prescribing geometry. Python brush adapters are still future work.
+timing without prescribing geometry. The Node bridge in `src/bridges/contact.mjs`
+passes this plan over JSON to `calligraphy.contact_renderer`, which loads
+packaged contact banks and exports raster frames. See [contact rendering](contact-renderer.md).
 
 **Separate frame generation from output.** A scene can be previewed, exported as
 an image or sampled for video using the same geometry. Encoding changes should

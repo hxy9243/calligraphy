@@ -30,12 +30,23 @@ without a line break). Missing glyphs and unsupported text produce explicit erro
 
 Use `--width`, `--height`, `--per-line`, `--stroke-seconds` and `--gap` to control
 the page and cadence. MP4 also accepts `--fps` and `--speed` and requires FFmpeg.
-Styles are `kai` (template geometry) and `yan` (the existing measured width
-adjustment), not the lab's prepared brush styles.
+Template styles are `kai` and `yan` (a measured width adjustment). Prepared
+contact-brush styles are `lishu`, `liu` and `yan-contact`, supporting PNG and MP4.
+Install the Python engine below first, then run:
+
+```sh
+npm run render:text -- --text "人有悲歡離合" --style lishu --output outputs/lishu.png
+npm run render:text -- --text "人有悲歡離合" --style liu --output outputs/liu.mp4
+```
+
+Each contact style covers 25 prepared traditional characters; missing characters
+produce errors. These are inferred style studies, not arbitrary-text synthesis.
+See [the contact renderer specification](spec/contact-renderer.md) for coverage,
+provenance and measured reconstruction quality.
 
 For programmatic use, `createTextScene({text, glyphs, layout, timing})` returns a
 scene for the existing exporters. `createTextPlan()` exposes the geometry-independent
-layout/timing contract for future brush adapters. See the
+layout/timing contract shared by template and contact-brush adapters. See the
 [generic text API specification](spec/generic-text.md) for examples and limits.
 
 ## Run the browser examples

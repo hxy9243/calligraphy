@@ -22,3 +22,6 @@ package-dir = {"" = "python"}
 
 [tool.setuptools.packages.find]
 where = ["python"]
+
+[tool.setuptools.package-data]
+calligraphy = ["assets/contact/*.json", "assets/contact/*.txt"]

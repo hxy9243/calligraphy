@@ -69,7 +69,7 @@ characters and a 1-second outro. Each character lasts `strokeCount * strokeSecon
 there is no trailing character gap. These differ intentionally from the old poem
 demo's timing formula. Stroke counts are integers from 1 to 128.
 
-## Interface for future brush styles
+## Interface for brush styles
 
 `createTextPlan({text, strokeCounts, layout, timing, punctuation})` is independent
 of glyph shape and renderer. Supply a character-keyed stroke-count dictionary for
@@ -92,13 +92,14 @@ frameSVG}`. It assumes canonical Hanzi coordinates, insets each glyph by 4% of
 its cell, and uses the existing median-trace/outline-mask approach. Frames are
 deterministic and support backward seeking without mutable paint state.
 
-A future brush adapter can reuse the plan while supplying its own local geometry
+A brush adapter reuses the plan while supplying its own local geometry
 and deposition. For a stroke index `k`, local progress derives from
 `(time - entry.start - k * plan.strokeSeconds) / plan.strokeSeconds`. Repeated
 characters are separate scheduled placements even if they share source geometry.
-Stateful brushes must reset/replay for backward seeks. Python brush rendering is
-not wired into this JavaScript factory yet; raster output would also need a
-compatible export adapter. There is no automatic template fallback for a missing
+Stateful brushes must reset/replay for backward seeks. The Node-only `describeContactStyle()` and `renderContactStyle()` bridge now
+connects packaged Python contact geometry to the CLI. `createTextScene()` remains
+the template SVG factory; the contact bridge accepts a plan and exports PNG/MP4.
+See [contact rendering](contact-renderer.md). There is no automatic template fallback for a missing
 style-specific glyph.
 
 ## CLI and export
@@ -109,9 +110,10 @@ SVG, PNG or MP4. The still defaults to completed writing; `--time` selects a
 scene time. Video uses the existing encoder and requires even dimensions.
 `--fps`/`--speed` are video-only; `--time` is still-only.
 
-Styles are currently `kai` and `yan`. The latter reuses the measured width offset
-from the supported preset. Neither selects the prepared Yan/Liu/Lishu contact
-geometries in lab. Punctuation decisions are printed by the CLI, not hidden.
+Template styles are `kai` and `yan`; the latter reuses the measured width offset
+from the supported preset. The CLI also accepts `lishu`, `liu` and `yan-contact`
+using packaged prepared geometry through Python. Contact styles accept PNG/MP4
+only and reject `--fetch` and `--glyphs`. Punctuation decisions are printed by the CLI, not hidden.
 
 ## Validation and remaining limits
 
