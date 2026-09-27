@@ -256,6 +256,13 @@ def create_scene(
 
     if style in manifest["styles"]:
         contact_glyphs = load_style(style)
+        missing = [c for c in scene_spec.normalized_characters if c not in contact_glyphs]
+        if missing:
+            raise ValueError(
+                f"Built-in contact style '{style}' is a fixed research collection of 25 characters "
+                f"and cannot be extended with --fetch. Missing: {' '.join(dict.fromkeys(missing))}. "
+                f"To animate these characters, use a template style ('kai', 'yan') or an extensible font style (e.g. 'lishu hanwang')."
+            )
         stroke_counts = {c: len(contact_glyphs[c]) for c in contact_glyphs}
         plan = RenderPlan.create(scene_spec, stroke_counts=stroke_counts)
         # Convert plan to dict for ContactScene compatibility
@@ -264,12 +271,23 @@ def create_scene(
     # Registered font bank
     bank = load_bank(style)
     font_file = font_path or bank["font"]["path"]
-    missing = [c for c in scene_spec.normalized_characters if c not in bank["glyphs"]]
+    missing = list(dict.fromkeys(c for c in scene_spec.normalized_characters if c not in bank["glyphs"]))
     if missing:
-        raise ValueError(
-            f"Missing prepared {style} glyphs: {' '.join(missing)}. "
-            f"Prepare missing characters before rendering."
-        )
+        if fetch_missing or glyphs:
+            from .font_pipeline import prepare_style
+            needed_glyphs = resolve_glyphs(
+                "".join(missing),
+                glyphs=glyphs,
+                fetch_missing=fetch_missing,
+                punctuation=scene_spec.punctuation,
+            )
+            prepare_style(style, needed_glyphs, font_path=font_file)
+            bank = load_bank(style)
+        else:
+            raise ValueError(
+                f"Missing prepared {style} glyphs: {' '.join(missing)}. "
+                f"Use --fetch or --glyphs to prepare them from the registered font."
+            )
 
     stroke_counts = {c: len(bank["glyphs"][c]) for c in bank["glyphs"]}
     plan = RenderPlan.create(scene_spec, stroke_counts=stroke_counts)
