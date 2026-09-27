@@ -87,3 +87,20 @@ Promotion validation recomputed all 75 prepared glyphs against the original lab
 targets: every per-glyph IoU matched its saved metric within 1e-12. Existing
 JavaScript frame regressions remain unchanged. This supports geometric fidelity;
 it does not certify stylistic authenticity or inferred writing trajectories.
+
+### Promotion checks (2026-09-26)
+
+- Main JavaScript suite: 31 passed, no skips; working-tree Python suite: 26
+  passed (including seven pre-existing notebook/animation tests outside this change).
+- Clean committed-source package installed into a fresh virtual environment:
+  all 19 committed Python tests passed. Isolated module discovery and a Node CLI
+  PNG render from `/tmp` succeeded with the installed banks.
+- Downstream lab brush-grammar regressions: five passed; lab checkout unchanged.
+- Lishu and Yan contact PNGs were visually inspected. Liu MP4 was verified with
+  FFprobe: 240 × 480, 15 frames, 3.75 seconds at 4 fps and speed 4.
+- Original license text was copied verbatim, including its two trailing spaces;
+  this is the only whitespace-check exception in the promoted files.
+
+Generated smoke outputs and the full 75-glyph score comparison are local ignored
+artifacts under `outputs/`, not package inputs. Existing notebook/animation work
+was neither changed nor included in the promotion commit.
