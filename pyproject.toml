@@ -1,14 +1,13 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "calligraphy-engine"
 version = "0.1.0"
-description = "Reusable geometry and brush engines for calligraphy rendering"
+description = "Reusable geometric stroke and brush rendering algorithms"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
 dependencies = [
   "CairoSVG>=2.7,<3",
   "fonttools>=4.50,<5",
@@ -23,4 +22,7 @@ dependencies = [
 packages = ["calligraphy"]
 
 [tool.setuptools.package-data]
-calligraphy = ["assets/contact/*.json", "assets/contact/*.txt"]
+calligraphy = ["assets/contact/*.json", "assets/contact/*.txt", "assets/data/*.json"]
+
+[project.scripts]
+calligraphy = "calligraphy.cli:main"

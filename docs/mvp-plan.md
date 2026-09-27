@@ -314,15 +314,20 @@ all three bundled contact banks. M0 is complete; M1–M6 remain planned.
 
 ### M1 — One Python text-to-video pipeline
 
-- [ ] Port text validation, glyph resolver, layout and schedule from JS to engine modules.
-- [ ] Add versioned SceneSpec/RenderPlan and a Python CLI.
-- [ ] Promote font-preserving masks/phases into the engine; share still/video frames.
-- [ ] Add explicit styling/transforms and preserve template/contact compatibility.
+- [x] Port text validation, glyph resolver, layout and schedule from JS to engine modules.
+- [x] Add versioned SceneSpec/RenderPlan and a Python CLI.
+- [x] Promote font-preserving masks/phases into the engine; share still/video frames.
+- [x] Add explicit styling/transforms and preserve template/contact compatibility.
 
 Done when local text + a registered font produces PNG/MP4 without Node, repeated
 glyphs share assets, known partial frames are correct and final masks reconstruct
 the source. Compare JS/Python parsing, placement and schedules on fixed fixtures.
 Test zero-outro completion, unsupported glyphs, bounds and backward seeking.
+
+Validation on 2026-09-27: 33 JavaScript tests, 52 Python tests and 24 downstream
+lab tests passed. Python CLI rendered still PNG, SVG and H.264 MP4 without Node;
+font-preserving layer decomposition achieved exact source reconstruction (error 0.0);
+cross-language plan comparisons produced identical coordinates and timing. M1 is complete.
 
 ### M2 — Versioned styles and reusable artifact storage
 
