@@ -34,7 +34,7 @@ main never reaches into experiment directories for code or configuration.
 | `src/export/` | Rasterization, file writing and encoding | Receives a frame function; does not invent strokes |
 | `scripts/` | Environment options and CLI invocation | Keep rendering algorithms out of wrappers |
 | `examples/` | Browser playback and seeking | Reuse scene modules |
-| `python/calligraphy/` | Overlap and geometric brush algorithms | No experiment asset paths or study-specific CLI |
+| `calligraphy/` | Overlap and geometric brush algorithms | No experiment asset paths or study-specific CLI |
 | `assets/` | Supported input data and measured presets | Preserve provenance and license |
 
 ## Design decisions

@@ -77,7 +77,7 @@ styles support PNG/MP4 only; `--fetch`, `--glyphs` and SVG output are rejected.
 
 ## Provenance and validation
 
-`python/calligraphy/assets/contact/manifest.json` records each source path,
+`calligraphy/assets/contact/manifest.json` records each source path,
 revision, SHA-256 checksum, coverage and recorded reconstruction score. The
 loader verifies checksums. The accompanying Arphic license is packaged alongside
 the banks. No runtime operation reads from the lab repository or the network.

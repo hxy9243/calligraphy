@@ -4,6 +4,10 @@ Shared source for reproducible Chinese calligraphy images and writing animations
 The sibling **calligraphy-lab** repository contains experiments, fitting workflows,
 reference artwork, comparisons and research videos.
 
+The proposed anonymous web studio, Python backend consolidation, style caching
+and admin tools are tracked in the [MVP implementation plan](docs/mvp-plan.md).
+These hosted features are planned, not yet implemented.
+
 The main repository provides generic Han-text template rendering, two preserved
 JavaScript demonstration scenes (永 and a Wang Wei couplet), shared still/video
 exporters, and reusable Python overlap, ellipse
@@ -130,7 +134,7 @@ src/scenes/             Scene composition and timing
 src/text/               Input parsing, glyph resolution, layout and writing plans
 src/export/             Still export and shared video encoding
 scripts/                Thin command entry points and character-data fetcher
-python/calligraphy/     Reusable Python brush and overlap engines
+calligraphy/            Reusable Python brush and overlap engines
 tests/                  JavaScript and Python regressions
 docs/                   Migration, architecture and research context
 ```

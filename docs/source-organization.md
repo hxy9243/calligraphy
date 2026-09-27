@@ -3,7 +3,7 @@
 ## Organizing the final repository
 
 1. Keep reusable JavaScript rendering under `src/` and installable Python
-   rendering under `python/calligraphy/`. Separate scene composition from shared
+   rendering under `calligraphy/`. Separate scene composition from shared
    geometry, brush deposition and export. Browser UI and command wrappers call
    these engines rather than implementing their own rendering behavior.
 2. Keep the browser examples under `examples/`. Supported input data and measured

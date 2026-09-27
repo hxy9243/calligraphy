@@ -5,6 +5,9 @@ for its design. They are an onboarding map for humans and agents, not a promise
 of features that have not been built. Update the relevant spec with changes to
 public behavior, representations or dependency boundaries.
 
+For proposed hosted features and the Python backend migration, see the separate
+[MVP implementation plan](../docs/mvp-plan.md); its unchecked steps are not current behavior.
+
 Read in order:
 
 1. [From text to an image or writing video](text-to-render.md)
@@ -29,7 +32,7 @@ runs; the tests and source determine current behavior.
 | Shared median-path tracing | `src/geometry.mjs` | Scenes and export |
 | Image or video encoding | `src/export/` | Scenes and export |
 | Browser controls | `examples/` | Architecture |
-| Layer overlap or deposition | `python/calligraphy/` | Python engines |
+| Layer overlap or deposition | `calligraphy/` | Python engines |
 | Measured supported style preset | `assets/presets/` | Assets and validation |
 | Reference fitting study or new style experiment | Sibling `calligraphy-lab` | Assets and validation |
 

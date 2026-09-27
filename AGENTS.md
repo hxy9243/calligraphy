@@ -3,7 +3,7 @@
 - Start with `README.md` for setup and `spec/README.md` for component contracts,
   design choices and source ownership. Keep specs current when behavior changes.
 - Supported JavaScript lives in `src/`; reusable Python lives in
-  `python/calligraphy/`. Keep CLI and browser entry points thin.
+  `calligraphy/`. Keep CLI and browser entry points thin.
 - Research runners, fitting studies and generated research evidence belong in
   the separate `calligraphy-lab` repository. Main must not import from lab.
 - Preserve character geometry, stroke order, licenses and input provenance during

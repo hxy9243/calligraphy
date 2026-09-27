@@ -12,7 +12,7 @@ models solve different problems; their inputs are not interchangeable.
 
 ## Overlap composition
 
-Source: [stroke_layers.py](../python/calligraphy/stroke_layers.py).
+Source: [stroke_layers.py](../calligraphy/stroke_layers.py).
 
 `compose_layers(support, progress, ink, min_component=7)` expects support/progress
 shaped `[stroke, y, x]` and ink shaped `[y, x]`. Callers must supply at least one
@@ -32,7 +32,7 @@ Timing here is in stroke-index units, not seconds; presentation runners map it.
 
 ## Elliptical footprint brush
 
-Source: [paint_brush.py](../python/calligraphy/paint_brush.py).
+Source: [paint_brush.py](../calligraphy/paint_brush.py).
 
 `fit_brush(layer, direction, guide=None)` derives a path, radius and normalized
 times from a stroke layer. A supplied guide preserves intended traversal through
@@ -49,7 +49,7 @@ changing size alone does not rescale the input geometry.
 
 ## Contact-edge brush
 
-Source: [brush_grammar.py](../python/calligraphy/brush_grammar.py).
+Source: [brush_grammar.py](../calligraphy/brush_grammar.py).
 
 A stroke contains at least three finite `contacts`, shaped `[station, 2, 2]`:
 two `[x, y]` boundary points per station. Optional `tension`, `corners` and
