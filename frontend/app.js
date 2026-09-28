@@ -66,7 +66,24 @@ document.addEventListener('DOMContentLoaded', () => {
   function showPreviewImage(url) {
     placeholder.classList.add('hidden');
     videoContainer.classList.add('hidden');
+    previewImg.classList.remove('hidden');
     previewImg.src = url;
+    const existingSvg = previewImageContainer.querySelector('svg');
+    if (existingSvg) existingSvg.remove();
+    previewImageContainer.classList.remove('hidden');
+  }
+
+  function showPreviewSvg(svgContent) {
+    placeholder.classList.add('hidden');
+    videoContainer.classList.add('hidden');
+    previewImg.classList.add('hidden');
+    previewImageContainer.innerHTML = svgContent;
+    const svgEl = previewImageContainer.querySelector('svg');
+    if (svgEl) {
+      svgEl.style.maxWidth = '100%';
+      svgEl.style.maxHeight = '480px';
+      svgEl.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.1)';
+    }
     previewImageContainer.classList.remove('hidden');
   }
 
@@ -126,7 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) {
         throw new Error(data.detail || '预览失败');
       }
-      showPreviewImage(data.preview_url);
+      if (data.svg) {
+        showPreviewSvg(data.svg);
+      } else {
+        showPreviewImage(data.preview_url);
+      }
       showStatus('静图预览已就绪', 'info');
     } catch (err) {
       showStatus(`预览失败: ${err.message}`, 'error');

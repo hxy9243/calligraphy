@@ -113,9 +113,18 @@ class GuideCache:
         """Save guide cache to JSON file."""
         target = Path(path) if path else self.source_path
         if not target:
-            raise ValueError("No target path provided for saving GuideCache")
+            target = Path(__file__).resolve().parent.parent / "assets" / "data" / "guide_cache.json"
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(self.to_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        content = json.dumps(self.to_dict(), ensure_ascii=False, indent=2) + "\n"
+        target.write_text(content, encoding="utf-8")
+
+        # Mirror to repo root assets/data/guide_cache.json if present
+        repo_mirror = Path(__file__).resolve().parent.parent.parent / "assets" / "data" / "guide_cache.json"
+        if repo_mirror.parent.exists() and repo_mirror != target:
+            try:
+                repo_mirror.write_text(content, encoding="utf-8")
+            except Exception:
+                pass
         return target
 
     @classmethod
@@ -127,15 +136,24 @@ class GuideCache:
     @classmethod
     def load_default(cls) -> "GuideCache":
         """Load bundled default guide cache from package assets or repo root."""
+        candidate_paths = [
+            Path(__file__).resolve().parent.parent / "assets" / "data" / "guide_cache.json",
+            Path(__file__).resolve().parent.parent.parent / "assets" / "data" / "guide_cache.json",
+        ]
+        resolved_path = None
+        for cp in candidate_paths:
+            if cp.exists():
+                resolved_path = cp
+                break
+
         try:
             data_file = files("calligraphy").joinpath("assets/data/guide_cache.json")
             content = data_file.read_text(encoding="utf-8")
             data = json.loads(content)
-            return cls(data=data)
+            return cls(data=data, source_path=resolved_path)
         except Exception:
-            root = Path(__file__).resolve().parent.parent.parent / "assets" / "data" / "guide_cache.json"
-            if root.exists():
-                return cls.load_from_file(root)
+            if resolved_path and resolved_path.exists():
+                return cls.load_from_file(resolved_path)
             # Fallback to empty if not found
             return cls()
 

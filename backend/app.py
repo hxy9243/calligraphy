@@ -24,6 +24,7 @@ MAX_INPUT_CHARACTERS = 256
 class PreviewRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
+    format: str = Field(default="auto")
 
 
 class RenderRequest(BaseModel):
@@ -155,7 +156,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         job_type="preview",
         text=req.text,
         style=req.style,
-        params={},
+        params={"format": req.format},
     )
     # Execute preview immediately for snappy preview response
     success = execute_job(job, db)
@@ -165,8 +166,19 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
             status_code=422,
             detail=failed_job.get("error_message") or "Preview rendering failed",
         )
+
+    finished = db.get_job(job_id)
+    out_path = finished.get("output_path") if finished else None
+    svg_content = None
+    if out_path and out_path.endswith(".svg"):
+        try:
+            svg_content = Path(out_path).read_text(encoding="utf-8")
+        except Exception:
+            pass
+
     return {
         "job_id": job_id,
+        "svg": svg_content,
         "preview_url": f"/api/jobs/{job_id}/image",
     }
 
@@ -283,9 +295,10 @@ def get_job_image(job_id: str, request: Request, response: Response):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Preview file missing")
 
+    media_type = "image/svg+xml" if file_path.suffix.lower() == ".svg" else "image/png"
     return FileResponse(
         str(file_path),
-        media_type="image/png",
+        media_type=media_type,
     )
 
 

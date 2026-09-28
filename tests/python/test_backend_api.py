@@ -46,11 +46,13 @@ class BackendApiTests(unittest.TestCase):
         data = res.json()
         self.assertIn("job_id", data)
         self.assertIn("preview_url", data)
+        self.assertIn("svg", data)
+        self.assertTrue(data["svg"].startswith("<svg"))
 
         # Fetch preview image
         img_res = self.client.get(data["preview_url"])
         self.assertEqual(img_res.status_code, 200)
-        self.assertEqual(img_res.headers["content-type"], "image/png")
+        self.assertIn(img_res.headers["content-type"], ("image/svg+xml", "image/png"))
         self.assertGreater(len(img_res.content), 100)
 
     def test_render_submission_and_download(self):

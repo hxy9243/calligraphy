@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from calligraphy.renderer import create_scene, export_still, export_video
+from calligraphy.renderer import create_scene, export_still, export_svg, export_video
 from calligraphy.spec import Appearance, SceneSpec, Transforms
 from .database import Database, get_db
 
@@ -68,8 +68,16 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
         if job_type == "preview":
             out_dir = base_output_dir / "previews"
             out_dir.mkdir(parents=True, exist_ok=True)
-            out_file = out_dir / f"{job_id}.png"
-            export_still(scene, out_file)
+            requested_format = params.get("format", "auto")
+            if requested_format == "png":
+                out_file = out_dir / f"{job_id}.png"
+                export_still(scene, out_file)
+            elif hasattr(scene, "frame_svg"):
+                out_file = out_dir / f"{job_id}.svg"
+                export_svg(scene, out_file)
+            else:
+                out_file = out_dir / f"{job_id}.png"
+                export_still(scene, out_file)
         else:
             out_dir = base_output_dir / "videos"
             out_dir.mkdir(parents=True, exist_ok=True)

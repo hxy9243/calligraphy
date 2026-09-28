@@ -8,6 +8,8 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from concurrent.futures import ThreadPoolExecutor
+
 from .guides import GuideCache, get_default_guide_cache
 from .input import parse_text
 
@@ -86,6 +88,7 @@ def resolve_glyphs(
 ) -> Dict[str, Any]:
     """Resolve Han characters to stroke/median template records."""
     parsed = parse_text(text, punctuation=punctuation)
+    glyphs_was_none = glyphs is None
     if glyphs is None:
         glyphs = load_bundled_glyphs()
 
@@ -102,20 +105,41 @@ def resolve_glyphs(
             f"Missing glyphs: {' '.join(missing)}. Supply glyph data or explicitly enable fetching."
         )
 
-    for character in missing:
-        if fetch_func is not None:
+    newly_fetched = {}
+    if fetch_func is not None:
+        for character in missing:
             data = fetch_func(character)
-        else:
-            encoded = urllib.parse.quote(character)
+            valid = validate_glyph(character, data)
+            result[character] = valid
+            newly_fetched[character] = valid
+    elif missing:
+        def _fetch_single(char: str):
+            encoded = urllib.parse.quote(char)
             url = f"https://cdn.jsdelivr.net/npm/hanzi-writer-data@{GLYPH_DATA_VERSION}/{encoded}.json"
             req = urllib.request.Request(url, headers={"User-Agent": "calligraphy-engine/0.1.0"})
             try:
-                with urllib.request.urlopen(req, timeout=15) as resp:
+                with urllib.request.urlopen(req, timeout=12) as resp:
                     if resp.status != 200:
-                        raise ValueError(f"Could not fetch glyph {character}: HTTP {resp.status}")
-                    data = json.loads(resp.read().decode("utf-8"))
+                        raise ValueError(f"Could not fetch glyph {char}: HTTP {resp.status}")
+                    raw = json.loads(resp.read().decode("utf-8"))
+                    return char, raw
             except Exception as e:
-                raise ValueError(f"Could not fetch glyph {character}: {e}") from e
-        result[character] = validate_glyph(character, data)
+                raise ValueError(f"Could not fetch glyph {char}: {e}") from e
+
+        with ThreadPoolExecutor(max_workers=min(12, len(missing))) as executor:
+            for char, raw_data in executor.map(_fetch_single, missing):
+                valid = validate_glyph(char, raw_data)
+                result[char] = valid
+                newly_fetched[char] = valid
+
+    # Persist newly fetched characters to default GuideCache so future resolutions are instant
+    if newly_fetched and glyphs_was_none:
+        cache = get_default_guide_cache()
+        for char, rec in newly_fetched.items():
+            cache.put(char, rec)
+        try:
+            cache.save()
+        except Exception:
+            pass
 
     return result
