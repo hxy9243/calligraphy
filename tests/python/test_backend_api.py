@@ -99,6 +99,27 @@ class BackendApiTests(unittest.TestCase):
         res_b_dl = client_b.get(f"/api/jobs/{job_id}/download")
         self.assertEqual(res_b_dl.status_code, 404)
 
+    def test_character_limit_expansion_and_error_message(self):
+        # 256 characters is accepted
+        valid_text = "永" * 256
+        res_valid = self.client.post("/api/renders", json={"text": valid_text, "style": "kai"})
+        self.assertEqual(res_valid.status_code, 202)
+
+        # 257 characters exceeds limit and returns clear 400 error message
+        excess_text = "永" * 257
+        res_excess = self.client.post("/api/renders", json={"text": excess_text, "style": "kai"})
+        self.assertEqual(res_excess.status_code, 400)
+        data = res_excess.json()
+        self.assertIn("detail", data)
+        self.assertIn("256", data["detail"])
+
+        # Preview endpoint also enforces the limit
+        res_prev_excess = self.client.post("/api/previews", json={"text": excess_text, "style": "kai"})
+        self.assertEqual(res_prev_excess.status_code, 400)
+        prev_data = res_prev_excess.json()
+        self.assertIn("detail", prev_data)
+        self.assertIn("256", prev_data["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()

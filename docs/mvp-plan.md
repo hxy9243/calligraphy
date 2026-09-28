@@ -27,7 +27,7 @@ or guarantees of current performance.
 
 | Area | First release |
 | --- | --- |
-| Input | 1–80 Han characters; preserve traditional/simplified distinction; explicit newline and punctuation break/omit policies |
+| Input | 1–256 Han characters; preserve traditional/simplified distinction; explicit newline and punctuation break/omit policies |
 | Styles | At least two vetted font-derived styles, with declared font and stroke-guide coverage; no silent fallback |
 | Layout | One page; vertical right-to-left and horizontal left-to-right; line length, margins, character spacing and line spacing |
 | Appearance | Background and ink colours, plain/textured paper, border and a curated decorative seal |

@@ -25,12 +25,19 @@
         <h2 class="panel-title">作品创作</h2>
 
         <div class="form-group">
-          <label for="text-input">输入汉字文本 (1–80字)</label>
-          <textarea id="text-input" rows="3" placeholder="输入要书写的汉字...">明月松间照</textarea>
+          <div class="label-row">
+            <label for="text-input">输入汉字文本 (1–256字)</label>
+            <span id="char-counter" class="char-counter"><span id="char-count">5</span>/256</span>
+          </div>
+          <textarea id="text-input" rows="4" placeholder="输入要书写的汉字（支持标点符号分行或省略）...">明月松间照</textarea>
+          <div id="char-limit-warning" class="char-limit-warning hidden">
+            ⚠️ 文本长度已超出 256 字符上限，请删减后再试
+          </div>
           <div class="preset-chips">
             <span class="chip-label">快捷示例:</span>
             <button type="button" class="chip" data-text="明月松间照">明月松间照</button>
             <button type="button" class="chip" data-text="清泉石上流">清泉石上流</button>
+            <button type="button" class="chip" data-text="明月松间照，清泉石上流">山居秋暝联句</button>
             <button type="button" class="chip" data-text="永">永字八法</button>
           </div>
         </div>

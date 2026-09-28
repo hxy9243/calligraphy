@@ -14,10 +14,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultVideo = document.getElementById('result-video');
   const jobsList = document.getElementById('jobs-list');
 
+  const charCountEl = document.getElementById('char-count');
+  const charCounterEl = document.getElementById('char-counter');
+  const charLimitWarning = document.getElementById('char-limit-warning');
+  const MAX_CHARS = 256;
+
+  function updateCharCount() {
+    const text = textInput.value;
+    const len = text.length;
+    if (charCountEl) {
+      charCountEl.textContent = len;
+    }
+
+    if (len > MAX_CHARS) {
+      if (charCounterEl) charCounterEl.classList.add('exceeded');
+      textInput.classList.add('exceeded');
+      if (charLimitWarning) {
+        charLimitWarning.classList.remove('hidden');
+        charLimitWarning.textContent = `⚠️ 文本长度已达 ${len} 字符，超出 ${MAX_CHARS} 字符上限（超出 ${len - MAX_CHARS} 字），请删减后再生成`;
+      }
+      return false;
+    } else {
+      if (charCounterEl) charCounterEl.classList.remove('exceeded');
+      textInput.classList.remove('exceeded');
+      if (charLimitWarning) charLimitWarning.classList.add('hidden');
+      return true;
+    }
+  }
+
+  textInput.addEventListener('input', updateCharCount);
+  textInput.addEventListener('paste', () => setTimeout(updateCharCount, 20));
+
   // Preset chips
   document.querySelectorAll('.chip').forEach(chip => {
     chip.addEventListener('click', () => {
       textInput.value = chip.dataset.text;
+      updateCharCount();
     });
   });
 
@@ -73,6 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus('请输入要书写的汉字', 'error');
       return;
     }
+    if (text.length > MAX_CHARS) {
+      showStatus(`输入文本超出上限：当前为 ${text.length} 字符，最大支持 ${MAX_CHARS} 字符。请删减后再试。`, 'error');
+      return;
+    }
+
     btnPreview.disabled = true;
     showStatus('正在生成静图预览...', 'info');
 
@@ -105,6 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus('请输入要书写的汉字', 'error');
       return;
     }
+    if (text.length > MAX_CHARS) {
+      showStatus(`输入文本超出上限：当前为 ${text.length} 字符，最大支持 ${MAX_CHARS} 字符。请删减后再试。`, 'error');
+      return;
+    }
+
     btnRender.disabled = true;
     showStatus('正在提交视频生成任务...', 'info');
 
@@ -229,6 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initialize
+  updateCharCount();
   loadStyles();
   loadJobs();
 });

@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import Cookie, FastAPI, HTTPException, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -17,14 +18,16 @@ from calligraphy.text.input import parse_text
 from .database import Database, get_db
 from .worker import execute_job, get_runner
 
+MAX_INPUT_CHARACTERS = 256
+
 
 class PreviewRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=80)
+    text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
 
 
 class RenderRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=80)
+    text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
@@ -44,6 +47,29 @@ app = FastAPI(
     description="Render Chinese calligraphy text into stills and videos.",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    for err in exc.errors():
+        if err.get("type") == "string_too_long":
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "detail": f"输入文本长度超出 {MAX_INPUT_CHARACTERS} 字符上限，请调整后再试 / Text exceeds the {MAX_INPUT_CHARACTERS}-character limit."
+                },
+            )
+        if err.get("type") == "string_too_short":
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "detail": "输入文本不能为空 / Text must not be empty."
+                },
+            )
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": str(exc)},
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -110,7 +136,14 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
     """Generate a quick still preview."""
     session_id = request.state.session_id
     try:
-        parse_text(req.text)
+        parsed = parse_text(req.text)
+        if len(parsed["characters"]) > MAX_INPUT_CHARACTERS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"输入包含 {len(parsed['characters'])} 个汉字，超出单次 {MAX_INPUT_CHARACTERS} 汉字上限 / Hanzi character count ({len(parsed['characters'])}) exceeds the {MAX_INPUT_CHARACTERS}-character limit.",
+            )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -143,7 +176,14 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
     """Submit asynchronous video generation job."""
     session_id = request.state.session_id
     try:
-        parse_text(req.text)
+        parsed = parse_text(req.text)
+        if len(parsed["characters"]) > MAX_INPUT_CHARACTERS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"输入包含 {len(parsed['characters'])} 个汉字，超出单次 {MAX_INPUT_CHARACTERS} 汉字上限 / Hanzi character count ({len(parsed['characters'])}) exceeds the {MAX_INPUT_CHARACTERS}-character limit.",
+            )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
