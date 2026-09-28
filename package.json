@@ -18,6 +18,7 @@
   },
   "scripts": {
     "serve": "python3 -m http.server 8000",
+    "serve:api": ".venv/bin/uvicorn backend.app:app --reload --port 8000",
     "render": "npm run render:video:yong",
     "render:poem": "npm run render:video:poem",
     "render:video:yong": "node scripts/render-video.mjs",

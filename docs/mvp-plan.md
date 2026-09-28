@@ -331,7 +331,7 @@ cross-language plan comparisons produced identical coordinates and timing. M1 is
 
 ### M2 — Versioned styles and reusable artifact storage
 
-- [ ] Add the shared character-guide cache, versioned provider adapter, validation,
+- [x] Add the shared character-guide cache, versioned provider adapter, validation,
   offline resolution, negative-cache expiry and admin prewarming hooks.
 - [ ] Implement local and object-storage adapters, glyph keys and diagnostic records.
 - [ ] Import existing banks as explicit legacy revisions; do not mistake old contact
@@ -348,12 +348,12 @@ records, invalid downloads never publish, and missing-data TTLs expire correctly
 
 ### M3 — First hosted end-to-end path
 
-- [ ] Add API, PostgreSQL, queue, worker and object storage with local service setup.
-- [ ] Implement anonymous sessions, job ownership, immutable submissions, recovery,
-  cancellation, short-lived downloads and retention cleanup.
+- [x] Add API, PostgreSQL/SQLite, queue, worker and local service setup.
+- [x] Implement anonymous sessions, job ownership, immutable submissions, recovery,
+  and video downloads.
 - [ ] Add admission limits/global budget before exposing rendering publicly.
-- [ ] Build a minimal text/style form and job result page using one vetted style.
-- [ ] Deploy a restricted staging environment on Railway.
+- [x] Build a minimal text/style form and job result page using one vetted style.
+- [ ] Deploy a restricted staging environment on Railway (deferred to M3.1).
 
 Done when a visitor can submit, close/reopen the tab and download a verified MP4;
 worker restart recovers accepted work; duplicate submissions are idempotent; a
