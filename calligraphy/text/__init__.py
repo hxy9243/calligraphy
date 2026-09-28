@@ -9,10 +9,13 @@ from .glyphs import (
     resolve_glyphs,
     validate_glyph,
 )
+from .guides import GuideCache, get_default_guide_cache
 
 __all__ = [
     "GLYPH_DATA_VERSION",
+    "GuideCache",
     "create_text_plan",
+    "get_default_guide_cache",
     "is_han",
     "is_punctuation",
     "layout_text",

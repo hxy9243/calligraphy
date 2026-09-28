@@ -8,6 +8,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from .guides import GuideCache, get_default_guide_cache
 from .input import parse_text
 
 GLYPH_DATA_VERSION = "2.0.1"
@@ -16,7 +17,10 @@ _SVG_PATH_REGEX = re.compile(r"^[MmZzLlHhVvCcSsQqTtAa\d\s.,+\-eE]+$")
 
 
 def load_bundled_glyphs() -> Dict[str, Any]:
-    """Load bundled character records."""
+    """Load bundled character records from GuideCache or fallback files."""
+    cache = get_default_guide_cache()
+    if len(cache) > 0:
+        return {c: cache.get(c) for c in cache.characters()}
     try:
         data_dir = files("calligraphy").joinpath("assets/data")
         yong_bytes = data_dir.joinpath("yong.json").read_bytes()
