@@ -18,8 +18,9 @@ dependencies = [
   "scipy>=1.10,<2",
 ]
 
-[tool.setuptools]
-packages = ["calligraphy"]
+[tool.setuptools.packages.find]
+include = ["calligraphy", "calligraphy.*"]
+namespaces = false
 
 [tool.setuptools.package-data]
 calligraphy = ["assets/contact/*.json", "assets/contact/*.txt", "assets/data/*.json"]

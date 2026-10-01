@@ -19,6 +19,10 @@ Read in order:
 6. [Downloaded fonts to animation](font-preparation.md)
 7. [Assets, experiments and validation](assets-and-validation.md)
 
+Experimental: [Kai stroke IR 0.1](stroke-ir.md) describes the isolated bounded
+JSON compiler and deterministic contact-brush replay prototype. It is not yet a
+supported CLI or asset format.
+
 For runnable setup commands, start with the [repository README](../README.md).
 For historical context, see the [migration plan](../docs/migration-plan.md) and
 [recorded migration checks](../docs/validation.md). Those reports describe past

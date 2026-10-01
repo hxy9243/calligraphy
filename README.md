@@ -68,6 +68,14 @@ subsequent renders are offline. It requires the Python engine and a font
 registration on this machine. See [font preparation](spec/font-preparation.md)
 for the HanWang setup command, registering other fonts, and quality limits.
 
+## Kai stroke programs and replay demo
+
+The experimental [Kai stroke IR](spec/stroke-ir.md) validates and renders ordered
+contact geometry through the shared brush. `calligraphy.stroke_fitting` prepares
+bounded contacts from known stroke masks. The [portable Kai demo](examples/kai-stroke-ir/README.md)
+replays the 32-character study and 《春曉》 without depending on the lab checkout.
+Its 95% shape results are measured at 480px, not guaranteed at every output size.
+
 ## Run the browser examples
 
 Requires Node.js 22.12+ (or a current Node.js 24 release), npm and Python 3.
