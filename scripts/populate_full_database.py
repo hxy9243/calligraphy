@@ -37,7 +37,8 @@ CREATE TABLE fonts (
     file_format TEXT,             -- ttf, otf, woff2, ttc
     file_size_bytes INTEGER,      -- size in bytes
     aesthetic_notes TEXT NOT NULL,-- Detailed aesthetic & brushwork commentary
-    sample_text TEXT NOT NULL     -- Representative preview text
+    sample_text TEXT NOT NULL,    -- Representative preview text
+    char_support TEXT NOT NULL DEFAULT 'both' -- trad, simp, both
 );
 
 CREATE INDEX idx_fonts_category ON fonts(style_category);
@@ -57,6 +58,7 @@ CREATE INDEX idx_fonts_downloaded ON fonts(is_downloaded);
 KAI_SHU_ENTRIES = [
     {
         "id": "hanwang-yan-kai",
+        "char_support": "trad",
         "name_zh": "王漢宗超顏楷繁",
         "name_en": "HanWang Yan Kai",
         "style_category": "kaishu",
@@ -76,6 +78,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "mashanzheng-kai",
+        "char_support": "simp",
         "name_zh": "钟齐马善政毛笔楷书",
         "name_en": "Ma Shan Zheng Brush Kai",
         "style_category": "kaishu",
@@ -95,6 +98,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "hanwang-medium-kai",
+        "char_support": "trad",
         "name_zh": "王漢宗中楷體繁",
         "name_en": "HanWang Medium Kai",
         "style_category": "kaishu",
@@ -114,6 +118,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "arphic-ukai",
+        "char_support": "both",
         "name_zh": "文鼎PL中楷 / AR PL UKai",
         "name_en": "Arphic PL UKai",
         "style_category": "kaishu",
@@ -133,6 +138,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "lxgw-wenkai",
+        "char_support": "both",
         "name_zh": "霞鹜文楷",
         "name_en": "LXGW WenKai",
         "style_category": "kaishu",
@@ -152,6 +158,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "klee-one",
+        "char_support": "trad",
         "name_zh": "Klee One / クレー楷手书",
         "name_en": "Klee One Calligraphic",
         "style_category": "kaishu",
@@ -171,6 +178,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "hanwang-pen-kai",
+        "char_support": "trad",
         "name_zh": "王漢宗標鋼筆楷書",
         "name_en": "HanWang Pen Kai",
         "style_category": "kaishu",
@@ -190,6 +198,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "i-yan-kai",
+        "char_support": "trad",
         "name_zh": "刻石录颜体 / I.Yan",
         "name_en": "I.Yan Calligraphy Kai",
         "style_category": "kaishu",
@@ -209,6 +218,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "jiangxi-zhuokai",
+        "char_support": "simp",
         "name_zh": "江西拙楷",
         "name_en": "Jiangxi Zhuo Kai",
         "style_category": "kaishu",
@@ -228,6 +238,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "chill-qiuhong-kai",
+        "char_support": "simp",
         "name_zh": "寒蝉秋鸿楷书",
         "name_en": "Chill QiuHong Kai",
         "style_category": "kaishu",
@@ -247,6 +258,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "alimama-dongfangdakai",
+        "char_support": "simp",
         "name_zh": "阿里妈妈东方大楷",
         "name_en": "Alimama Dongfang DaKai",
         "style_category": "kaishu",
@@ -266,6 +278,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "cwtex-q-kai",
+        "char_support": "trad",
         "name_zh": "cwTeX Q 楷体",
         "name_en": "cwTeX Q Kai",
         "style_category": "kaishu",
@@ -285,6 +298,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "yanshu-chunfeng-kai",
+        "char_support": "simp",
         "name_zh": "演示春风楷",
         "name_en": "Demonstration ChunFeng Kai",
         "style_category": "kaishu",
@@ -304,6 +318,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "yanshu-youran-xiaokai",
+        "char_support": "simp",
         "name_zh": "演示悠然小楷",
         "name_en": "Demonstration YouRan XiaoKai",
         "style_category": "kaishu",
@@ -323,6 +338,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "pangmen-zhenggui-kai",
+        "char_support": "simp",
         "name_zh": "庞门正道真贵楷体",
         "name_en": "PangMen ZhenGui Kai",
         "style_category": "kaishu",
@@ -342,6 +358,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "aoyagi-kouzan-kai",
+        "char_support": "trad",
         "name_zh": "青柳衡山毛笔楷书",
         "name_en": "Aoyagi Kouzan Brush Kai",
         "style_category": "kaishu",
@@ -361,6 +378,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "qiji-font-kai",
+        "char_support": "trad",
         "name_zh": "令東齊伋體楷書",
         "name_en": "LingDong Qiji Classical Kai",
         "style_category": "kaishu",
@@ -380,6 +398,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "muyao-ruanbi-kai",
+        "char_support": "simp",
         "name_zh": "沐瑶软笔手写体",
         "name_en": "MuYao Soft Brush Kai",
         "style_category": "kaishu",
@@ -399,6 +418,7 @@ KAI_SHU_ENTRIES = [
     },
     {
         "id": "jason-handwriting-kai",
+        "char_support": "both",
         "name_zh": "清松手写体楷书",
         "name_en": "Jason Handwriting Kai",
         "style_category": "kaishu",
@@ -574,6 +594,7 @@ KAI_SHU_ENTRIES = [
 LI_SHU_ENTRIES = [
     {
         "id": "coqubeli-rubbing",
+        "char_support": "trad",
         "name_zh": "曺全碑隶体 / CoQuBeLi",
         "name_en": "Cao Quan Bei Clerical Script",
         "style_category": "lishu",
@@ -593,6 +614,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "hanwang-lisu-medium",
+        "char_support": "trad",
         "name_zh": "王漢宗中隸書繁",
         "name_en": "HanWang LiSu Medium",
         "style_category": "lishu",
@@ -612,6 +634,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "hanwang-lisu-bold",
+        "char_support": "trad",
         "name_zh": "王漢宗粗隸書繁",
         "name_en": "HanWang LiSu Bold",
         "style_category": "lishu",
@@ -631,6 +654,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "alimama-daoliti",
+        "char_support": "simp",
         "name_zh": "阿里妈妈刀隶体",
         "name_en": "Alimama DaoLiTi",
         "style_category": "lishu",
@@ -650,6 +674,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "cwtex-q-li",
+        "char_support": "trad",
         "name_zh": "cwTeX Q 隶书",
         "name_en": "cwTeX Q Li",
         "style_category": "lishu",
@@ -669,6 +694,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "aoyagi-kouzan-reisho",
+        "char_support": "trad",
         "name_zh": "青柳衡山毛笔隶书",
         "name_en": "Aoyagi Kouzan Reisho",
         "style_category": "lishu",
@@ -688,6 +714,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "aoyagi-soseki-reisho",
+        "char_support": "trad",
         "name_zh": "青柳疎石毛笔隶书",
         "name_en": "Aoyagi Soseki Reisho",
         "style_category": "lishu",
@@ -707,6 +734,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "bakudai-mouhitsu-reisho",
+        "char_support": "trad",
         "name_zh": "莫大毛笔隶书",
         "name_en": "Bakudai Mouhitsu Reisho",
         "style_category": "lishu",
@@ -726,6 +754,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "linhai-lishu",
+        "char_support": "simp",
         "name_zh": "临海隶书",
         "name_en": "Linhai Clerical Script",
         "style_category": "lishu",
@@ -745,6 +774,7 @@ LI_SHU_ENTRIES = [
     },
     {
         "id": "moe-standard-lishu",
+        "char_support": "trad",
         "name_zh": "教育部标准隶书",
         "name_en": "MOE Standard Clerical Script",
         "style_category": "lishu",
@@ -882,6 +912,7 @@ LI_SHU_ENTRIES = [
 OTHER_STYLES_ENTRIES = [
     {
         "id": "zhimang-xingshu",
+        "char_support": "simp",
         "name_zh": "钟齐志莽行书",
         "name_en": "Zhi Mang Xing Brush Semi-Cursive",
         "style_category": "other",
@@ -901,6 +932,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "liujian-maocao",
+        "char_support": "simp",
         "name_zh": "钟齐流江毛草",
         "name_en": "Liu Jian Mao Cao Wild Cursive",
         "style_category": "other",
@@ -920,6 +952,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "longcang-xingshu",
+        "char_support": "simp",
         "name_zh": "有字库龙藏体",
         "name_en": "Long Cang Cursive Script",
         "style_category": "other",
@@ -939,6 +972,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "hanwang-xing-shu",
+        "char_support": "trad",
         "name_zh": "王漢宗中行書繁",
         "name_en": "HanWang Medium Xing Shu",
         "style_category": "other",
@@ -958,6 +992,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "hanwang-wei-bei",
+        "char_support": "trad",
         "name_zh": "王漢宗魏碑體",
         "name_en": "HanWang Wei Bei",
         "style_category": "other",
@@ -977,6 +1012,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "hanwang-pen-xing-kai",
+        "char_support": "trad",
         "name_zh": "王漢宗鋼筆行楷繁",
         "name_en": "HanWang Pen Xing Kai",
         "style_category": "other",
@@ -996,6 +1032,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "yuji-boku",
+        "char_support": "trad",
         "name_zh": "佑字 · 墨 / Yuji Boku",
         "name_en": "Yuji Boku Heavy Ink",
         "style_category": "other",
@@ -1015,6 +1052,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "aoyagi-kouzan-gyousho",
+        "char_support": "trad",
         "name_zh": "青柳衡山毛笔行书",
         "name_en": "Aoyagi Kouzan Gyousho",
         "style_category": "other",
@@ -1034,6 +1072,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "aoyagi-kouzan-sousho",
+        "char_support": "trad",
         "name_zh": "青柳衡山毛笔草书",
         "name_en": "Aoyagi Kouzan Sousho",
         "style_category": "other",
@@ -1053,6 +1092,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "yanshu-xiaxing-kai",
+        "char_support": "simp",
         "name_zh": "演示夏行楷",
         "name_en": "Demonstration Xia Xing Kai",
         "style_category": "other",
@@ -1072,6 +1112,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "pangmen-cushu",
+        "char_support": "simp",
         "name_zh": "庞门正道粗书体",
         "name_en": "PangMen CuShu Heavy Script",
         "style_category": "other",
@@ -1091,6 +1132,7 @@ OTHER_STYLES_ENTRIES = [
     },
     {
         "id": "babelstone-han-seal",
+        "char_support": "trad",
         "name_zh": "白石古篆文 / BabelStone Han Zhuan",
         "name_en": "BabelStone Ancient Seal Script",
         "style_category": "other",
@@ -1273,15 +1315,15 @@ def main():
                 id, name_zh, name_en, style_category, style_display, medium,
                 artist, dynasty_era, historical_reference, font_author, license,
                 license_type, source_url, is_downloaded, file_path, file_format,
-                file_size_bytes, aesthetic_notes, sample_text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                file_size_bytes, aesthetic_notes, sample_text, char_support
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             font["id"], font["name_zh"], font["name_en"], font["style_category"],
             font["style_display"], font["medium"], font["artist"], font["dynasty_era"],
             font.get("historical_reference"), font["font_author"], font["license"],
             font["license_type"], font["source_url"], font["is_downloaded"],
             font.get("file_path"), font.get("file_format"), font.get("file_size_bytes"),
-            font["aesthetic_notes"], font["sample_text"]
+            font["aesthetic_notes"], font["sample_text"], font.get("char_support", "both")
         ))
     conn.commit()
     conn.close()

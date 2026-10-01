@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Noto Serif SC for elegant UI typography -->
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet">
 </head>
 <body class="theme-xuan">
@@ -21,11 +20,11 @@
         </div>
       </div>
       <div class="header-stats">
-        <span class="stat-pill"><strong id="stat-total">62</strong> 款传世经典</span>
+        <span class="stat-pill highlight"><strong id="stat-dl">17</strong> 款实时离线可用 (已下载)</span>
+        <span class="stat-pill"><strong id="stat-total">62</strong> 款传世名作收录</span>
         <span class="stat-pill"><strong id="stat-kai">27</strong> 款楷书</span>
         <span class="stat-pill"><strong id="stat-li">16</strong> 款隶书</span>
         <span class="stat-pill"><strong id="stat-other">19</strong> 款行草篆碑</span>
-        <span class="stat-pill highlight"><strong id="stat-dl">17</strong> 款实时离线可写</span>
       </div>
     </div>
   </header>
@@ -44,45 +43,58 @@
       </div>
 
       <div class="sandbox-controls-grid">
+        <!-- Row 1: Font select, Layout, Font Size, and Script Toggle -->
         <div class="control-row">
           <label for="font-select"><strong>选定书法字库：</strong></label>
           <select id="font-select" class="custom-select">
-            <!-- Dynamically populated with downloaded fonts -->
+            <!-- Dynamically populated with usable & downloaded fonts -->
           </select>
 
-          <label for="layout-direction"><strong>版式布局：</strong></label>
+          <!-- Traditional vs Simplified Toggle Button -->
+          <div class="script-toggle-container">
+            <span class="ctrl-label">字形版本：</span>
+            <div class="btn-toggle-group script-toggle-group">
+              <button id="btn-trad" class="toggle-btn active" title="切换为繁体中文范例与字形">繁體字 (Traditional)</button>
+              <button id="btn-simp" class="toggle-btn" title="切换为简体中文范例与字形">简体字 (Simplified)</button>
+            </div>
+          </div>
+
+          <label for="layout-direction"><strong>版式：</strong></label>
           <div class="btn-toggle-group">
             <button id="btn-vertical" class="toggle-btn active">传统竖排右起 (Vertical)</button>
             <button id="btn-horizontal" class="toggle-btn">现代横排 (Horizontal)</button>
           </div>
 
-          <label for="font-size-slider"><strong>字号大小：</strong><span id="font-size-val">68px</span></label>
+          <label for="font-size-slider"><strong>字号：</strong><span id="font-size-val">68px</span></label>
           <input type="range" id="font-size-slider" min="28" max="140" value="68" class="range-slider">
         </div>
 
+        <!-- Row 2: Presets with Traditional vs Simplified support -->
         <div class="control-row preset-row">
-          <span class="ctrl-label">传世佳作预置：</span>
-          <div class="preset-buttons">
-            <button class="preset-btn" data-text="永">永字八法</button>
-            <button class="preset-btn" data-text="春江花月夜">春江花月夜</button>
-            <button class="preset-btn" data-text="明月松间照&#10;清泉石上流">王维五言对联</button>
-            <button class="preset-btn" data-text="永和九年&#10;歲在癸丑&#10;暮春之初">兰亭集序</button>
-            <button class="preset-btn" data-text="大江東去&#10;浪淘盡&#10;千古風流人物">赤壁怀古</button>
-            <button class="preset-btn" data-text="天朗气清&#10;惠风和畅">惠风和畅</button>
-            <button class="preset-btn" data-text="厚德载物&#10;宁静致远">厚德宁静</button>
+          <span class="ctrl-label">经典书法名作例句：</span>
+          <div id="preset-buttons-container" class="preset-buttons">
+            <!-- Populated dynamically based on Trad/Simp toggle -->
           </div>
         </div>
 
+        <!-- Row 3: Custom Text Input & Quick Convert -->
         <div class="control-row">
-          <label for="custom-text-input"><strong>自定义挥毫试写：</strong></label>
-          <textarea id="custom-text-input" rows="2" class="calligraphy-textarea" placeholder="在此输入任意中文挥毫测试（换行将对应折行/起行）...">春江花月夜</textarea>
+          <div class="textarea-header">
+            <label for="custom-text-input"><strong>自定义挥毫试写（支持任意文本，换行对应折行/起行）：</strong></label>
+            <div class="text-convert-actions">
+              <button id="btn-convert-current" class="btn-subtle" title="转换当前文本的繁简形式">
+                ⇄ 转换当前输入繁简
+              </button>
+            </div>
+          </div>
+          <textarea id="custom-text-input" rows="2" class="calligraphy-textarea" placeholder="在此输入中文测试..."></textarea>
         </div>
       </div>
 
       <!-- Live Stage Preview -->
       <div class="calligraphy-stage-wrapper">
         <div id="calligraphy-stage" class="calligraphy-stage vertical">
-          <div id="calligraphy-text" class="calligraphy-rendered-text">春江花月夜</div>
+          <div id="calligraphy-text" class="calligraphy-rendered-text"></div>
           <div class="seal-mark top-right">法帖真賞</div>
           <div class="seal-mark bottom-left">妙墨天成</div>
         </div>
@@ -98,7 +110,7 @@
     <!-- Font Database Catalog Browser -->
     <section class="database-browser-section">
       <div class="section-title-bar">
-        <h2><span class="ink-mark">❖</span> 历代书法字库全库鉴赏 (Font Database & Provenance)</h2>
+        <h2><span class="ink-mark">❖</span> 历代书法字库鉴赏与筛选 (Calligraphy Font Database)</h2>
         <div class="search-box-wrapper">
           <input type="text" id="search-input" class="search-input" placeholder="按名家 (颜真卿/王羲之/曹全碑)、字库名、碑帖出处搜索...">
         </div>
@@ -106,12 +118,31 @@
 
       <!-- Filters -->
       <div class="filters-bar">
+        <!-- Displayable & Usable Filter -->
+        <div class="filter-group primary-filter">
+          <span class="filter-label">可用性筛选：</span>
+          <button class="filter-pill highlight-pill active" data-filter="availability" data-val="usable">
+            ✓ 仅显示可使用与展示字库 (<span id="cnt-usable">17</span> 款可试写)
+          </button>
+          <button class="filter-pill" data-filter="availability" data-val="all">
+            全部收录字库 (<span id="cnt-all">62</span> 款含传世名帖)
+          </button>
+        </div>
+
         <div class="filter-group">
           <span class="filter-label">字体风格：</span>
-          <button class="filter-pill active" data-filter="category" data-val="all">全部风格 (<span id="cnt-all">0</span>)</button>
-          <button class="filter-pill" data-filter="category" data-val="kaishu">楷书 (<span id="cnt-kai">0</span>)</button>
-          <button class="filter-pill" data-filter="category" data-val="lishu">隶书 (<span id="cnt-li">0</span>)</button>
-          <button class="filter-pill" data-filter="category" data-val="other">行草/篆/魏碑/硬笔 (<span id="cnt-other">0</span>)</button>
+          <button class="filter-pill active" data-filter="category" data-val="all">全部风格</button>
+          <button class="filter-pill" data-filter="category" data-val="kaishu">楷书</button>
+          <button class="filter-pill" data-filter="category" data-val="lishu">隶书</button>
+          <button class="filter-pill" data-filter="category" data-val="other">行草/篆/魏碑/硬笔</button>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">字形偏好：</span>
+          <button class="filter-pill active" data-filter="char_support" data-val="all">全部繁简</button>
+          <button class="filter-pill" data-filter="char_support" data-val="trad">繁体字库 (王漢宗/曹全碑等)</button>
+          <button class="filter-pill" data-filter="char_support" data-val="simp">简体优先 (马善政/志莽等)</button>
+          <button class="filter-pill" data-filter="char_support" data-val="both">繁简兼备 (霞鹜/文鼎)</button>
         </div>
 
         <div class="filter-group">
@@ -119,12 +150,6 @@
           <button class="filter-pill active" data-filter="medium" data-val="all">全部器具</button>
           <button class="filter-pill" data-filter="medium" data-val="brush">毛笔书法</button>
           <button class="filter-pill" data-filter="medium" data-val="pen">硬笔/钢笔书法</button>
-        </div>
-
-        <div class="filter-group">
-          <span class="filter-label">状态筛选：</span>
-          <button class="filter-pill active" data-filter="download" data-val="all">全部收录</button>
-          <button class="filter-pill highlight-pill" data-filter="download" data-val="1">仅看本地已就绪 (可直接在网页渲染)</button>
         </div>
       </div>
 

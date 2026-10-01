@@ -52,6 +52,7 @@ class TestCalligraphyFontDatabase(unittest.TestCase):
             self.assertTrue(r["name_zh"], f"Chinese name required for {r['id']}")
             self.assertIn(r["style_category"], ["kaishu", "lishu", "other"])
             self.assertIn(r["medium"], ["brush", "pen"], f"Medium must be brush or pen for {r['id']}")
+            self.assertIn(r["char_support"], ["trad", "simp", "both"], f"char_support must be trad, simp, or both for {r['id']}")
             self.assertTrue(r["artist"], f"Artist required for {r['id']}")
             self.assertTrue(r["font_author"], f"Font author/foundry required for {r['id']}")
             self.assertTrue(r["license"], f"License required for {r['id']}")
