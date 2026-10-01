@@ -1,0 +1,629 @@
+/* =========================================================================
+   中华书法字库在线鉴赏与临摹工作台 - style.css
+   Classical Chinese Calligraphy Studio Aesthetics
+   ========================================================================= */
+
+:root {
+  --font-serif: "Noto Serif SC", "Songti SC", "SimSun", "STSong", serif;
+  --color-ink: #1f1e1c;
+  --color-ink-light: #4a4742;
+  --color-paper-xuan: #f9f6ef;
+  --color-paper-border: #e2dbce;
+  --color-seal: #b83324;
+  --color-seal-bg: #fae8e6;
+  --color-accent: #8c3826;
+  --color-gold: #c89d56;
+  --shadow-subtle: 0 4px 20px rgba(40, 30, 20, 0.07);
+  --shadow-card: 0 2px 12px rgba(40, 30, 20, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-serif);
+  color: var(--color-ink);
+  background-color: #f3efe6;
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* --- Paper Themes for Studio --- */
+body.theme-xuan {
+  background-color: #f4efe6;
+}
+
+body.theme-gold {
+  background-color: #efe8d8;
+  background-image: radial-gradient(#d4af37 0.75px, transparent 0.75px), radial-gradient(#c59b27 0.5px, #efe8d8 0.5px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+}
+
+body.theme-rubbing {
+  background-color: #1a1a1a;
+  color: #e6e6e6;
+}
+body.theme-rubbing .studio-header {
+  background: #222222;
+  border-bottom-color: #333333;
+}
+body.theme-rubbing .studio-sandbox-card,
+body.theme-rubbing .font-card {
+  background: #252525;
+  border-color: #383838;
+  color: #e6e6e6;
+}
+body.theme-rubbing .stat-pill {
+  background: #333;
+  color: #ddd;
+}
+body.theme-rubbing .filter-pill {
+  background: #2e2e2e;
+  border-color: #444;
+  color: #ccc;
+}
+body.theme-rubbing .filter-pill.active {
+  background: #8c3826;
+  color: #fff;
+}
+body.theme-rubbing .calligraphy-stage {
+  background-color: #141414;
+  border-color: #404040;
+  color: #f7f5f0;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+}
+
+/* --- Header --- */
+.studio-header {
+  background: #fbf9f4;
+  border-bottom: 2px solid var(--color-paper-border);
+  padding: 24px 32px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+
+.header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.seal-icon {
+  width: 52px;
+  height: 52px;
+  background-color: var(--color-seal);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  border-radius: 4px;
+  border: 2px solid #8e2316;
+  box-shadow: 0 2px 6px rgba(184, 51, 36, 0.3);
+  writing-mode: vertical-rl;
+  user-select: none;
+}
+
+.title-meta h1 {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  margin-bottom: 2px;
+}
+
+.title-meta .subtitle {
+  font-size: 13px;
+  color: #7a756b;
+  letter-spacing: 0.5px;
+}
+
+.header-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  font-size: 13px;
+  background: #eee8dc;
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: #555047;
+}
+.stat-pill strong {
+  color: var(--color-accent);
+}
+.stat-pill.highlight {
+  background: var(--color-seal-bg);
+  color: var(--color-seal);
+  font-weight: 600;
+  border: 1px solid rgba(184, 51, 36, 0.2);
+}
+
+/* --- Main Layout --- */
+.studio-main {
+  max-width: 1400px;
+  margin: 28px auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.section-title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px dashed var(--color-paper-border);
+  padding-bottom: 12px;
+}
+
+.section-title-bar h2 {
+  font-size: 20px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ink-mark {
+  color: var(--color-seal);
+}
+
+/* --- Sandbox Card --- */
+.studio-sandbox-card {
+  background: #fdfbf7;
+  border: 1px solid var(--color-paper-border);
+  border-radius: 8px;
+  padding: 24px 28px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.paper-theme-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.theme-btn {
+  background: #ece5d8;
+  border: 1px solid #d5cbba;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.theme-btn.active, .theme-btn:hover {
+  background: var(--color-ink);
+  color: #fff;
+  border-color: var(--color-ink);
+}
+
+.sandbox-controls-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+  background: rgba(240, 235, 225, 0.5);
+  padding: 16px;
+  border-radius: 6px;
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.custom-select {
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1px solid #cfc5b3;
+  border-radius: 4px;
+  background: #fff;
+  min-width: 280px;
+  cursor: pointer;
+}
+
+.btn-toggle-group {
+  display: flex;
+  border: 1px solid #cfc5b3;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.toggle-btn {
+  background: #fff;
+  border: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.toggle-btn.active {
+  background: var(--color-ink);
+  color: #fff;
+}
+
+.range-slider {
+  width: 140px;
+  cursor: pointer;
+}
+
+.preset-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-btn {
+  background: #fff;
+  border: 1px solid #d5cbba;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: 0.2s;
+}
+.preset-btn:hover {
+  border-color: var(--color-seal);
+  color: var(--color-seal);
+}
+
+.calligraphy-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 16px;
+  font-family: var(--font-serif);
+  border: 1px solid #cfc5b3;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+/* --- Calligraphy Stage --- */
+.calligraphy-stage-wrapper {
+  overflow-x: auto;
+  padding: 10px 0;
+}
+
+.calligraphy-stage {
+  position: relative;
+  min-height: 380px;
+  padding: 48px;
+  background-color: #faf7f0;
+  border: 1px solid #dcd3c2;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.02);
+  transition: background 0.3s, color 0.3s;
+}
+
+.calligraphy-rendered-text {
+  font-size: 68px;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  white-space: pre-wrap;
+  transition: font-family 0.15s, font-size 0.15s;
+}
+
+/* Traditional Vertical Right-to-Left writing mode */
+.calligraphy-stage.vertical .calligraphy-rendered-text {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.2em;
+  line-height: 1.8;
+}
+
+.calligraphy-stage.horizontal .calligraphy-rendered-text {
+  writing-mode: horizontal-tb;
+  text-align: center;
+}
+
+.seal-mark {
+  position: absolute;
+  width: 38px;
+  height: 72px;
+  border: 2px solid var(--color-seal);
+  color: var(--color-seal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  letter-spacing: 4px;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 4px;
+  user-select: none;
+  opacity: 0.85;
+}
+.seal-mark.top-right {
+  top: 24px;
+  right: 28px;
+}
+.seal-mark.bottom-left {
+  bottom: 24px;
+  left: 28px;
+  border-radius: 4px;
+}
+
+.stage-footer {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.font-active-info {
+  font-size: 13px;
+  color: #666;
+}
+
+/* --- Database Browser Section --- */
+.database-browser-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.search-box-wrapper {
+  min-width: 320px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid #cfc5b3;
+  border-radius: 20px;
+  background: #fff;
+  outline: none;
+}
+.search-input:focus {
+  border-color: var(--color-accent);
+}
+
+.filters-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #fbf9f4;
+  padding: 14px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--color-paper-border);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  min-width: 72px;
+}
+
+.filter-pill {
+  background: #fff;
+  border: 1px solid #d5cbba;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-pill.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+.filter-pill.highlight-pill {
+  border-color: #2b7a4b;
+  color: #2b7a4b;
+}
+.filter-pill.highlight-pill.active {
+  background: #2b7a4b;
+  color: #fff;
+}
+
+/* --- Font Grid & Cards --- */
+.font-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 20px;
+}
+
+.font-card {
+  background: #fdfbf7;
+  border: 1px solid var(--color-paper-border);
+  border-radius: 6px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.font-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.card-title-group h3 {
+  font-size: 18px;
+  font-weight: 900;
+  margin-bottom: 2px;
+}
+
+.card-title-group .pinyin-en {
+  font-size: 12px;
+  color: #888;
+}
+
+.badge-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.badge-style {
+  background: #e9e3d6;
+  color: #444;
+}
+.badge-brush {
+  background: #fbeee4;
+  color: #9c3f15;
+}
+.badge-pen {
+  background: #e4eefb;
+  color: #1b5299;
+}
+.badge-dl {
+  background: #e5f5ea;
+  color: #1e7e34;
+}
+
+/* Card Glyphs Preview Stage */
+.card-glyph-preview {
+  background: #f6f2e8;
+  border: 1px solid #e5dccb;
+  border-radius: 4px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  letter-spacing: 0.15em;
+  padding: 8px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.card-metadata-table {
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-row {
+  display: flex;
+}
+.meta-label {
+  color: #888;
+  min-width: 76px;
+  flex-shrink: 0;
+}
+.meta-value {
+  color: #333;
+}
+
+.card-aesthetic-box {
+  background: #f9f6ef;
+  border-left: 3px solid var(--color-accent);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #555;
+  line-height: 1.5;
+  border-radius: 0 4px 4px 0;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.card-btn {
+  flex: 1;
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-try {
+  background: var(--color-ink);
+  color: #fff;
+  border: 1px solid var(--color-ink);
+}
+.btn-try:hover {
+  background: #3a3834;
+}
+
+.btn-source {
+  background: #fff;
+  color: #555;
+  border: 1px solid #d5cbba;
+}
+.btn-source:hover {
+  border-color: #888;
+  color: #111;
+}
+
+/* --- Footer --- */
+.studio-footer {
+  text-align: center;
+  padding: 32px 20px;
+  font-size: 13px;
+  color: #888;
+  border-top: 1px solid var(--color-paper-border);
+  background: #f9f6f0;
+}
