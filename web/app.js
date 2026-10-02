@@ -3,25 +3,52 @@
  * Comprehensive Traditional vs Simplified support and Usability filtering.
  */
 
-// Downloaded font mappings to @font-face families
+// Downloaded font mappings to @font-face families (39 fonts loaded: 29 Kai, 3 Li, 7 Other)
 const LOCAL_FONTS_MAP = {
+  // Kai Shu (楷书 - 29 fonts)
   "hanwang-yan-kai": { family: "HanWangYanKai", file: "fonts/HanWangYanKai.ttf", charSupport: "trad" },
   "mashanzheng-kai": { family: "MaShanZheng", file: "fonts/MaShanZheng.ttf", charSupport: "simp" },
   "hanwang-medium-kai": { family: "HanWangMediumKai", file: "fonts/HanWangMediumKai.ttf", charSupport: "trad" },
-  "hanwang-pen-kai": { family: "HanWangPenKai", file: "fonts/HanWangPenKai.ttf", charSupport: "trad" },
+  "arphic-ukai": { family: "ArphicUKai", file: "fonts/ArphicUKai.ttc", charSupport: "both" },
   "lxgw-wenkai": { family: "LXGWWenKai", file: "fonts/LXGWWenKai-Regular.ttf", charSupport: "both" },
   "klee-one": { family: "KleeOne", file: "fonts/KleeOne.ttf", charSupport: "trad" },
+  "hanwang-pen-kai": { family: "HanWangPenKai", file: "fonts/HanWangPenKai.ttf", charSupport: "trad" },
+  "i-yan-kai": { family: "IYanKai", file: "fonts/IYanKai.ttf", charSupport: "trad" },
+  "chill-qiuhong-kai": { family: "QiuHongKai", file: "fonts/QiuHongKai.ttf", charSupport: "simp" },
+  "cwtex-q-kai": { family: "cwTeXQKai", file: "fonts/cwTeXQKai.ttf", charSupport: "trad" },
+  "yanshu-chunfeng-kai": { family: "ChunFengKai", file: "fonts/ChunFengKai.ttf", charSupport: "simp" },
+  "yanshu-youran-xiaokai": { family: "YouRanXiaoKai", file: "fonts/YouRanXiaoKai.ttf", charSupport: "simp" },
+  "qiji-font-kai": { family: "QijiWoodblockKai", file: "fonts/QijiWoodblockKai.ttf", charSupport: "trad" },
+  "maoken-yingbi-kai": { family: "MaokenYingBiKai", file: "fonts/MaokenYingBiKai.ttf", charSupport: "simp" },
+  "icrane-pen-kai": { family: "ICranePenKai", file: "fonts/ICranePenKai.ttf", charSupport: "trad" },
+  "bpmf-zihi-kai": { family: "BpmfZihiKaiStd", file: "fonts/BpmfZihiKaiStd.ttf", charSupport: "trad" },
+  "lxgw-zhenkai": { family: "LXGWZhenKai", file: "fonts/LXGWZhenKai.ttf", charSupport: "simp" },
+  "yozai-kai": { family: "YozaiKai", file: "fonts/YozaiKai.ttf", charSupport: "simp" },
+  "iansui-kai": { family: "IansuiKai", file: "fonts/IansuiKai.ttf", charSupport: "trad" },
+  "chill-longcang-kai": { family: "ChillLongCangKai", file: "fonts/ChillLongCangKai.otf", charSupport: "simp" },
+  "chill-longcang-kai-bold": { family: "ChillLongCangKaiBold", file: "fonts/ChillLongCangKaiBold.otf", charSupport: "simp" },
+  "lxgw-wenkai-bold": { family: "LXGWWenKaiBold", file: "fonts/LXGWWenKaiBold.ttf", charSupport: "both" },
+  "lxgw-wenkai-mono": { family: "LXGWWenKaiMono", file: "fonts/LXGWWenKaiMono.ttf", charSupport: "both" },
+  "hanwang-standard-kai": { family: "HanWangStandardKai", file: "fonts/HanWangStandardKai.ttf", charSupport: "trad" },
+  "hanwang-simplified-kai": { family: "HanWangSimplifiedKai", file: "fonts/HanWangSimplifiedKai.ttf", charSupport: "simp" },
+  "hanwang-phonetic-kai": { family: "HanWangPhoneticKai", file: "fonts/HanWangPhoneticKai.ttf", charSupport: "trad" },
+  "hanwang-hollow-kai": { family: "HanWangHollowKai", file: "fonts/HanWangHollowKai.ttf", charSupport: "trad" },
+  "hanwang-boldpen-xingkai": { family: "HanWangBoldPenXingKai", file: "fonts/HanWangBoldPenXingKai.ttf", charSupport: "trad" },
+  "hanwang-wave-kai": { family: "HanWangWaveKai", file: "fonts/HanWangWaveKai.ttf", charSupport: "trad" },
+
+  // Li Shu (隶书 - 3 fonts)
   "coqubeli-rubbing": { family: "CoQuBeLi", file: "fonts/CoQuBeLi.ttf", charSupport: "trad" },
   "hanwang-lisu-medium": { family: "HanWangLiSuMedium", file: "fonts/HanWangLiSuMedium.ttf", charSupport: "trad" },
   "hanwang-lisu-bold": { family: "HanWangLiSuBold", file: "fonts/HanWangLiSuBold.ttf", charSupport: "trad" },
+
+  // Other Styles (草书/行书/魏碑/飞白 - 7 fonts)
   "zhimang-xingshu": { family: "ZhiMangXing", file: "fonts/ZhiMangXing.ttf", charSupport: "simp" },
   "liujian-maocao": { family: "LiuJianMaoCao", file: "fonts/LiuJianMaoCao.ttf", charSupport: "simp" },
   "longcang-xingshu": { family: "LongCang", file: "fonts/LongCang.ttf", charSupport: "simp" },
   "hanwang-xing-shu": { family: "HanWangXingShu", file: "fonts/HanWangXingShu.ttf", charSupport: "trad" },
   "hanwang-wei-bei": { family: "HanWangWeiBei", file: "fonts/HanWangWeiBei.ttf", charSupport: "trad" },
   "hanwang-pen-xing-kai": { family: "HanWangPenXingKai", file: "fonts/HanWangPenXingKai.ttf", charSupport: "trad" },
-  "yuji-boku": { family: "YujiBoku", file: "fonts/YujiBoku.ttf", charSupport: "trad" },
-  "arphic-ukai": { family: "ArphicUKai", file: "fonts/ArphicUKai.ttc", charSupport: "both" }
+  "yuji-boku": { family: "YujiBoku", file: "fonts/YujiBoku.ttf", charSupport: "trad" }
 };
 
 // Preset examples in Traditional and Simplified Chinese
@@ -102,10 +129,12 @@ let currentScript = "trad"; // "trad" or "simp"
 function registerFontFaces() {
   let cssRules = "";
   for (const [id, info] of Object.entries(LOCAL_FONTS_MAP)) {
+    const ext = info.file.split('.').pop().toLowerCase();
+    const formatStr = ext === 'otf' ? "format('opentype')" : (ext === 'ttc' ? "format('collection'), format('truetype')" : "format('truetype')");
     cssRules += `
       @font-face {
         font-family: '${info.family}';
-        src: url('${info.file}') format('truetype');
+        src: url('${info.file}') ${formatStr};
         font-display: swap;
       }
     `;
