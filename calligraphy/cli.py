@@ -41,7 +41,7 @@ def parse_args(args: Optional[list] = None) -> argparse.Namespace:
     parser.add_argument("--rotate", type=float, default=0.0, help="Global rotation in degrees (-5.0 - 5.0)")
     parser.add_argument("--paper", type=str, default="#f8f3e9", help="Paper background color (hex or r,g,b)")
     parser.add_argument("--ink", type=str, default="#1c1b18", help="Ink color (hex or r,g,b)")
-    parser.add_argument("--mode", choices=["auto", "template", "contact", "font_layers"], default="auto", help="Rendering engine mode")
+    parser.add_argument("--mode", choices=["auto", "template", "stroke_ir", "contact", "font_layers"], default="auto", help="Rendering engine mode")
     parser.add_argument("--font", type=str, default=None, help="Optional font path override for font-derived styles")
     parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers (default 8)")
     return parser.parse_args(args)
@@ -51,7 +51,7 @@ def main(args: Optional[list] = None) -> int:
     parsed = parse_args(args)
 
     if parsed.list_styles:
-        print("kai: template\nyan: template width preset")
+        print("kai: fitted Stroke IR (default)\nyan: template width preset")
         manifest = style_manifest()
         for name, item in manifest["styles"].items():
             print(f"{name}: contact brush, {item.get('characters', 'preset')} glyphs")

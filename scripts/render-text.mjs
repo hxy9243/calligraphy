@@ -2,14 +2,15 @@ import { parseArgs } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { createTextScene, createTextPlan, resolveGlyphs, bundledGlyphs } from '../src/text/index.mjs';
-import { CONTACT_STYLES, describeContactStyle, renderContactStyle, prepareFontStyle, listContactStyles } from '../src/bridges/contact.mjs';
+import { CONTACT_STYLES, describeContactStyle, renderContactStyle, prepareFontStyle, listContactStyles, renderKaiScene } from '../src/bridges/contact.mjs';
 import { exportStill } from '../src/export/still.mjs';
 import { encodeVideo } from '../src/export/video.mjs';
 import { finiteNumber, positiveInteger, positiveNumber } from '../src/export/config.mjs';
 
-const HELP = `Render text with template strokes or prepared contact-brush glyphs.
+const HELP = `Render text with fitted Kai Stroke IR or prepared style glyphs.
 Usage: npm run render:text -- --text "明月松间照，清泉石上流" --output outputs/text.png
 
+Engine:  --mode auto|stroke_ir|template   generic Kai defaults to stroke_ir
 Styles:  --list-styles                  list built-in and locally registered styles
 Input:   --text TEXT | --text-file FILE   (exactly one required)
          --glyphs FILE                  additional glyph dictionary JSON
@@ -21,7 +22,7 @@ Layout:  --direction vertical-rl|horizontal-lr (default vertical-rl)
          --punctuation break|omit        punctuation is not drawn (default break)
 Style:   --style kai|yan|lishu|liu|yan-contact|"lishu hanwang"
          Registered font styles prepare missing characters with --fetch or --glyphs.
-         kai/yan use templates; the others use prepared contact glyphs (PNG/MP4).
+         kai uses fitted Stroke IR; yan uses templates; the others use prepared contact glyphs (PNG/MP4).
 Timing:  --stroke-seconds N --gap N      default .18 seconds/stroke, .15 between glyphs
          --intro N --outro N             default .5 and 1 seconds
 Still:   --time N                       scene time; defaults to completed writing
@@ -33,14 +34,14 @@ Video:   --fps N --speed N               default 24 fps, speed 1 (maximum 10)
 
 async function main() {
   const stringFlags = ['text', 'text-file', 'glyphs', 'output', 'width', 'height', 'direction', 'per-line',
-    'punctuation', 'style', 'stroke-seconds', 'gap', 'intro', 'outro', 'time', 'fps', 'speed', 'workers'];
+    'punctuation', 'style', 'stroke-seconds', 'gap', 'intro', 'outro', 'time', 'fps', 'speed', 'workers', 'mode'];
   const { values } = parseArgs({ options: {
     ...Object.fromEntries(stringFlags.map(flag => [flag, { type: 'string' }])),
     'list-styles': { type: 'boolean' }, fetch: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
   }, allowPositionals: false });
   if (values.help) { console.log(HELP); return; }
   if (values['list-styles']) {
-    console.log('kai: template\nyan: template width preset');
+    console.log('kai: fitted Stroke IR (default)\nyan: template width preset');
     for (const entry of await listContactStyles()) console.log(`${entry.style}: ${entry.prepared} prepared glyphs${entry.preparable ? ', extensible font' : ''}`);
     return;
   }
@@ -53,6 +54,10 @@ async function main() {
   if (format !== '.mp4' && (values.fps !== undefined || values.speed !== undefined)) throw new Error('--fps and --speed apply only to video');
   const workers = values.workers !== undefined ? positiveInteger(values.workers, 'workers') : 8;
   const style = values.style ?? 'kai';
+  const mode = values.mode ?? 'auto';
+  if (!['auto', 'template', 'stroke_ir'].includes(mode)) throw new Error('Mode must be auto, template or stroke_ir');
+  if (mode === 'stroke_ir' && style !== 'kai') throw new Error('stroke_ir mode supports generic kai only');
+  if (mode === 'template' && !['kai', 'yan'].includes(style)) throw new Error('template mode supports kai and yan only');
   const layout = { width: values.width ?? 1080, height: values.height ?? 1440,
     direction: values.direction ?? 'vertical-rl', charactersPerLine: values['per-line'] };
   const timing = { strokeSeconds: values['stroke-seconds'], characterGap: values.gap, intro: values.intro, outro: values.outro };
@@ -87,6 +92,17 @@ async function main() {
   if (!additional || typeof additional !== 'object' || Array.isArray(additional)) throw new Error('--glyphs must contain a character-keyed object');
   const glyphs = await resolveGlyphs(text, { glyphs: { ...bundledGlyphs, ...additional },
     fetchMissing: values.fetch ?? false, punctuation });
+  if (style === 'kai' && mode !== 'template') {
+    const strokeCounts = Object.fromEntries(Object.entries(glyphs).map(([c, g]) => [c, g.strokes.length]));
+    const plan = createTextPlan({ text, strokeCounts, punctuation, layout, timing });
+    const time = values.time === undefined ? undefined : finiteNumber(values.time, 'time', { minimum: 0, maximum: plan.duration });
+    const fps = positiveInteger(values.fps ?? 24, 'fps');
+    const speed = positiveNumber(values.speed ?? 1, 'speed', { maximum: 10 });
+    await renderKaiScene({ glyphs, plan, output, time, fps, speed, workers, ffmpeg: process.env.FFMPEG ?? 'ffmpeg' });
+    if (plan.omitted.length) console.log(`Layout separators (not painted): ${JSON.stringify(plan.omitted)}`);
+    console.log(`Wrote ${output}: kai-fitted, ${plan.schedule.length} characters, ${plan.width}x${plan.height}`);
+    return;
+  }
   const scene = createTextScene({ text, glyphs, style, punctuation, layout, timing });
   if (scene.omitted.length) console.log(`Layout separators (not painted): ${JSON.stringify(scene.omitted)}`);
   if (format === '.mp4') {

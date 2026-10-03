@@ -197,7 +197,7 @@ def export_video(
     process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     count = math.ceil(dur * fps / speed)
     try:
-        if workers > 1 and count > 1 and hasattr(scene, "frame_svg"):
+        if workers > 1 and count > 1 and hasattr(scene, "frame_svg") and getattr(scene, "parallel_frames", True):
             import concurrent.futures
             window_size = max(workers * 2, 4)
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, count)) as executor:
@@ -253,12 +253,17 @@ def create_scene(
     """Create a renderable scene from a SceneSpec.
     
     Modes:
-      - 'auto': chooses appropriate scene based on style.
+      - 'auto': fitted Kai IR for generic kai; style-specific renderer otherwise.
+      - 'stroke_ir': fitted Kai IR (generic kai only).
       - 'template': vector TemplateScene (kai, yan).
       - 'contact': ContactScene for contact styles or registered font banks.
       - 'font_layers': FontLayerScene for exact font silhouette reconstruction.
     """
+    if mode not in ("auto", "template", "stroke_ir", "contact", "font_layers"):
+        raise ValueError(f"Unknown renderer mode: {mode}")
     style = scene_spec.style
+    if mode == "stroke_ir" and style != "kai":
+        raise ValueError("stroke_ir mode currently supports generic kai only")
     manifest = style_manifest()
 
     if style in TEMPLATE_EXPANSIONS:
@@ -270,6 +275,10 @@ def create_scene(
         )
         stroke_counts = {c: len(loaded_glyphs[c]["strokes"]) for c in loaded_glyphs}
         plan = RenderPlan.create(scene_spec, stroke_counts=stroke_counts)
+        if style == "kai" and mode in ("auto", "stroke_ir"):
+            from .kai_scene import KaiScene, prepare_kai
+            return KaiScene(plan.to_dict(), prepare_kai(loaded_glyphs),
+                            appearance=scene_spec.appearance, transforms=scene_spec.transforms)
         return TemplateScene(plan, loaded_glyphs, style=style)
 
     if style in manifest["styles"]:

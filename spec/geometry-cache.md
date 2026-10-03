@@ -31,8 +31,9 @@ cache = ArtifactCache('work/geometry.db', snapshots=[
 bundle = cache.get('spring-dawn')
 ```
 
-Startup loading is explicit, idempotent and additive. The existing renderers do
-not automatically switch to SQLite. Exported JSON retains their input formats:
+Startup loading is explicit, idempotent and additive. The legacy font registry and frozen replay demo do
+not automatically switch to SQLite. Generic Kai generation now uses SQLite by
+default; see [generic Kai generation](kai-generation.md). Exported JSON retains their input formats:
 use an exported Kai bundle with the demo's `--bundle`, or place an exported font
 bank in the style registry. Import validates finite JSON and the schema field;
 it is a storage layer, not a geometry validator. Renderer loaders retain their
@@ -61,8 +62,9 @@ Each record contains:
 - `package_version` and UTC `prepared_at`.
 
 Engine versions are maintained explicitly when algorithms change. The code hash
-also distinguishes edits made without a version bump. This metadata does not
-trigger automatic refitting: callers choose whether to reuse an older artifact.
+also distinguishes edits made without a version bump. In legacy font banks and imported snapshots, this metadata does not
+trigger automatic refitting. Generic Kai includes source and guide hashes in its
+cache key, so changed source or guides automatically prepare a new revision.
 Old banks and frozen fixtures remain readable and are not retroactively stamped
 with current producer metadata. Missing metadata means unknown producer identity.
 A Kai caller assembling IR should preserve the fitter's `report.engine` in its

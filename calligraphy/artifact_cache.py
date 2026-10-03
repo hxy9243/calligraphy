@@ -5,7 +5,8 @@ never claims it was fitted by the current engine. Explicit content IDs select
 versions, so importing startup seeds cannot overwrite a locally fitted revision.
 """
 import argparse
-from contextlib import closing
+from contextlib import closing, contextmanager
+import fcntl
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -29,6 +30,19 @@ class ArtifactCache:
         # Startup imports are idempotent and additive. Missing/bad seeds fail visibly.
         for name, snapshot in snapshots:
             self.import_json(name, snapshot)
+
+    @contextmanager
+    def lock(self, name):
+        """Serialize lookup/fit/store for one logical name across local processes."""
+        directory = self.path.parent / (self.path.name + '.locks')
+        directory.mkdir(parents=True, exist_ok=True)
+        lock_path = directory / sha256(name.encode()).hexdigest()
+        with lock_path.open('a') as stream:
+            fcntl.flock(stream, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(stream, fcntl.LOCK_UN)
 
     def put(self, name, document):
         if not isinstance(name, str) or not name.strip():

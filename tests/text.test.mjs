@@ -156,7 +156,11 @@ test('generic command writes PNG/SVG from text files outside the repo and reject
     assert.equal(result.status, 0, result.stderr);
     if (extension === 'png') {
       const metadata = await sharp(output).metadata(); assert.deepEqual([metadata.width, metadata.height], [128, 192]);
-    } else assert.match(await readFile(output, 'utf8'), /data-character="永"/);
+    } else {
+      const svg = await readFile(output, 'utf8');
+      assert.match(svg, /data-character="永"/);
+      assert.match(svg, /data-engine="kai-fitted"/);
+    }
   }
   const result = spawnSync(process.execPath, [script, '--text', '天地', '--output', join(dir, 'missing.png')], { cwd: dir, encoding: 'utf8' });
   assert.equal(result.status, 1);

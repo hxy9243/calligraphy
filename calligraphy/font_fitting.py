@@ -17,7 +17,7 @@ S = 160
 SIZE = 480
 
 
-def template(d):
+def template(d, return_guides=False):
     n=len(d['strokes'])
     stack=[]
     for outline in d['strokes']:
@@ -32,12 +32,14 @@ def template(d):
     layers=np.zeros((n,S,S),np.float32)
     progress=np.zeros_like(layers)
     yy,xx=np.mgrid[:S,:S]
+    guides=[]
     for i in range(n):
         layers[i,oy:oy+height,ox:ox+width]=cv2.resize(stack[i,y0:y1,x0:x1],(width,height))/255
         points=np.array(d['medians'][i],float)
         points[:,1]=900-points[:,1]
         points=points*.15625
         points=(points-[x0,y0])*scale+[ox,oy]
+        guides.append(points / S)
         ls=np.linalg.norm(np.diff(points,axis=0),axis=1)
         dist=np.full((S,S),1e9);offset=0
         for a,b,length in zip(points[:-1],points[1:],ls):
@@ -47,7 +49,7 @@ def template(d):
             update=dd<dist
             progress[i][update]=(offset+t[update]*length)/max(ls.sum(),1)
             dist=np.minimum(dist,dd);offset+=length
-    return layers,progress
+    return (layers,progress,guides) if return_guides else (layers,progress)
 
 def bbox(mask):
     y, x = np.where(mask)

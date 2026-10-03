@@ -33,6 +33,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn("styles", data)
         style_ids = [s["id"] for s in data["styles"]]
         self.assertIn("kai", style_ids)
+        self.assertEqual(next(s for s in data["styles"] if s["id"] == "kai")["type"], "stroke_ir")
         self.assertIn("yan", style_ids)
         # Verify fixed collection contact styles are removed
         self.assertNotIn("yan-contact", style_ids)
@@ -98,6 +99,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn("preview_url", data)
         self.assertIn("svg", data)
         self.assertTrue(data["svg"].startswith("<svg"))
+        self.assertIn('data-engine="kai-fitted"', data["svg"])
 
         # Fetch preview image
         img_res = self.client.get(data["preview_url"])

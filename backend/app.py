@@ -131,7 +131,7 @@ async def session_middleware(request: Request, call_next):
 def list_styles():
     """List available writing styles (fixed collection fonts removed)."""
     styles = [
-        {"id": "kai", "name": "楷书 (Kai)", "description": "Standard script vector template", "type": "template"},
+        {"id": "kai", "name": "楷书 (Kai)", "description": "Fitted stroke writing / 拟合笔画书写", "type": "stroke_ir"},
         {"id": "yan", "name": "颜体 (Yan)", "description": "Yan Zhenqing regular script template", "type": "template"},
     ]
     font_names = {

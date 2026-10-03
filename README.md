@@ -8,7 +8,7 @@ The proposed anonymous web studio, Python backend consolidation, style caching
 and admin tools are tracked in the [MVP implementation plan](docs/mvp-plan.md).
 These hosted features are planned, not yet implemented.
 
-The main repository provides generic Han-text template rendering, two preserved
+The main repository provides generic Han-text fitted Kai rendering, two preserved
 JavaScript demonstration scenes (永 and a Wang Wei couplet), shared still/video
 exporters, and reusable Python overlap, ellipse
 brush and contact brush algorithms. These are original style studies and inferred
@@ -34,7 +34,10 @@ without a line break). Missing glyphs and unsupported text produce explicit erro
 
 Use `--width`, `--height`, `--per-line`, `--stroke-seconds` and `--gap` to control
 the page and cadence. MP4 also accepts `--fps` and `--speed` and requires FFmpeg.
-Template styles are `kai` and `yan` (a measured width adjustment). Prepared
+Generic `kai` now defaults to fitted Stroke IR with per-character SQLite caching.
+`--mode template` explicitly selects the legacy Kai renderer; `yan` retains its
+measured template width adjustment. Kai SVG contains embedded rendered pixels;
+use template mode for editable vector paths. Prepared
 contact-brush styles are `lishu`, `liu` and `yan-contact`, supporting PNG and MP4.
 Install the Python engine below first, then run:
 
@@ -70,7 +73,7 @@ for the HanWang setup command, registering other fonts, and quality limits.
 
 ## Kai stroke programs and replay demo
 
-The experimental [Kai stroke IR](spec/stroke-ir.md) validates and renders ordered
+The [Kai stroke IR](spec/stroke-ir.md) validates and renders ordered
 contact geometry through the shared brush. `calligraphy.stroke_fitting` prepares
 bounded contacts from known stroke masks. The [portable Kai demo](examples/kai-stroke-ir/README.md)
 replays the 32-character study and 《春曉》 without depending on the lab checkout.

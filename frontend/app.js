@@ -498,11 +498,11 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.textContent = `${s.name} - ${s.description}`;
             styleSelect.appendChild(opt);
           });
-          // Default to mashanzheng if available, else first
+          // Default to generic Kai; preserve an explicitly selected style.
           if (currentVal && Array.from(styleSelect.options).some(o => o.value === currentVal)) {
             styleSelect.value = currentVal;
-          } else if (Array.from(styleSelect.options).some(o => o.value === 'mashanzheng')) {
-            styleSelect.value = 'mashanzheng';
+          } else if (Array.from(styleSelect.options).some(o => o.value === 'kai')) {
+            styleSelect.value = 'kai';
           }
           applySelectedFont(styleSelect.value);
         }

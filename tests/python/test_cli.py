@@ -21,7 +21,7 @@ class CLITests(unittest.TestCase):
             exit_code = main(["--list-styles"])
             self.assertEqual(exit_code, 0)
             output = mock_stdout.getvalue()
-            self.assertIn("kai: template", output)
+            self.assertIn("kai: fitted Stroke IR", output)
             self.assertIn("yan: template", output)
             self.assertIn("lishu: contact brush", output)
 

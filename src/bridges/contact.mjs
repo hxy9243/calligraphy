@@ -10,11 +10,11 @@ async function pythonExecutable(override) {
   try { await access(local); return local; } catch { return 'python3'; }
 }
 
-async function invoke(style, { request, pythonPath, prepare = false, list = false } = {}) {
+async function invoke(style, { request, pythonPath, prepare = false, list = false, kai = false } = {}) {
   if (!list && (typeof style !== 'string' || !/^[a-z][a-z0-9 -]{0,79}$/.test(style))) throw new TypeError(`Invalid contact style: ${style}`);
   const python = await pythonExecutable(pythonPath);
   return new Promise((resolve, reject) => {
-    const args = ['-m', 'calligraphy.contact_renderer'];
+    const args = ['-m', kai ? 'calligraphy.kai_renderer' : 'calligraphy.contact_renderer'];
     if (list) args.push('--list');
     else args.push('--style', style);
     if (prepare) args.push('--prepare');
@@ -62,4 +62,8 @@ export function prepareFontStyle({ style, glyphs, fontPath, licensePath, source,
 
 export function listContactStyles(options = {}) {
   return invoke(undefined, { ...options, list: true });
+}
+
+export function renderKaiScene(request, options = {}) {
+  return invoke('kai', { ...options, kai: true, request });
 }

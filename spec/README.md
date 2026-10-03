@@ -19,9 +19,9 @@ Read in order:
 6. [Downloaded fonts to animation](font-preparation.md)
 7. [Assets, experiments and validation](assets-and-validation.md)
 
-Experimental: [Kai stroke IR 0.1](stroke-ir.md) describes the isolated bounded
-JSON compiler and deterministic contact-brush replay prototype. It is not yet a
-supported CLI or asset format.
+[Kai stroke IR](stroke-ir.md) describes the bounded JSON compiler and deterministic
+contact-brush replay. [Generic Kai generation](kai-generation.md) describes its
+default CLI/web integration. Cleanup, fairing and smooth sweeps remain experiments.
 
 The [brush-fitting experiment checkpoint](brush-fit-experiments.md) pins the
 associated laboratory revision, measured results, and artifact boundaries.

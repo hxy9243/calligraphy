@@ -1,9 +1,9 @@
 # Experimental Kai stroke IR 0.1 and 0.2
 
-`calligraphy.stroke_ir` is an additive experimental representation for one Kai
-glyph. It is deliberately isolated from the supported CLI, style registry and
-asset formats while fitting and authoring work establishes whether the shape is
-useful.
+`calligraphy.stroke_ir` represents one Kai glyph. Generic `kai` generation now
+uses fitted 0.2 programs through the CLI and web backend; selected font styles
+retain their existing renderers. See [generic Kai generation](kai-generation.md)
+for preparation, cache identity and explicit legacy mode.
 
 ## Paired-contact geometry (0.2)
 
@@ -107,8 +107,8 @@ The renderer inherits `ContactBrush`'s internal sampled deposition window
 (`0.025..0.975`) and timing heuristic. Those timings are implementation timing,
 not measured historical writing speed. Other output sizes resize the base mask.
 
-Version 0.1 does not integrate this IR with the supported CLI, arbitrary-text
-renderer or asset registry.
+The generic-text adapter produces 0.2 programs. Legacy 0.1 authoring remains
+supported by the standalone compiler.
 
 ## Experimental smooth sweep compilation
 
