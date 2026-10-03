@@ -66,11 +66,24 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn("mashanzheng-kai", catalog_ids)
         self.assertIn("i-yan-kai", catalog_ids)
         self.assertIn("tw-kai", catalog_ids)
+        # Verify newly integrated traditional styles
+        self.assertIn("tw-sung", catalog_ids)
+        self.assertIn("genryu-min", catalog_ids)
+        self.assertIn("genwan-min", catalog_ids)
+        self.assertIn("cwtex-fangsong", catalog_ids)
+        self.assertIn("hanwang-shinsu", catalog_ids)
+        self.assertIn("hanwang-kandayan", catalog_ids)
 
         # Test static fonts endpoint
         res_font = self.client.get("/fonts/MaShanZheng.ttf")
         self.assertEqual(res_font.status_code, 200)
         self.assertIn("font", res_font.headers["content-type"].lower())
+        res_tw_sung = self.client.get("/fonts/TW-Sung.ttf")
+        self.assertEqual(res_tw_sung.status_code, 200)
+        res_genryu = self.client.get("/fonts/GenRyuMin-Regular.otf")
+        self.assertEqual(res_genryu.status_code, 200)
+        res_fangsong = self.client.get("/fonts/cwTeXFangSong.ttf")
+        self.assertEqual(res_fangsong.status_code, 200)
 
     def test_session_cookie_created(self):
         res = self.client.get("/api/styles")

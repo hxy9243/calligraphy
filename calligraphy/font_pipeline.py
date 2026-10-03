@@ -163,21 +163,31 @@ def fit_layer(layer, progress, name):
 def fit_glyph(character, target, glyph):
     validate_template(glyph)
     gray = np.uint8(np.clip(255 * (1 - cv2.resize(target, (160, 160))), 0, 255))
-    warped, phase = registered_fields(gray, glyph)
-    layers, phases, _ = smooth_decomposition(warped, phase, target)
-    strokes, scores, contributions = [], [], []
-    ink = np.zeros_like(target)
-    for index, (layer, progress) in enumerate(zip(layers, phases)):
+    tightness_candidates = [.3, .5]
+    for attempt, tightness in enumerate(tightness_candidates):
         try:
-            stroke = fit_layer(layer, progress, f'{character} stroke {index + 1}')
-            mask = complete_stroke(stroke)
-        except ValueError as error:
-            raise ValueError(f'Cannot fit {character} stroke {index + 1}: {error}') from error
-        after = np.maximum(ink, mask)
-        contributions.append(float((after - ink).sum()))
-        scores.append(iou(mask, layer))
-        strokes.append(stroke)
-        ink = after
+            warped, phase = registered_fields(gray, glyph, tightness=tightness)
+        except TypeError:
+            warped, phase = registered_fields(gray, glyph)
+        layers, phases, _ = smooth_decomposition(warped, phase, target)
+        strokes, scores, contributions = [], [], []
+        ink = np.zeros_like(target)
+        try:
+            for index, (layer, progress) in enumerate(zip(layers, phases)):
+                try:
+                    stroke = fit_layer(layer, progress, f'{character} stroke {index + 1}')
+                    mask = complete_stroke(stroke)
+                except ValueError as error:
+                    raise ValueError(f'Cannot fit {character} stroke {index + 1}: {error}') from error
+                after = np.maximum(ink, mask)
+                contributions.append(float((after - ink).sum()))
+                scores.append(iou(mask, layer))
+                strokes.append(stroke)
+                ink = after
+            break
+        except ValueError:
+            if attempt == len(tightness_candidates) - 1:
+                raise
     metrics = {'character': character, 'stroke_count': len(strokes), 'silhouette_iou': iou(ink, target),
                'min_inferred_stroke_iou': min(scores), 'no_new_ink_strokes': [i + 1 for i, c in enumerate(contributions) if c < .01],
                'template_sha256': sha256(json.dumps(glyph, sort_keys=True, ensure_ascii=False).encode()).hexdigest()}

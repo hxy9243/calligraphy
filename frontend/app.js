@@ -53,7 +53,19 @@ const LOCAL_FONTS_MAP = {
   "longcang": { family: "LongCang", file: "fonts/LongCang.ttf", charSupport: "simp" },
   "hanwang-xing-shu": { family: "HanWangXingShu", file: "fonts/HanWangXingShu.ttf", charSupport: "trad" },
   "hanwang-wei-bei": { family: "HanWangWeiBei", file: "fonts/HanWangWeiBei.ttf", charSupport: "trad" },
-  "hanwang-pen-xing-kai": { family: "HanWangPenXingKai", file: "fonts/HanWangPenXingKai.ttf", charSupport: "trad" }
+  "hanwang-pen-xing-kai": { family: "HanWangPenXingKai", file: "fonts/HanWangPenXingKai.ttf", charSupport: "trad" },
+
+  // Song Ti & Woodblock (宋体 / 雕版刻本)
+  "tw-sung": { family: "TWSung", file: "fonts/TW-Sung.ttf", charSupport: "trad" },
+  "genryu-min": { family: "GenRyuMin", file: "fonts/GenRyuMin-Regular.otf", charSupport: "trad" },
+  "genwan-min": { family: "GenWanMin", file: "fonts/GenWanMin-Regular.otf", charSupport: "trad" },
+
+  // Fang Song (仿宋体)
+  "cwtex-fangsong": { family: "cwTeXFangSong", file: "fonts/cwTeXFangSong.ttf", charSupport: "trad" },
+
+  // Running, ShinSu & Monumental Styles (行书 / 新书体 / 榜书匾额)
+  "hanwang-shinsu": { family: "HanWangShinSuMedium", file: "fonts/HanWangShinSuMedium.ttf", charSupport: "trad" },
+  "hanwang-kandayan": { family: "HanWangKanDaYan", file: "fonts/HanWangKanDaYan.ttf", charSupport: "trad" }
 };
 
 // Preset classical calligraphy examples (no punctuation, returns for line breaks, 10+ Tang poems added)
@@ -382,6 +394,18 @@ document.addEventListener('DOMContentLoaded', () => {
       styleHint.innerHTML = '💡 <strong>教育部标准楷书</strong>：国字标准楷体法度，笔意清挺中正，<strong>已自动切换为繁体法帖示例</strong>。';
     } else if (val === 'lxgw-wenkai-tc') {
       styleHint.innerHTML = '💡 <strong>霞鹜文楷繁体版</strong>：文人手书清雅风骨，全字库完备覆盖，<strong>已自动切换为繁体法帖示例</strong>。';
+    } else if (val === 'tw-sung') {
+      styleHint.innerHTML = '💡 <strong>全字庫正宋體</strong>：CNS11643 官方正宋體，金石刀刻筆意，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'genryu-min') {
+      styleHint.innerHTML = '💡 <strong>源流明體</strong>：古典文人雕版印刷書風，刀筆兼備，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'genwan-min') {
+      styleHint.innerHTML = '💡 <strong>源雲明體</strong>：水墨文人明體，筆畫交匯微帶墨暈滲透意趣，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'cwtex-fangsong') {
+      styleHint.innerHTML = '💡 <strong>cwTeX 中仿宋</strong>：文人聚珍仿宋書風，骨力清挺，秀麗挺拔，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'hanwang-shinsu') {
+      styleHint.innerHTML = '💡 <strong>王漢宗中新書</strong>：行氣流暢，結字明朗灑脫，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'hanwang-kandayan') {
+      styleHint.innerHTML = '💡 <strong>王漢宗堪亭大字</strong>：傳統招幌牌匾榜書大字，筆勢盤旋，雄渾厚重，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'mashanzheng' || val === 'mashanzheng-kai') {
       styleHint.innerHTML = '💡 <strong>钟齐马善政毛笔楷书</strong>：当代书法家马善政先生原笔手写真迹，刚劲有力，<strong>已自动切换为简体法帖示例</strong>。';
     } else if (val === 'chill-qiuhong-kai') {
@@ -719,16 +743,22 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateHeaderCounts() {
     const kaiCnt = allFonts.filter(f => f.style_category === "kaishu").length;
     const liCnt = allFonts.filter(f => f.style_category === "lishu").length;
-    const otherCnt = allFonts.length - kaiCnt - liCnt;
+    const songCnt = allFonts.filter(f => f.style_category === "songti").length;
+    const fsCnt = allFonts.filter(f => f.style_category === "fangsong").length;
+    const otherCnt = allFonts.length - kaiCnt - liCnt - songCnt - fsCnt;
 
     const elTotal = document.getElementById("stat-total");
     const elKai = document.getElementById("stat-kai");
     const elLi = document.getElementById("stat-li");
+    const elSong = document.getElementById("stat-song");
+    const elFs = document.getElementById("stat-fs");
     const elOther = document.getElementById("stat-other");
 
     if (elTotal) elTotal.textContent = allFonts.length;
     if (elKai) elKai.textContent = kaiCnt;
     if (elLi) elLi.textContent = liCnt;
+    if (elSong) elSong.textContent = songCnt;
+    if (elFs) elFs.textContent = fsCnt;
     if (elOther) elOther.textContent = otherCnt;
   }
 
