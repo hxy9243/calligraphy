@@ -32,6 +32,40 @@ class ContactSimplificationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Cannot fit 聲 stroke 1: invalid contacts'):
                 fit_glyph('聲', target, glyph)
 
+    def test_adaptive_registration_retry_recovers_delicate_stroke(self):
+        from calligraphy.font_pipeline import fit_glyph
+        glyph = {'strokes': ['M 0 0 L 10 10 L 10 0 Z'], 'medians': [[[0,0],[10,10]]]}
+        target = np.zeros((480,480), np.float32)
+        target[10:20, 10:20] = 1.0
+        fields = np.zeros((1,160,160), np.float32)
+        layers_fail = np.zeros((1,480,480), np.float32)
+        layers_ok = np.zeros((1,480,480), np.float32)
+        layers_ok[0, 10:20, 10:20] = 1.0
+
+        calls = []
+        def mock_reg(gray, g, tightness=.3):
+            calls.append(tightness)
+            return fields, fields
+
+        def mock_decomp(warped, phase, tgt):
+            if len(calls) == 1:
+                return layers_fail, layers_fail, layers_fail
+            return layers_ok, layers_ok, layers_ok
+
+        def mock_fit(layer, progress, name):
+            if len(calls) == 1:
+                raise ValueError('Empty inferred stroke: ' + name)
+            return {'contacts': [[[10,10],[20,20]],[[10,15],[20,25]],[[10,20],[20,30]]], 'corners': []}
+
+        with patch('calligraphy.font_pipeline.registered_fields', side_effect=mock_reg), \
+             patch('calligraphy.font_pipeline.smooth_decomposition', side_effect=mock_decomp), \
+             patch('calligraphy.font_pipeline.fit_layer', side_effect=mock_fit), \
+             patch('calligraphy.font_pipeline.complete_stroke', return_value=layers_ok[0]):
+            strokes, metrics = fit_glyph('翁', target, glyph)
+            self.assertEqual(len(strokes), 1)
+            self.assertEqual(calls, [0.3, 0.5])
+
+
     def test_tiny_raster_piece_fits_and_replays_without_discarding_ink(self):
         layer = np.zeros((480,480), np.float32)
         layer[149,112:115] = 1

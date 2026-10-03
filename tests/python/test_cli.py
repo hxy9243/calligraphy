@@ -69,6 +69,24 @@ class CLITests(unittest.TestCase):
         self.assertTrue(mp4_out.exists())
         self.assertGreater(mp4_out.stat().st_size, 1000)
 
+    def test_render_mp4_parallel_workers(self):
+        mp4_out = self.work_dir / "test_workers.mp4"
+        exit_code = main([
+            "--text", "永",
+            "--style", "kai",
+            "--output", str(mp4_out),
+            "--width", "128",
+            "--height", "128",
+            "--fps", "4",
+            "--intro", "0",
+            "--outro", "0",
+            "--stroke-seconds", "0.25",
+            "--workers", "8",
+        ])
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(mp4_out.exists())
+        self.assertGreater(mp4_out.stat().st_size, 1000)
+
     def test_transform_bounds_validation(self):
         with self.assertRaises(ValueError):
             Transforms(scale=1.5)  # > 1.2

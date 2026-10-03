@@ -1,4 +1,4 @@
-"""FastAPI REST API application for Calligraphy Studio."""
+import json
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -12,19 +12,38 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from calligraphy.contact_renderer import style_manifest
 from calligraphy.font_pipeline import registered_styles
+from calligraphy.text.converter import convert_text
 from calligraphy.text.input import parse_text
 from .database import Database, get_db
 from .worker import execute_job, get_runner
 
 MAX_INPUT_CHARACTERS = 256
 
+STYLE_ALIASES = {
+    "mashanzheng-kai": "mashanzheng",
+    "qiji-font-kai": "qiji-kai",
+    "hanwang-lisu-medium": "lishu hanwang",
+    "longcang-xingshu": "longcang",
+    "tw-sung": "tw-sung",
+    "genryu-min": "genryu-min",
+    "genwan-min": "genwan-min",
+    "cwtex-fangsong": "cwtex-fangsong",
+    "hanwang-shinsu": "hanwang-shinsu",
+    "hanwang-kandayan": "hanwang-kandayan",
+}
+
+
+class ConvertRequest(BaseModel):
+    text: str
+    target: str = Field(default="simp")
+
 
 class PreviewRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
     format: str = Field(default="auto")
+    spacing: float = Field(default=0.18, ge=0.0, le=2.0)
 
 
 class RenderRequest(BaseModel):
@@ -32,6 +51,7 @@ class RenderRequest(BaseModel):
     style: str = Field(default="kai")
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
+    spacing: float = Field(default=0.18, ge=0.0, le=2.0)
 
 
 @asynccontextmanager
@@ -109,27 +129,54 @@ async def session_middleware(request: Request, call_next):
 
 @app.get("/api/styles")
 def list_styles():
-    """List available writing styles."""
+    """List available writing styles (fixed collection fonts removed)."""
     styles = [
         {"id": "kai", "name": "楷书 (Kai)", "description": "Standard script vector template", "type": "template"},
         {"id": "yan", "name": "颜体 (Yan)", "description": "Yan Zhenqing regular script template", "type": "template"},
     ]
-    manifest = style_manifest()
-    for name, item in manifest.get("styles", {}).items():
-        styles.append({
-            "id": name,
-            "name": f"{name.capitalize()} (Contact Brush)",
-            "description": f"Fixed collection of {item.get('characters', 'preset')} characters",
-            "type": "contact",
-        })
+    font_names = {
+        "mashanzheng": "钟齐马善政毛笔楷书 (Ma Shan Zheng)",
+        "i-yan-kai": "刻石录颜体 (I.Yan Kai)",
+        "qiji-kai": "令東齊伋體楷書 (LingDong Qiji Kai)",
+        "chill-qiuhong-kai": "寒蝉秋鸿楷书 (Chill QiuHong Kai)",
+        "longcang": "龙藏体 (Long Cang)",
+        "lishu hanwang": "王汉宗中隶书 (HanWang LiSu)",
+        "aa shoujin": "瘦金体 (Shoujin)",
+        "chiron-goround": "昭源黑体 (Chiron GoRound)",
+        "tw-sung": "全字庫正宋體 (TW-Sung)",
+        "genryu-min": "源流明體 (GenRyuMin)",
+        "genwan-min": "源雲明體 (GenWanMin)",
+        "cwtex-fangsong": "cwTeX 仿宋體 (cwTeX FangSong)",
+        "hanwang-shinsu": "王漢宗中新書繁 (HanWang ShinSu)",
+        "hanwang-kandayan": "王漢宗堪亭大字繁 (HanWang KanDaYan)",
+    }
     for entry in registered_styles():
+        display_name = font_names.get(entry["style"], entry["style"])
         styles.append({
             "id": entry["style"],
-            "name": entry["style"],
+            "name": display_name,
             "description": f"{entry['prepared']} prepared glyphs, extensible font",
             "type": "font",
         })
     return {"styles": styles}
+
+
+@app.post("/api/convert-script")
+def convert_script_endpoint(req: ConvertRequest):
+    """Convert text between Traditional and Simplified Chinese."""
+    converted = convert_text(req.text, req.target)
+    return {"text": converted, "target": req.target}
+
+
+@app.get("/api/font-catalog")
+@app.get("/fonts.json")
+def get_font_catalog():
+    """Retrieve full calligraphy font database catalog."""
+    catalog_path = Path(__file__).resolve().parent.parent / "data" / "calligraphy_fonts.json"
+    if catalog_path.exists():
+        with open(catalog_path, "r", encoding="utf-8") as f:
+            return JSONResponse(content=json.load(f))
+    return JSONResponse(content=[])
 
 
 @app.post("/api/previews")
@@ -150,13 +197,14 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
 
     job_id = f"prev_{uuid.uuid4().hex[:12]}"
     db = get_db()
+    chosen_style = STYLE_ALIASES.get(req.style, req.style)
     job = db.create_job(
         job_id=job_id,
         session_id=session_id,
         job_type="preview",
         text=req.text,
-        style=req.style,
-        params={"format": req.format},
+        style=chosen_style,
+        params={"format": req.format, "spacing": req.spacing},
     )
     # Execute preview immediately for snappy preview response
     success = execute_job(job, db)
@@ -201,13 +249,14 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
 
     job_id = f"vid_{uuid.uuid4().hex[:12]}"
     db = get_db()
+    chosen_style = STYLE_ALIASES.get(req.style, req.style)
     job = db.create_job(
         job_id=job_id,
         session_id=session_id,
         job_type="render",
         text=req.text,
-        style=req.style,
-        params={"fps": req.fps, "speed": req.speed},
+        style=chosen_style,
+        params={"fps": req.fps, "speed": req.speed, "spacing": req.spacing},
     )
     runner = get_runner()
     runner.notify()
@@ -225,6 +274,12 @@ def list_session_jobs(request: Request, response: Response):
     session_id = request.state.session_id
     db = get_db()
     jobs = db.list_jobs(session_id)
+    for j in jobs:
+        if j.get("status") == "succeeded" and j.get("job_type") == "render":
+            j["download_url"] = f"/api/jobs/{j['job_id']}/download"
+            j["video_url"] = f"/api/jobs/{j['job_id']}/video"
+        elif j.get("status") == "succeeded" and j.get("job_type") == "preview":
+            j["download_url"] = f"/api/jobs/{j['job_id']}/image"
     return {"jobs": jobs}
 
 
@@ -238,8 +293,10 @@ def get_job_status(job_id: str, request: Request, response: Response):
         raise HTTPException(status_code=404, detail="Job not found")
 
     download_url = None
+    video_url = None
     if job["status"] == "succeeded" and job["job_type"] == "render":
         download_url = f"/api/jobs/{job_id}/download"
+        video_url = f"/api/jobs/{job_id}/video"
     elif job["status"] == "succeeded" and job["job_type"] == "preview":
         download_url = f"/api/jobs/{job_id}/image"
 
@@ -252,9 +309,31 @@ def get_job_status(job_id: str, request: Request, response: Response):
         "style": job["style"],
         "error_message": job.get("error_message"),
         "download_url": download_url,
+        "video_url": video_url,
         "created_at": job["created_at"],
         "updated_at": job["updated_at"],
     }
+
+
+@app.get("/api/jobs/{job_id}/video")
+def get_job_video(job_id: str, request: Request, response: Response):
+    """Stream or view completed video file inline."""
+    session_id = request.state.session_id
+    db = get_db()
+    job = db.get_job(job_id)
+    if not job or job["session_id"] != session_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job["status"] != "succeeded" or not job.get("output_path"):
+        raise HTTPException(status_code=400, detail="Job not completed")
+
+    file_path = Path(job["output_path"])
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Video file missing")
+
+    return FileResponse(
+        str(file_path),
+        media_type="video/mp4",
+    )
 
 
 @app.get("/api/jobs/{job_id}/download")
@@ -301,6 +380,11 @@ def get_job_image(job_id: str, request: Request, response: Response):
         media_type=media_type,
     )
 
+
+# Mount fonts static directory if exists
+fonts_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+if fonts_dir.exists():
+    app.mount("/fonts", StaticFiles(directory=str(fonts_dir)), name="fonts")
 
 # Mount frontend static directory if exists
 frontend_dir = Path(__file__).resolve().parent.parent / "frontend"

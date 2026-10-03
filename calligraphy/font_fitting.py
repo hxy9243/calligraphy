@@ -67,13 +67,13 @@ def fit_template(layers, progress, ink):
     phase = np.stack([ndi.map_coordinates(a,coords,order=1,mode='nearest') for a in progress])
     return fitted, phase
 
-def registered_fields(gray, glyph):
+def registered_fields(gray, glyph, tightness=.3):
     layers, phase = template(glyph)
     target = (255-gray)/255.
     layers, phase = fit_template(layers, phase, gray < 150)
     flow = optical_flow_tvl1(ndi.gaussian_filter(target,1.5),
                             ndi.gaussian_filter(layers.max(0),1.5),
-                            attachment=12,tightness=.3,num_warp=8,num_iter=12)
+                            attachment=12,tightness=tightness,num_warp=8,num_iter=12)
     yy,xx=np.mgrid[:S,:S]
     coords=np.array([yy+flow[0],xx+flow[1]])
     warped=np.stack([ndi.map_coordinates(a,coords,order=1,mode='constant') for a in layers])

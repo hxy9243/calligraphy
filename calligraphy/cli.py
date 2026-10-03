@@ -43,6 +43,7 @@ def parse_args(args: Optional[list] = None) -> argparse.Namespace:
     parser.add_argument("--ink", type=str, default="#1c1b18", help="Ink color (hex or r,g,b)")
     parser.add_argument("--mode", choices=["auto", "template", "contact", "font_layers"], default="auto", help="Rendering engine mode")
     parser.add_argument("--font", type=str, default=None, help="Optional font path override for font-derived styles")
+    parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers (default 8)")
     return parser.parse_args(args)
 
 
@@ -131,7 +132,7 @@ def main(args: Optional[list] = None) -> int:
             print(f"Layout separators (not painted): {json.dumps(scene_spec.omitted, ensure_ascii=False)}")
 
         if ext == ".mp4":
-            count = export_video(scene, out_path, fps=parsed.fps, speed=parsed.speed)
+            count = export_video(scene, out_path, fps=parsed.fps, speed=parsed.speed, workers=parsed.workers)
             dur = scene.duration if hasattr(scene, "duration") else scene.plan.duration
             print(f"Wrote {out_path}: {count} frames, {scene.width}x{scene.height}, scene {dur:.2f}s")
         else:

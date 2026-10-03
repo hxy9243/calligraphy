@@ -71,3 +71,13 @@ test('video encoder produces a playable smoke artifact when ffmpeg is available'
 test('video encoder validates output before launching a process', async () => {
   await assert.rejects(encodeVideo({ frameSVG: smallFrame, duration: 1, output: '', fps: 1, width: 16, height: 16 }), /output is required/);
 });
+
+test('video encoder encodes multiple frames with parallel workers', { skip: spawnSync('ffmpeg', ['-version']).status !== 0 }, async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'calligraphy-video-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const output = join(directory, 'workers.mp4');
+  const result = await encodeVideo({ frameSVG: smallFrame, duration: 0.5, output, fps: 10, width: 16, height: 16, workers: 8 });
+  await access(output);
+  assert.equal(result.frameCount, 5);
+  assert.ok((await stat(output)).size > 0);
+});

@@ -6,7 +6,7 @@ import { parseText } from '../src/text/input.mjs';
 import { describeContactStyle, prepareFontStyle } from '../src/bridges/contact.mjs';
 
 async function main() {
-  const strings = ['style', 'font', 'license', 'source', 'text', 'text-file', 'glyphs'];
+  const strings = ['style', 'font', 'license', 'source', 'text', 'text-file', 'glyphs', 'workers'];
   const { values } = parseArgs({ options: {
     ...Object.fromEntries(strings.map(name => [name, { type: 'string' }])),
     fetch: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
@@ -18,6 +18,7 @@ New styles require --font and --license. --source records provenance.
 Existing styles: omit --font/--license to prepare additional characters.
 --glyphs FILE supplies local Hanzi Writer records; --fetch explicitly downloads missing records.
 --text-file FILE is an alternative to --text. Rendering is offline after preparation.
+--workers N sets parallel workers for fitting (default: 8).
 CALLIGRAPHY_STYLE_DIR overrides ~/.local/share/calligraphy/styles.`);
     return;
   }
@@ -35,9 +36,10 @@ CALLIGRAPHY_STYLE_DIR overrides ~/.local/share/calligraphy/styles.`);
   const additional = values.glyphs ? JSON.parse(await readFile(values.glyphs, 'utf8')) : {};
   if (!additional || typeof additional !== 'object' || Array.isArray(additional)) throw new Error('--glyphs must be a dictionary');
   const glyphs = await resolveGlyphs(needed.join(''), { glyphs: { ...bundledGlyphs, ...additional }, fetchMissing: values.fetch ?? false });
+  const workers = values.workers !== undefined ? Number(values.workers) : 8;
   const result = await prepareFontStyle({ style: values.style, glyphs,
     fontPath: values.font ? resolve(values.font) : undefined,
-    licensePath: values.license ? resolve(values.license) : undefined, source: values.source });
+    licensePath: values.license ? resolve(values.license) : undefined, source: values.source, workers });
   const flagged = result.prepared.filter(c => result.metrics[c].review_required);
   console.log(`Registered ${result.style}: ${Object.keys(result.strokeCounts).length} prepared characters. Bank: ${result.path}`);
   if (flagged.length) console.log(`Review inferred stroke fits: ${flagged.join(' ')}`);

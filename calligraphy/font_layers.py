@@ -22,8 +22,15 @@ def prepare_character_layers(
       (layers, phases, max_reconstruction_error)
     """
     gray = np.uint8(np.clip(255 * (1 - cv2.resize(target, (160, 160))), 0, 255))
-    warped, phase = registered_fields(gray, glyph_template)
-    layers, phases, _ = smooth_decomposition(warped, phase, target)
+    tightness_candidates = [.3, .5]
+    for attempt, tightness in enumerate(tightness_candidates):
+        try:
+            warped, phase = registered_fields(gray, glyph_template, tightness=tightness)
+        except TypeError:
+            warped, phase = registered_fields(gray, glyph_template)
+        layers, phases, _ = smooth_decomposition(warped, phase, target)
+        if all(layer.sum() > 0 for layer in layers) or attempt == len(tightness_candidates) - 1:
+            break
     ink = np.zeros_like(target)
     for layer in layers:
         ink = np.maximum(ink, layer)

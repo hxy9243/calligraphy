@@ -156,7 +156,7 @@ def export_png(scene, output, time=None):
     scene.frame(time).save(output, format='PNG')
 
 
-def export_video(scene, output, fps=24, speed=1, ffmpeg='ffmpeg'):
+def export_video(scene, output, fps=24, speed=1, ffmpeg='ffmpeg', workers=8):
     finite(fps, 'fps', 1, 240)
     if not isinstance(fps, int):
         raise ValueError('fps must be an integer')
@@ -196,6 +196,7 @@ def main():
     parser.add_argument('--list', action='store_true')
     parser.add_argument('--prepare', action='store_true')
     parser.add_argument('--describe', action='store_true')
+    parser.add_argument('--workers', type=int, default=8, help='Parallel worker count (default: 8)')
     args = parser.parse_args()
     if args.list:
         from .font_pipeline import registered_styles
@@ -207,7 +208,7 @@ def main():
     if args.prepare:
         from .font_pipeline import prepare_style
         request = json.load(sys.stdin)
-        result = prepare_style(args.style, request['glyphs'], request.get('fontPath'), request.get('licensePath'), request.get('source'))
+        result = prepare_style(args.style, request['glyphs'], request.get('fontPath'), request.get('licensePath'), request.get('source'), workers=request.get('workers', args.workers or 8))
         print(json.dumps(result, ensure_ascii=False))
         return
     glyphs = load_style(args.style)
@@ -231,7 +232,7 @@ def main():
     if suffix == '.png':
         export_png(scene, output, request.get('time'))
     elif suffix == '.mp4':
-        export_video(scene, output, request.get('fps', 24), request.get('speed', 1), request.get('ffmpeg', 'ffmpeg'))
+        export_video(scene, output, request.get('fps', 24), request.get('speed', 1), request.get('ffmpeg', 'ffmpeg'), workers=request.get('workers', args.workers or 8))
     else:
         raise ValueError('Contact styles export PNG or MP4, not SVG')
     print(json.dumps({'output': output, 'style': args.style, 'characters': len(scene.plan['schedule'])}, ensure_ascii=False))

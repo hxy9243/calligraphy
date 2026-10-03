@@ -151,6 +151,14 @@ class FontPipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'require --font and --license'):
             prepare_style('unregistered font', {'十': CROSS})
 
+    def test_parallel_prepare_style(self):
+        res1 = prepare_style('par-font-1', {'十': CROSS, '一': LINE}, self.font, self.license, 'synth', workers=1)
+        res8 = prepare_style('par-font-8', {'十': CROSS, '一': LINE}, self.font, self.license, 'synth', workers=8)
+        self.assertEqual(sorted(res1['prepared']), sorted(res8['prepared']))
+        bank1 = load_bank('par-font-1')
+        bank8 = load_bank('par-font-8')
+        self.assertEqual(bank1['geometry_sha256'], bank8['geometry_sha256'])
+
 
 if __name__ == '__main__':
     unittest.main()

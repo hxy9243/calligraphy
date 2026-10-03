@@ -39,6 +39,7 @@ export async function encodeVideo({
   options = {},
   ffmpegPath = 'ffmpeg',
   onProgress,
+  workers = 8,
 }) {
   if (typeof frameSVG !== 'function') throw new TypeError('frameSVG must be a function');
   if (!output) throw new TypeError('output is required');
@@ -47,6 +48,7 @@ export async function encodeVideo({
   const targetHeight = positiveInteger(height, 'height', { minimum: 2, even: true });
   const playbackSpeed = positiveNumber(speed, 'speed', { maximum: 10 });
   const sceneDuration = positiveNumber(duration, 'duration');
+  const concurrency = positiveInteger(workers, 'workers', { minimum: 1 });
   const frameCount = Math.ceil(sceneDuration * frameRate / playbackSpeed);
 
   await mkdir(dirname(output), { recursive: true });
@@ -68,10 +70,26 @@ export async function encodeVideo({
   try {
     await waitForSpawn(child, ffmpegPath);
     started = true;
-    for (let index = 0; index < frameCount; index++) {
+    const renderFrame = async index => {
       const sceneTime = index / frameRate * playbackSpeed;
       const svg = frameSVG(sceneTime, options);
-      const png = await sharp(Buffer.from(svg)).resize(targetWidth, targetHeight).png().toBuffer();
+      return sharp(Buffer.from(svg)).resize(targetWidth, targetHeight).png().toBuffer();
+    };
+
+    const inFlight = new Map();
+    const windowSize = Math.min(concurrency, frameCount);
+    for (let i = 0; i < windowSize; i++) {
+      inFlight.set(i, renderFrame(i));
+    }
+
+    for (let index = 0; index < frameCount; index++) {
+      if (exitError || streamError) break;
+      const png = await inFlight.get(index);
+      inFlight.delete(index);
+      const next = index + windowSize;
+      if (next < frameCount && !exitError && !streamError) {
+        inFlight.set(next, renderFrame(next));
+      }
       await writeFrame(child.stdin, png);
       onProgress?.({ index, frameCount, elapsed: index / frameRate, duration: sceneDuration / playbackSpeed });
     }
