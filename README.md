@@ -55,11 +55,11 @@ layout/timing contract shared by template and contact-brush adapters. See the
 
 ## Animate a downloaded font
 
-The registered **`lishu hanwang`** style uses HanWangLiSuMedium. After its one-time
-registration, prepare additional characters explicitly while rendering:
+Registered extensible font styles include **`longcang`** (LongCang-Regular.ttf under SIL OFL 1.1) and **`lishu hanwang`** (HanWangLiSuMedium). After one-time registration, render or prepare additional characters explicitly:
 
 ```sh
 npm run render:text -- --list-styles
+npm run render:text -- --style "longcang" --text "春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。" --per-line 5 --output outputs/chunxiao-longcang.mp4
 npm run render:text -- --style "lishu hanwang" --text "春江花月夜" --fetch --output outputs/hanwang.mp4
 ```
 

@@ -71,6 +71,22 @@ class AnimationTests(unittest.TestCase):
         gif_bytes = create_animation_gif(render_fn, duration=0.8, fps=6)
         self.assertTrue(gif_bytes.startswith(b"GIF89a"))
 
+    def test_create_animation_gif_workers(self):
+        def render_fn(t):
+            return render_character_svg(self.yong_data, t)
+
+        gif_seq = create_animation_gif(render_fn, duration=0.8, fps=6, workers=1)
+        gif_par = create_animation_gif(render_fn, duration=0.8, fps=6, workers=8)
+        self.assertTrue(gif_par.startswith(b"GIF89a"))
+        self.assertEqual(len(gif_seq), len(gif_par))
+
+    def test_render_timeline_images_workers(self):
+        def render_fn(t):
+            return render_character_svg(self.yong_data, t)
+
+        images = render_timeline_images(render_fn, [0.2, 0.5, 0.8], workers=8)
+        self.assertEqual(len(images), 3)
+
     def test_create_vector_player(self):
         widget = create_vector_player(self.yong_data, style="yan")
         html_str = widget.data

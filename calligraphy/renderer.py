@@ -147,11 +147,13 @@ def export_video(
     fps: int = 24,
     speed: float = 1.0,
     ffmpeg: str = "ffmpeg",
+    workers: int = 8,
 ) -> int:
     if not isinstance(fps, int) or not (1 <= fps <= 240):
         raise ValueError(f"fps must be an integer between 1 and 240, got {fps}")
     if not (0.000001 <= speed <= 10.0):
         raise ValueError(f"speed must be between 0.000001 and 10, got {speed}")
+    workers = max(1, int(workers if workers is not None else 8))
 
     width = scene.width if hasattr(scene, "width") else (scene.plan.width if hasattr(scene.plan, "width") else scene.plan["width"])
     height = scene.height if hasattr(scene, "height") else (scene.plan.height if hasattr(scene.plan, "height") else scene.plan["height"])
@@ -195,10 +197,26 @@ def export_video(
     process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     count = math.ceil(dur * fps / speed)
     try:
-        for i in range(count):
-            t = dur if i == count - 1 else (i / fps * speed)
-            frame_img = scene.frame(t)
-            process.stdin.write(frame_img.tobytes())
+        if workers > 1 and count > 1 and hasattr(scene, "frame_svg"):
+            import concurrent.futures
+            window_size = max(workers * 2, 4)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, count)) as executor:
+                futures = {}
+                for i in range(min(window_size, count)):
+                    t = dur if i == count - 1 else (i / fps * speed)
+                    futures[i] = executor.submit(lambda tm: scene.frame(tm).tobytes(), t)
+                for i in range(count):
+                    frame_bytes = futures.pop(i).result()
+                    process.stdin.write(frame_bytes)
+                    next_idx = i + window_size
+                    if next_idx < count:
+                        t_next = dur if next_idx == count - 1 else (next_idx / fps * speed)
+                        futures[next_idx] = executor.submit(lambda tm: scene.frame(tm).tobytes(), t_next)
+        else:
+            for i in range(count):
+                t = dur if i == count - 1 else (i / fps * speed)
+                frame_img = scene.frame(t)
+                process.stdin.write(frame_img.tobytes())
         process.stdin.close()
         if process.wait() != 0:
             raise RuntimeError("ffmpeg encoding failed")

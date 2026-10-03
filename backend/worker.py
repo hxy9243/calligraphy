@@ -14,6 +14,70 @@ from .database import Database, get_db
 logger = logging.getLogger("calligraphy.worker")
 
 
+def _auto_prepare_font(style: str, text: str) -> None:
+    """If style is not registered but exists in data/fonts catalog, auto-prepare on demand."""
+    if style in ("kai", "yan"):
+        return
+    from calligraphy.font_pipeline import style_path, prepare_style
+    from calligraphy.text.glyphs import resolve_glyphs
+    import json
+
+    try:
+        spath = style_path(style)
+        if spath.exists():
+            return
+    except Exception:
+        return
+
+    catalog_path = Path(__file__).resolve().parent.parent / "data" / "calligraphy_fonts.json"
+    if not catalog_path.exists():
+        return
+
+    try:
+        with open(catalog_path, "r", encoding="utf-8") as f:
+            catalog = json.load(f)
+    except Exception:
+        return
+
+    clean_style = style.strip()
+    entry = next(
+        (f for f in catalog if (f.get("id") == clean_style or f.get("id") == f"{clean_style}-kai") and f.get("is_downloaded") == 1),
+        None
+    )
+    if not entry:
+        return
+
+    rel_path = entry.get("file_path")
+    if not rel_path:
+        return
+
+    font_file = Path(__file__).resolve().parent.parent / rel_path
+    if not font_file.exists():
+        return
+
+    licenses_dir = Path(__file__).resolve().parent.parent / "data" / "licenses"
+    license_type = (entry.get("license") or "").lower()
+    if "gpl" in license_type or "wang" in clean_style or "hanwang" in clean_style:
+        license_path = licenses_dir / "WangFonts-GPL.txt"
+    elif "arphic" in clean_style:
+        license_path = licenses_dir / "Arphic-License.txt"
+    else:
+        license_path = licenses_dir / "MaShanZheng.ttf.OFL.txt"
+
+    try:
+        needed_glyphs = resolve_glyphs(text, fetch_missing=True)
+        prepare_style(
+            clean_style,
+            needed_glyphs,
+            font_path=str(font_file),
+            license_path=str(license_path) if license_path.exists() else None,
+            source=entry.get("source_url") or "",
+        )
+        logger.info("Auto-prepared style %s for text %s", clean_style, text)
+    except Exception as exc:
+        logger.warning("Auto-prepare failed for style %s: %s", clean_style, exc)
+
+
 def execute_job(job: Dict[str, Any], db: Database) -> bool:
     job_id = job["job_id"]
     text = job["text"]
@@ -31,6 +95,7 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
             "height": params.get("height", 960),
             "direction": params.get("direction", "vertical-rl"),
             "characters_per_line": params.get("characters_per_line", None),
+            "gap": float(params.get("spacing", params.get("gap", 0.18))),
         }
         timing_dict = {
             "stroke_seconds": params.get("stroke_seconds", 0.18),
@@ -59,6 +124,8 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
         )
 
         db.update_job(job_id, progress=0.3)
+
+        _auto_prepare_font(style, text)
 
         scene = create_scene(scene_spec, fetch_missing=True)
 

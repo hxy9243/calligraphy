@@ -186,11 +186,18 @@ def fit_glyph(character, target, glyph):
     return strokes, metrics
 
 
-def prepare_style(style, glyphs, font_path=None, license_path=None, source=None):
+def _fit_glyph_worker(args):
+    char, target, glyph = args
+    strokes, metrics = fit_glyph(char, target, glyph)
+    return char, strokes, metrics, glyph
+
+
+def prepare_style(style, glyphs, font_path=None, license_path=None, source=None, workers=8):
     if not isinstance(glyphs, dict) or not 1 <= len(glyphs) <= 512 or any(not isinstance(c, str) or len(c) != 1 for c in glyphs):
         raise ValueError('Supply a dictionary of 1–512 character templates')
     for glyph in glyphs.values():
         validate_template(glyph)
+    workers = max(1, int(workers if workers is not None else 8))
     path = style_path(style)
     with locked(path):
         if path.exists():
@@ -229,12 +236,25 @@ def prepare_style(style, glyphs, font_path=None, license_path=None, source=None)
         if sha256(Path(font_path).read_bytes()).hexdigest() != bank['font']['sha256']:
             raise ValueError('Registered font changed; use a new style name')
         missing = [c for c in glyphs if c not in bank['glyphs']]
-        for char, target in target_masks(font_path, missing):
-            strokes, metrics = fit_glyph(char, target, glyphs[char])
-            bank['glyphs'][char] = strokes
-            bank['metrics'][char] = metrics
-            bank['templates'][char] = glyphs[char]
-            print(f'Prepared {char}: {len(strokes)} strokes, shape IoU {metrics["silhouette_iou"]:.3f}' + ('; review required' if metrics['review_required'] else ''), file=sys.stderr, flush=True)
+        tasks = [(char, target, glyphs[char]) for char, target in target_masks(font_path, missing)]
+        if len(tasks) <= 1 or workers == 1:
+            for char, target, glyph in tasks:
+                strokes, metrics = fit_glyph(char, target, glyph)
+                bank['glyphs'][char] = strokes
+                bank['metrics'][char] = metrics
+                bank['templates'][char] = glyph
+                print(f'Prepared {char}: {len(strokes)} strokes, shape IoU {metrics["silhouette_iou"]:.3f}' + ('; review required' if metrics['review_required'] else ''), file=sys.stderr, flush=True)
+        else:
+            import concurrent.futures
+            import multiprocessing as mp
+            max_workers = min(workers, len(tasks))
+            ctx = mp.get_context('spawn')
+            with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers, mp_context=ctx) as executor:
+                for char, strokes, metrics, glyph in executor.map(_fit_glyph_worker, tasks):
+                    bank['glyphs'][char] = strokes
+                    bank['metrics'][char] = metrics
+                    bank['templates'][char] = glyph
+                    print(f'Prepared {char}: {len(strokes)} strokes, shape IoU {metrics["silhouette_iou"]:.3f}' + ('; review required' if metrics['review_required'] else ''), file=sys.stderr, flush=True)
         write_bank(path, bank)
     return {'style': bank['style'], 'path': str(path), 'prepared': missing,
             'strokeCounts': {c: len(s) for c, s in bank['glyphs'].items()}, 'metrics': bank['metrics']}

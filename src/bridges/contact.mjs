@@ -52,12 +52,12 @@ export function describeContactStyle(style, options = {}) {
   return invoke(style, options);
 }
 
-export function renderContactStyle({ style, plan, output, time, fps = 24, speed = 1, ffmpeg = process.env.FFMPEG || 'ffmpeg', pythonPath }) {
-  return invoke(style, { pythonPath, request: { plan, output, time, fps, speed, ffmpeg } });
+export function renderContactStyle({ style, plan, output, time, fps = 24, speed = 1, ffmpeg = process.env.FFMPEG || 'ffmpeg', pythonPath, workers = 8 }) {
+  return invoke(style, { pythonPath, request: { plan, output, time, fps, speed, ffmpeg, workers } });
 }
 
-export function prepareFontStyle({ style, glyphs, fontPath, licensePath, source, pythonPath }) {
-  return invoke(style, { pythonPath, prepare: true, request: { glyphs, fontPath, licensePath, source } });
+export function prepareFontStyle({ style, glyphs, fontPath, licensePath, source, pythonPath, workers = 8 }) {
+  return invoke(style, { pythonPath, prepare: true, request: { glyphs, fontPath, licensePath, source, workers } });
 }
 
 export function listContactStyles(options = {}) {

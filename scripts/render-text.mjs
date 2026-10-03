@@ -26,13 +26,14 @@ Timing:  --stroke-seconds N --gap N      default .18 seconds/stroke, .15 between
          --intro N --outro N             default .5 and 1 seconds
 Still:   --time N                       scene time; defaults to completed writing
 Video:   --fps N --speed N               default 24 fps, speed 1 (maximum 10)
+         --workers N                     parallel workers (default: 8)
          FFMPEG selects the encoder; CALLIGRAPHY_PYTHON selects a Python installation
          with calligraphy-engine installed for contact styles.
 `;
 
 async function main() {
   const stringFlags = ['text', 'text-file', 'glyphs', 'output', 'width', 'height', 'direction', 'per-line',
-    'punctuation', 'style', 'stroke-seconds', 'gap', 'intro', 'outro', 'time', 'fps', 'speed'];
+    'punctuation', 'style', 'stroke-seconds', 'gap', 'intro', 'outro', 'time', 'fps', 'speed', 'workers'];
   const { values } = parseArgs({ options: {
     ...Object.fromEntries(stringFlags.map(flag => [flag, { type: 'string' }])),
     'list-styles': { type: 'boolean' }, fetch: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
@@ -50,6 +51,7 @@ async function main() {
   if (!['.png', '.svg', '.mp4'].includes(format)) throw new Error('Output must end in .png, .svg or .mp4');
   if (format === '.mp4' && values.time !== undefined) throw new Error('--time applies only to still images');
   if (format !== '.mp4' && (values.fps !== undefined || values.speed !== undefined)) throw new Error('--fps and --speed apply only to video');
+  const workers = values.workers !== undefined ? positiveInteger(values.workers, 'workers') : 8;
   const style = values.style ?? 'kai';
   const layout = { width: values.width ?? 1080, height: values.height ?? 1440,
     direction: values.direction ?? 'vertical-rl', charactersPerLine: values['per-line'] };
@@ -66,7 +68,7 @@ async function main() {
       const additional = values.glyphs ? JSON.parse(await readFile(values.glyphs, 'utf8')) : {};
       if (!additional || typeof additional !== 'object' || Array.isArray(additional)) throw new Error('--glyphs must be a dictionary');
       const glyphs = await resolveGlyphs(missing.join(''), { glyphs: { ...bundledGlyphs, ...additional }, fetchMissing: values.fetch ?? false });
-      const prepared = await prepareFontStyle({ style, glyphs });
+      const prepared = await prepareFontStyle({ style, glyphs, workers });
       strokeCounts = prepared.strokeCounts;
       source = { metrics: prepared.metrics };
     } else if (missing.length) throw new Error(`Missing prepared ${style} glyphs: ${missing.join(' ')}. ${preparable ? 'Use --fetch or --glyphs to prepare them from the registered font.' : 'No template fallback is applied.'}`);
@@ -77,7 +79,7 @@ async function main() {
     const time = values.time === undefined ? undefined : finiteNumber(values.time, 'time', { minimum: 0, maximum: plan.duration });
     const fps = positiveInteger(values.fps ?? 24, 'fps');
     const speed = positiveNumber(values.speed ?? 1, 'speed', { maximum: 10 });
-    await renderContactStyle({ style, plan, output, time, fps, speed });
+    await renderContactStyle({ style, plan, output, time, fps, speed, workers });
     console.log(`Wrote ${output}: ${style} contact brush, ${plan.schedule.length} characters, ${plan.width}x${plan.height}`);
     return;
   }
@@ -90,7 +92,7 @@ async function main() {
   if (format === '.mp4') {
     const fps = positiveInteger(values.fps ?? 24, 'fps');
     const speed = positiveNumber(values.speed ?? 1, 'speed', { maximum: 10 });
-    await encodeVideo({ ...scene, output, fps, speed, ffmpegPath: process.env.FFMPEG ?? 'ffmpeg' });
+    await encodeVideo({ ...scene, output, fps, speed, ffmpegPath: process.env.FFMPEG ?? 'ffmpeg', workers });
   } else {
     const time = finiteNumber(values.time ?? scene.duration, 'time', { minimum: 0, maximum: scene.duration });
     await exportStill({ ...scene, output, time });

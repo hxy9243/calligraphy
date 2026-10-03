@@ -11,3 +11,5 @@ dist/
 *.mp4
 *.db
 *.db-*
+calligraphy-fonts-worktree
+uv.lock

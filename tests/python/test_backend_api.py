@@ -34,6 +34,43 @@ class BackendApiTests(unittest.TestCase):
         style_ids = [s["id"] for s in data["styles"]]
         self.assertIn("kai", style_ids)
         self.assertIn("yan", style_ids)
+        # Verify fixed collection contact styles are removed
+        self.assertNotIn("yan-contact", style_ids)
+        self.assertNotIn("lishu", style_ids)
+        self.assertNotIn("liu", style_ids)
+        for s in data["styles"]:
+            self.assertNotEqual(s.get("type"), "contact")
+        # Verify newly added fonts
+        self.assertIn("mashanzheng", style_ids)
+        self.assertIn("i-yan-kai", style_ids)
+        self.assertIn("qiji-kai", style_ids)
+
+    def test_convert_script(self):
+        res_trad = self.client.post("/api/convert-script", json={"text": "春眠不觉晓，处处闻啼鸟", "target": "trad"})
+        self.assertEqual(res_trad.status_code, 200)
+        data_trad = res_trad.json()
+        self.assertEqual(data_trad["text"], "春眠不覺曉，處處聞啼鳥")
+
+        res_simp = self.client.post("/api/convert-script", json={"text": "明月松間照，清泉石上流", "target": "simp"})
+        self.assertEqual(res_simp.status_code, 200)
+        data_simp = res_simp.json()
+        self.assertEqual(data_simp["text"], "明月松间照，清泉石上流")
+
+    def test_font_catalog_and_static_fonts(self):
+        res = self.client.get("/api/font-catalog")
+        self.assertEqual(res.status_code, 200)
+        catalog = res.json()
+        self.assertIsInstance(catalog, list)
+        self.assertGreater(len(catalog), 10)
+        catalog_ids = [f["id"] for f in catalog]
+        self.assertIn("mashanzheng-kai", catalog_ids)
+        self.assertIn("i-yan-kai", catalog_ids)
+        self.assertIn("tw-kai", catalog_ids)
+
+        # Test static fonts endpoint
+        res_font = self.client.get("/fonts/MaShanZheng.ttf")
+        self.assertEqual(res_font.status_code, 200)
+        self.assertIn("font", res_font.headers["content-type"].lower())
 
     def test_session_cookie_created(self):
         res = self.client.get("/api/styles")
@@ -41,7 +78,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn("calligraphy_session", res.cookies)
 
     def test_preview_generation(self):
-        res = self.client.post("/api/previews", json={"text": "永", "style": "kai"})
+        res = self.client.post("/api/previews", json={"text": "永", "style": "kai", "spacing": 0.25})
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertIn("job_id", data)
@@ -78,6 +115,13 @@ class BackendApiTests(unittest.TestCase):
         self.assertEqual(status_data["status"], "succeeded")
         self.assertEqual(status_data["progress"], 1.0)
         self.assertIsNotNone(status_data["download_url"])
+        self.assertIsNotNone(status_data["video_url"])
+
+        # Stream inline video
+        video_res = self.client.get(f"/api/jobs/{job_id}/video")
+        self.assertEqual(video_res.status_code, 200)
+        self.assertEqual(video_res.headers["content-type"], "video/mp4")
+        self.assertGreater(len(video_res.content), 1000)
 
         # Download video
         dl_res = self.client.get(f"/api/jobs/{job_id}/download")

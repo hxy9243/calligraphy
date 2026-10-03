@@ -435,19 +435,27 @@ def create_animation_gif(
     fps: int = 12,
     output_path: Optional[Union[str, Path]] = None,
     speed: float = 1.0,
+    workers: int = 8,
 ) -> bytes:
     """Sample an SVG animation function over time and encode as an animated GIF."""
     if duration is None:
         _, duration = render_fn(0.0)
 
     n_frames = max(1, int(duration * fps / speed))
-    frames = []
+    workers = max(1, int(workers if workers is not None else 8))
 
-    for idx in range(n_frames):
+    def _render_frame(idx: int) -> Image.Image:
         time_curr = (idx / fps) * speed
         svg_str, _ = render_fn(time_curr)
         png_data = cairosvg.svg2png(bytestring=svg_str.encode())
-        frames.append(Image.open(io.BytesIO(png_data)))
+        return Image.open(io.BytesIO(png_data))
+
+    if workers > 1 and n_frames > 1:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, n_frames)) as executor:
+            frames = list(executor.map(_render_frame, range(n_frames)))
+    else:
+        frames = [_render_frame(idx) for idx in range(n_frames)]
 
     buf = io.BytesIO()
     frames[0].save(
@@ -471,14 +479,21 @@ def create_animation_gif(
 def render_timeline_images(
     render_fn: Callable[[float], Tuple[str, float]],
     time_points: Sequence[float],
+    workers: int = 8,
 ) -> List[Image.Image]:
     """Render PIL Images at specific time points for plotting."""
-    images = []
-    for t in time_points:
+    workers = max(1, int(workers if workers is not None else 8))
+
+    def _render_time(t: float) -> Image.Image:
         svg_str, _ = render_fn(t)
         png_data = cairosvg.svg2png(bytestring=svg_str.encode())
-        images.append(Image.open(io.BytesIO(png_data)))
-    return images
+        return Image.open(io.BytesIO(png_data))
+
+    if workers > 1 and len(time_points) > 1:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, len(time_points))) as executor:
+            return list(executor.map(_render_time, time_points))
+    return [_render_time(t) for t in time_points]
 
 
 __all__ = [
