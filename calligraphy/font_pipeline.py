@@ -19,6 +19,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from .contact_stroke import complete_stroke
+from .engine_metadata import engine_metadata
 from .brush_grammar import validate
 from .font_fitting import registered_fields, smooth_decomposition, ordered_guide, contacts_from_layer, iou
 
@@ -229,11 +230,14 @@ def prepare_style(style, glyphs, font_path=None, license_path=None, source=None)
         if sha256(Path(font_path).read_bytes()).hexdigest() != bank['font']['sha256']:
             raise ValueError('Registered font changed; use a new style name')
         missing = [c for c in glyphs if c not in bank['glyphs']]
+        metadata = engine_metadata('font-contact') if missing else None
+        bank.setdefault('glyph_metadata', {})
         for char, target in target_masks(font_path, missing):
             strokes, metrics = fit_glyph(char, target, glyphs[char])
             bank['glyphs'][char] = strokes
             bank['metrics'][char] = metrics
             bank['templates'][char] = glyphs[char]
+            bank['glyph_metadata'][char] = dict(metadata)
             print(f'Prepared {char}: {len(strokes)} strokes, shape IoU {metrics["silhouette_iou"]:.3f}' + ('; review required' if metrics['review_required'] else ''), file=sys.stderr, flush=True)
         write_bank(path, bank)
     return {'style': bank['style'], 'path': str(path), 'prepared': missing,

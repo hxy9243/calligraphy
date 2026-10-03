@@ -22,6 +22,7 @@ class StrokeFittingTests(unittest.TestCase):
         self.assertGreater(float(final.sum()), float(partial.sum()))
         self.assertLessEqual(len(contacts), 64)
         self.assertTrue(result['report']['prefixConnected'])
+        self.assertEqual(result['report']['engine']['engine_version'], 'kai-fitted-v1')
 
     def test_unsupported_topology_is_explicit(self):
         target = np.zeros((480, 480), bool)

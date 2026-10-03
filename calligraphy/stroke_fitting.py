@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 
 from .brush_grammar import ContactBrush
+from .engine_metadata import engine_metadata
 from .rail_alignment import _arc_resample, align_rails
 
 
@@ -159,6 +160,7 @@ def fit_contact_stroke(target480: np.ndarray, guide_nx2: np.ndarray,
         "corners": [],
         "tension": 0.0,
         "report": {
+            "engine": engine_metadata('kai-fitted'),
             "algorithm": "subpixel boundary correction; ordered contour split; paired arc-length rails; adaptive 12..64 stations",
             "boundaryOffset480": 1 / 3,
             "correspondence": correspondence,

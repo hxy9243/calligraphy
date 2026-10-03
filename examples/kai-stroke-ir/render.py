@@ -13,6 +13,8 @@ import numpy as np
 from PIL import Image
 
 from calligraphy.stroke_ir import render_program, validate_program
+from calligraphy.engine_metadata import engine_metadata
+from calligraphy.artifact_cache import ArtifactCache
 
 
 HERE = Path(__file__).resolve().parent
@@ -22,12 +24,16 @@ PAPER = np.array([241, 234, 216], dtype=np.uint8)
 INK = np.array([27, 25, 21], dtype=np.uint8)
 
 
-def load_bundle(path: Path) -> dict:
+def load_bundle(path: Path, cache_db: Path | None = None) -> dict:
     bundle = json.loads(path.read_text())
     if bundle.get("schemaVersion") != "kai-writing-scene/0.1":
         raise ValueError("expected a kai-writing-scene/0.1 replay bundle")
     for entry in bundle["programs"]:
         validate_program(entry["ir"])
+    if cache_db is not None:
+        cache = ArtifactCache(cache_db)
+        content_id = cache.put('kai-writing-scene', bundle)
+        bundle = cache.get('kai-writing-scene', content_id)
     return bundle
 
 
@@ -86,6 +92,7 @@ def write_metadata(bundle_path: Path, output_dir: Path, frame_path: Path, video_
         "generated": True,
         "sourceBundle": {"path": str(bundle_path), "sha256": sha256(bundle_path)},
         "engineEntryPoint": "calligraphy.stroke_ir.render_program",
+        "replayEngine": engine_metadata('kai-replay'),
         "artifacts": artifacts,
     }
     (output_dir / "manifest.json").write_text(
@@ -153,6 +160,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("frame", "render", "gallery"))
     parser.add_argument("--bundle", type=Path, default=DEFAULT_BUNDLE)
+    parser.add_argument("--cache-db", type=Path,
+                        help="import the selected writing bundle into SQLite on startup")
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
     parser.add_argument("--output-dir", type=Path, default=HERE / "work")
     parser.add_argument("--progress", type=float, default=1.0,
@@ -164,6 +173,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--steps", type=int, default=31,
                         help="number of seek frames per gallery glyph")
     args = parser.parse_args()
+    if args.command == 'gallery' and args.cache_db:
+        parser.error('--cache-db applies to frame and render; gallery uses --bank')
     if not 0 <= args.progress <= 1:
         parser.error("--progress must be in [0, 1]")
     if min(args.duration, args.fps, args.size, args.steps) <= 0:
@@ -177,7 +188,7 @@ def main() -> None:
         render_gallery(args.bank, args.output_dir, args.size, args.steps)
         print(args.output_dir / "gallery.json")
         return
-    scene = Scene(load_bundle(args.bundle))
+    scene = Scene(load_bundle(args.bundle, args.cache_db))
     args.output_dir.mkdir(parents=True, exist_ok=True)
     frame_path = args.output_dir / "frame.png"
     scene.frame(args.progress).save(frame_path, optimize=True)

@@ -55,6 +55,8 @@ class FontPipelineTests(unittest.TestCase):
         result = self.prepare()
         self.assertGreater(result['metrics']['十']['silhouette_iou'], .85)
         bank = load_bank('test-font')
+        self.assertEqual(bank['glyph_metadata']['十']['engine_version'], 'font-contact-v1')
+        self.assertEqual(len(bank['glyph_metadata']['十']['engine_source_sha256']), 64)
         self.assertEqual(bank['font']['source'], 'synthetic fixture')
         self.assertEqual(load_style('test font'), bank['glyphs'])
         plan = {'schemaVersion': 1, 'width': 128, 'height': 128, 'duration': 1.2, 'strokeSeconds': .5,
@@ -95,6 +97,17 @@ class FontPipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Missing font glyphs'):
             prepare_style('test font', {'一': LINE, '春': CROSS})
         self.assertEqual(before, style_path('test font').read_bytes())
+
+    def test_extension_does_not_relabel_legacy_geometry(self):
+        self.prepare()
+        path = style_path('test font')
+        bank = json.loads(path.read_text())
+        del bank['glyph_metadata']
+        path.write_text(json.dumps(bank))
+        prepare_style('test font', {'一': LINE})
+        updated = load_bank('test font')
+        self.assertNotIn('十', updated['glyph_metadata'])
+        self.assertEqual(updated['glyph_metadata']['一']['engine_type'], 'font-contact')
 
     def test_changed_font_and_tampered_geometry_fail(self):
         self.prepare()

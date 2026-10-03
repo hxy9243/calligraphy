@@ -26,6 +26,9 @@ supported CLI or asset format.
 The [brush-fitting experiment checkpoint](brush-fit-experiments.md) pins the
 associated laboratory revision, measured results, and artifact boundaries.
 
+[Geometry caching](geometry-cache.md) describes Git snapshots, explicit SQLite
+import/export and per-fit engine identity.
+
 For runnable setup commands, start with the [repository README](../README.md).
 For historical context, see the [migration plan](../docs/migration-plan.md) and
 [recorded migration checks](../docs/validation.md). Those reports describe past

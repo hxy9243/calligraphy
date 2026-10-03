@@ -149,3 +149,11 @@ integration test. Its HanWang PNG matched the development render byte for byte.
 The five-character MP4 was verified as 320 × 480, 22 frames, 2.75 seconds at 8 fps
 and speed 3. The four-character extension request prepared 清、風、明 and produced
 a second MP4. No lab module or original lab font path is required at render time.
+
+## Engine identity and database snapshots
+
+New glyphs carry per-character `glyph_metadata` with engine type/version, Git
+commit (when available), dirty state, source-code hash, package version and UTC
+preparation time. Extending an old bank does not relabel its existing geometry.
+See [geometry caching](geometry-cache.md) for explicit SQLite storage, startup
+snapshot import and JSON export. The existing font registry remains JSON-backed.
