@@ -8,8 +8,8 @@ import copy
 import cv2
 import numpy as np
 from scipy import ndimage
-from .stroke_ir import validate_program, render_program, SCHEMA_VERSION
-from .stroke_fitting import fit_contact_stroke
+from .stroke_ir import validate_program, render_program, compile_program, SCHEMA_VERSION
+from .stroke_fitting import fit_contact_stroke, _motion_checks
 
 
 def smooth_rails(stations: np.ndarray, corners: list[int] | None = None, passes: int = 2) -> np.ndarray:
@@ -192,12 +192,14 @@ def clean_program(program):
             check['strokes'][0]['geometry'] = geom
             actual = np.asarray(render_program(check, 1, 480)) > .5
             retention = float((before & actual).sum() / max((before | actual).sum(), 1))
-            if retention >= 0.86:
+            connected = cv2.connectedComponents(actual.astype(np.uint8), connectivity=8)[0] == 2
+            motion = _motion_checks(compile_program(check)[0]) if connected else None
+            if retention >= 0.86 and connected and motion['prefixConnected']:
                 output['geometry'] = geom
                 reports.append({'id': original['id'], 'radiusPx': 0, 'removedPixels': int((before & ~actual).sum()),
                                 'filledHolePixels': 0, 'retainedFraction': float((before & actual).sum() / area),
                                 'originalStrokeIou': retention, 'cleanedMaskIou': retention,
-                                'reviewRequired': False, 'motion': {'monotonic': True, 'connected': True, 'prefixFrames': 31},
+                                'reviewRequired': False, 'motion': {**motion, 'connected': connected},
                                 'method': 'direct-rail-fairing'})
                 accepted = True
             else:

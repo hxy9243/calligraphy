@@ -43,8 +43,11 @@ def _node_costs(a: np.ndarray, b: np.ndarray, target: np.ndarray,
 
     midpoint = (a[:, None, :] + b[None, :, :]) / 2
     guide_samples = _guide_samples(guide)
-    guide_d2 = np.min(np.sum((midpoint[:, :, None, :] - guide_samples[None, None, :, :]) ** 2,
-                             axis=3), axis=2)
+    # Bound the temporary array instead of allocating every guide sample at once.
+    guide_d2 = np.full(midpoint.shape[:2], np.inf)
+    for start in range(0, len(guide_samples), 16):
+        delta = midpoint[:, :, None, :] - guide_samples[None, None, start:start + 16, :]
+        guide_d2 = np.minimum(guide_d2, np.min(np.sum(delta ** 2, axis=3), axis=2))
     width = np.linalg.norm(a[:, None, :] - b[None, :, :], axis=2)
     # Progress regularization is intentionally weak: unequal rail progress is
     # the behavior this prototype needs to allow around folds and hooks.
@@ -124,4 +127,3 @@ def align_rails(forward: np.ndarray, backward: np.ndarray, target480: np.ndarray
     indices = _monotone_pairs(cost)
     paired = np.stack([a[indices[:, 0]], b[indices[:, 1]]], axis=1)
     return _simplify(paired.reshape(len(paired), 4), stations).reshape(-1, 2, 2)
-

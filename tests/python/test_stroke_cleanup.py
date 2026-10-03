@@ -37,6 +37,18 @@ class SelectiveCleanupTest(unittest.TestCase):
         for k in ('id','kind','duration','liftAfter'):
             self.assertEqual(source['strokes'][0][k],result['strokes'][0][k])
 
+    def test_disconnected_fairing_is_not_reported_as_connected(self):
+        source = specimen()
+        xs = np.linspace(.1, .9, 16)
+        widths = np.array([.08]*5 + [0]*6 + [.08]*5)
+        geometry = source['strokes'][0]['geometry']
+        geometry['stations'] = np.stack([np.column_stack([xs, .5-widths/2]),
+                                         np.column_stack([xs, .5+widths/2])], axis=1).tolist()
+        geometry['corners'] = list(range(16))
+        result, report = clean_program(source)
+        self.assertTrue(report['strokes'][0]['reviewRequired'])
+        self.assertEqual(result['strokes'][0]['geometry'], geometry)
+
     def test_deposition_and_backward_seek_use_saved_geometry_only(self):
         result,_ = clean_program(specimen())
         a=render_program(result,.2); b=render_program(result,.8); c=render_program(result,1)
