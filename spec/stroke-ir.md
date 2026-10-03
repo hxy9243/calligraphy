@@ -110,6 +110,29 @@ not measured historical writing speed. Other output sizes resize the base mask.
 Version 0.1 does not integrate this IR with the supported CLI, arbitrary-text
 renderer or asset registry.
 
+## Experimental smooth sweep compilation
+
+`calligraphy.stroke_sweep.compile_smooth_program(program)` converts a validated
+0.2 program into a frozen `smooth-brush-program/0.1` and a measurement report.
+Each source stroke is rendered in isolation, short skeleton branches are pruned,
+and the existing brush fitter derives one medial path. If skeleton extraction is
+ambiguous, the original paired-contact midpoints are used as a reported fallback
+guide. Narrow terminal samples are trimmed deliberately, producing rounded tips.
+
+Pressure uses at most twelve smoothed, positive, shape-preserving knots. Radius
+change is bounded per unit path length to prevent narrow interior bulges. The
+compiled record contains only path, radius, normalized time, nib aspect and tail
+behavior. It contains no source or target mask and rendering performs no target
+comparison or clipping.
+
+`validate_smooth_program(program)` checks the explicit schema, finite geometry,
+bounds, station counts, monotone times, brush parameters, timing and relations.
+`render_smooth_program(program, progress, size=480)` performs deterministic,
+stateless replay through the existing `BrushPainter`. The same function serves
+complete and partial frames. Reports include radius/width roughness before and
+after, normalized centre displacement, trimmed endpoint distance and fallback
+use. This is a geometric elliptical sweep, not a physical bristle simulation.
+
 ## Bounded fitting from an ordered stroke mask
 
 `calligraphy.stroke_fitting.fit_contact_stroke(target480, guide_nx2)` accepts a
@@ -132,3 +155,20 @@ qualification when describing the demonstration.
 The research runners, external source masks, evaluation and transfer experiments
 remain in `calligraphy-lab`. Its compatibility modules import this implementation.
 The portable replay demo is in `examples/kai-stroke-ir/`.
+
+### Selective narrow-feature cleanup
+
+`calligraphy.stroke_cleanup.clean_program(program)` returns paired-contact IR
+and per-stroke evidence. It applies a small (1–5 canonical pixel radius) opening
+to isolated stroke silhouettes during compilation, then reconstructs frozen
+contact geometry. Radius derives from stroke thickness, not whole-glyph IoU.
+No reference pixels or masks participate in playback. Original IDs, order,
+timing, lifts, and relations remain unchanged.
+
+The compiler rejects disconnected cleanup results, more than 12% removed area,
+interior holes larger than 25 pixels, or a reconstruction below 86% overlap with
+the original isolated stroke. Unsupported strokes remain unchanged with explicit
+review flags. Tiny holes may be filled and their area is reported. Narrow
+legitimate details may also be shortened; broad ownership errors and physical
+brush plausibility remain outside this local contour prior. The lab's selective
+viewer compares original, rounded-sweep, and selectively cleaned alternatives.
