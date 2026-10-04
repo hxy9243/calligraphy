@@ -206,42 +206,76 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  textInput.addEventListener('input', updateText);
+  // A conversion owns only the text revision and script choice it started with.
+  let scriptConversionVersion = 0;
+  let scriptConversionStatus = '';
+
+  function invalidateScriptConversion() {
+    scriptConversionVersion += 1;
+    if (scriptConversionStatus && statusMessage.textContent === scriptConversionStatus) {
+      hideStatus();
+    }
+    scriptConversionStatus = '';
+  }
+
+  textInput.addEventListener('input', () => {
+    invalidateScriptConversion();
+    updateText();
+  });
   textInput.addEventListener('paste', () => setTimeout(updateText, 20));
 
   // High-precision Trad/Simp conversion with server-side zhconv + client fallback
   async function performScriptConversion(targetScript) {
+    invalidateScriptConversion();
+    const requestVersion = scriptConversionVersion;
     const originalText = textInput.value;
+    // Track the latest choice immediately, including repeated toggle/font clicks.
+    currentScript = targetScript;
+    updateScriptButtons();
+    renderPresets();
     if (!originalText.trim()) {
-      currentScript = targetScript;
-      updateScriptButtons();
-      renderPresets();
       return;
     }
 
-    showStatus(`正在转换文本为${targetScript === 'trad' ? '繁体' : '简体'}...`, 'info');
+    scriptConversionStatus = `正在转换文本为${targetScript === 'trad' ? '繁体' : '简体'}...`;
+    showStatus(scriptConversionStatus, 'info');
+    let convertedText;
+    let usedFallback = false;
     try {
       const res = await fetch('/api/convert-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: originalText, target: targetScript })
       });
-      if (res.ok) {
-        const data = await res.json();
-        textInput.value = data.text;
-      } else {
-        textInput.value = fallbackConvert(originalText, targetScript);
+      if (!res.ok) throw new Error('Script conversion service unavailable');
+      const data = await res.json();
+      if (typeof data.text !== 'string') {
+        throw new Error('Invalid script conversion response');
       }
+      convertedText = data.text;
     } catch (e) {
-      textInput.value = fallbackConvert(originalText, targetScript);
+      convertedText = fallbackConvert(originalText, targetScript);
+      usedFallback = true;
     }
 
-    currentScript = targetScript;
-    updateScriptButtons();
+    // Also check the value in case another UI component replaced it without input.
+    if (requestVersion !== scriptConversionVersion || textInput.value !== originalText) return;
+    textInput.value = convertedText;
     updateText();
-    renderPresets();
-    showStatus(`已转换为${targetScript === 'trad' ? '繁体中文' : '简体中文'}`, 'success');
-    setTimeout(hideStatus, 2500);
+    if (statusMessage.textContent === scriptConversionStatus) {
+      const scriptLabel = targetScript === 'trad' ? '繁体中文' : '简体中文';
+      scriptConversionStatus = usedFallback
+        ? `转换服务不可用，已使用离线字表转换为${scriptLabel}；部分字词可能未转换，请检查文本`
+        : `已转换为${scriptLabel}`;
+      showStatus(scriptConversionStatus, usedFallback ? 'info' : 'success');
+      if (!usedFallback) {
+        setTimeout(() => {
+          if (requestVersion === scriptConversionVersion && statusMessage.textContent === scriptConversionStatus) {
+            hideStatus();
+          }
+        }, 2500);
+      }
+    }
   }
 
   function updateScriptButtons() {
@@ -289,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       btn.textContent = p.name;
       btn.addEventListener('click', () => {
+        invalidateScriptConversion();
         textInput.value = textToShow;
         updateText();
       });

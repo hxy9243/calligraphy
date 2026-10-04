@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from calligraphy.font_pipeline import registered_styles
-from calligraphy.text.converter import convert_text
+from calligraphy.text.converter import ConversionUnavailableError, convert_text
 from calligraphy.text.input import parse_text
 from .database import Database, get_db
 from .style_catalog import STYLE_ALIASES
@@ -23,7 +23,7 @@ MAX_INPUT_CHARACTERS = 256
 
 class ConvertRequest(BaseModel):
     text: str
-    target: str = Field(default="simp")
+    target: Literal["simp", "trad", "zh-hans", "zh-hant"] = "simp"
 
 
 class PreviewRequest(BaseModel):
@@ -152,7 +152,10 @@ def list_styles():
 @app.post("/api/convert-script")
 def convert_script_endpoint(req: ConvertRequest):
     """Convert text between Traditional and Simplified Chinese."""
-    converted = convert_text(req.text, req.target)
+    try:
+        converted = convert_text(req.text, req.target)
+    except ConversionUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"text": converted, "target": req.target}
 
 
