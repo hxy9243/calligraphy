@@ -73,7 +73,15 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn("genwan-min", catalog_ids)
         self.assertIn("cwtex-fangsong", catalog_ids)
         self.assertIn("hanwang-shinsu", catalog_ids)
-        self.assertIn("hanwang-kandayan", catalog_ids)
+        # Verify removed styles are absent
+        for removed_id in (
+            "hanwang-pen-kai",
+            "bpmf-zihi-kai",
+            "hanwang-boldpen-xingkai",
+            "hanwang-wave-kai",
+            "hanwang-kandayan",
+        ):
+            self.assertNotIn(removed_id, catalog_ids)
 
         # Test static fonts endpoint
         res_font = self.client.get("/fonts/MaShanZheng.ttf")

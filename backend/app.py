@@ -30,7 +30,6 @@ STYLE_ALIASES = {
     "genwan-min": "genwan-min",
     "cwtex-fangsong": "cwtex-fangsong",
     "hanwang-shinsu": "hanwang-shinsu",
-    "hanwang-kandayan": "hanwang-kandayan",
 }
 
 
@@ -148,7 +147,6 @@ def list_styles():
         "genwan-min": "源雲明體 (GenWanMin)",
         "cwtex-fangsong": "cwTeX 仿宋體 (cwTeX FangSong)",
         "hanwang-shinsu": "王漢宗中新書繁 (HanWang ShinSu)",
-        "hanwang-kandayan": "王漢宗堪亭大字繁 (HanWang KanDaYan)",
     }
     for entry in registered_styles():
         display_name = font_names.get(entry["style"], entry["style"])

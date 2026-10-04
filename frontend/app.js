@@ -20,14 +20,12 @@ const LOCAL_FONTS_MAP = {
   "hanwang-medium-kai": { family: "HanWangMediumKai", file: "fonts/HanWangMediumKai.ttf", charSupport: "trad" },
   "arphic-ukai": { family: "ArphicUKai", file: "fonts/ArphicUKai.ttc", charSupport: "both" },
   "lxgw-wenkai": { family: "LXGWWenKai", file: "fonts/LXGWWenKai-Regular.ttf", charSupport: "both" },
-  "hanwang-pen-kai": { family: "HanWangPenKai", file: "fonts/HanWangPenKai.ttf", charSupport: "trad" },
   "chill-qiuhong-kai": { family: "QiuHongKai", file: "fonts/QiuHongKai.ttf", charSupport: "simp" },
   "cwtex-q-kai": { family: "cwTeXQKai", file: "fonts/cwTeXQKai.ttf", charSupport: "trad" },
   "yanshu-chunfeng-kai": { family: "ChunFengKai", file: "fonts/ChunFengKai.ttf", charSupport: "simp" },
   "yanshu-youran-xiaokai": { family: "YouRanXiaoKai", file: "fonts/YouRanXiaoKai.ttf", charSupport: "simp" },
   "maoken-yingbi-kai": { family: "MaokenYingBiKai", file: "fonts/MaokenYingBiKai.ttf", charSupport: "simp" },
   "icrane-pen-kai": { family: "ICranePenKai", file: "fonts/ICranePenKai.ttf", charSupport: "trad" },
-  "bpmf-zihi-kai": { family: "BpmfZihiKaiStd", file: "fonts/BpmfZihiKaiStd.ttf", charSupport: "trad" },
   "lxgw-zhenkai": { family: "LXGWZhenKai", file: "fonts/LXGWZhenKai.ttf", charSupport: "simp" },
   "yozai-kai": { family: "YozaiKai", file: "fonts/YozaiKai.ttf", charSupport: "simp" },
   "chill-longcang-kai": { family: "ChillLongCangKai", file: "fonts/ChillLongCangKai.otf", charSupport: "simp" },
@@ -38,8 +36,6 @@ const LOCAL_FONTS_MAP = {
   "hanwang-simplified-kai": { family: "HanWangSimplifiedKai", file: "fonts/HanWangSimplifiedKai.ttf", charSupport: "simp" },
   "hanwang-phonetic-kai": { family: "HanWangPhoneticKai", file: "fonts/HanWangPhoneticKai.ttf", charSupport: "trad" },
   "hanwang-hollow-kai": { family: "HanWangHollowKai", file: "fonts/HanWangHollowKai.ttf", charSupport: "trad" },
-  "hanwang-boldpen-xingkai": { family: "HanWangBoldPenXingKai", file: "fonts/HanWangBoldPenXingKai.ttf", charSupport: "trad" },
-  "hanwang-wave-kai": { family: "HanWangWaveKai", file: "fonts/HanWangWaveKai.ttf", charSupport: "trad" },
 
   // Li Shu (隶书)
   "hanwang-lisu-medium": { family: "HanWangLiSuMedium", file: "fonts/HanWangLiSuMedium.ttf", charSupport: "trad" },
@@ -64,8 +60,7 @@ const LOCAL_FONTS_MAP = {
   "cwtex-fangsong": { family: "cwTeXFangSong", file: "fonts/cwTeXFangSong.ttf", charSupport: "trad" },
 
   // Running, ShinSu & Monumental Styles (行书 / 新书体 / 榜书匾额)
-  "hanwang-shinsu": { family: "HanWangShinSuMedium", file: "fonts/HanWangShinSuMedium.ttf", charSupport: "trad" },
-  "hanwang-kandayan": { family: "HanWangKanDaYan", file: "fonts/HanWangKanDaYan.ttf", charSupport: "trad" }
+  "hanwang-shinsu": { family: "HanWangShinSuMedium", file: "fonts/HanWangShinSuMedium.ttf", charSupport: "trad" }
 };
 
 // Preset classical calligraphy examples (no punctuation, returns for line breaks, 10+ Tang poems added)
@@ -82,6 +77,7 @@ const PRESET_EXAMPLES = [
   { id: "fengqiao", name: "枫桥夜泊 (张继)", trad: "月落烏啼霜滿天\n江楓漁火對愁眠\n姑蘇城外寒山寺\n夜半鐘聲到客船", simp: "月落乌啼霜满天\n江枫渔火对愁眠\n姑苏城外寒山寺\n夜半钟声到客船" },
   { id: "liangzhou", name: "凉州词 (王翰)", trad: "葡萄美酒夜光杯\n欲飲琵琶馬上催\n醉臥沙場君莫笑\n古來征戰幾人回", simp: "葡萄美酒夜光杯\n欲饮琵琶马上催\n醉卧沙场君莫笑\n古来征战几人回" },
   { id: "guyuan", name: "赋得古原草送别 (白居易)", trad: "離離原上草\n一歲一枯榮\n野火燒不盡\n春風吹又生", simp: "离离原上草\n一岁一枯荣\n野火烧不尽\n春风吹又生" },
+  { id: "songdu", name: "送杜少府之任蜀州 (王勃)", trad: "城闕輔三秦\n風煙望五津\n與君離別意\n同是宦遊人\n海內存知己\n天涯若比鄰\n無為在岐路\n兒女共霑巾", simp: "城阙辅三秦\n风烟望五津\n与君离别意\n同是宦游人\n海内存知己\n天涯若比邻\n无为在歧路\n儿女共沾巾" },
   { id: "yong", name: "永字八法", trad: "永", simp: "永" },
   { id: "river", name: "春江花月夜", trad: "春江花月夜", simp: "春江花月夜" },
   { id: "lanting", name: "兰亭集序", trad: "永和九年\n歲在癸丑\n暮春之初\n會於會稽山陰之蘭亭\n修禊事也", simp: "永和九年\n岁在癸丑\n暮春之初\n会于会稽山阴之兰亭\n修禊事也" },
@@ -404,8 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
       styleHint.innerHTML = '💡 <strong>cwTeX 中仿宋</strong>：文人聚珍仿宋書風，骨力清挺，秀麗挺拔，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'hanwang-shinsu') {
       styleHint.innerHTML = '💡 <strong>王漢宗中新書</strong>：行氣流暢，結字明朗灑脫，<strong>已自動切換為繁體法帖示例</strong>。';
-    } else if (val === 'hanwang-kandayan') {
-      styleHint.innerHTML = '💡 <strong>王漢宗堪亭大字</strong>：傳統招幌牌匾榜書大字，筆勢盤旋，雄渾厚重，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'mashanzheng' || val === 'mashanzheng-kai') {
       styleHint.innerHTML = '💡 <strong>钟齐马善政毛笔楷书</strong>：当代书法家马善政先生原笔手写真迹，刚劲有力，<strong>已自动切换为简体法帖示例</strong>。';
     } else if (val === 'chill-qiuhong-kai') {
