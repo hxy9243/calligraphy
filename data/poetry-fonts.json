@@ -1,0 +1,72 @@
+[
+  {
+    "id": "lxgw-wenkai-tc",
+    "file": "data/fonts/LXGWWenKaiTC-Regular.ttf",
+    "license_file": "data/licenses/LXGWWenKaiTC-OFL.txt",
+    "source": "https://github.com/lxgw/LxgwWenkaiTC",
+    "sha256": "b1a0795862c1415bf3f393ea50b2a4ea6275012cf5bad3f94feeb1222f555731",
+    "family": "LXGW WenKai TC",
+    "version": "Version 1.522; March 17, 2026",
+    "coverage": {
+      "presets": 18,
+      "unique_traditional_characters": 250,
+      "missing": ""
+    }
+  },
+  {
+    "id": "iansui-kai",
+    "file": "data/fonts/Iansui-Regular.ttf",
+    "license_file": "data/licenses/Iansui-OFL.txt",
+    "source": "https://github.com/ButTaiwan/iansui",
+    "sha256": "7f1aa62e9dcbf40d0ce41a5d3f1e5ea602e66c295778ac6fefb6b84d8ed08bd5",
+    "family": "Iansui",
+    "version": "Version 1.012",
+    "coverage": {
+      "presets": 18,
+      "unique_traditional_characters": 250,
+      "missing": ""
+    }
+  },
+  {
+    "id": "lxgw-zhenkai",
+    "file": "data/fonts/LXGWZhenKai.ttf",
+    "license_file": "data/licenses/LXGWZhenKai-OFL.txt",
+    "source": "https://github.com/lxgw/LxgwZhenKai",
+    "sha256": "40876902a7ce25268ab710ad8fe6e2b63bc002aa4b68d22fd45fc1243726ced5",
+    "family": "LXGW ZhenKai GB",
+    "version": "Version 0.825;March 17, 2026",
+    "coverage": {
+      "presets": 18,
+      "unique_traditional_characters": 250,
+      "missing": ""
+    }
+  },
+  {
+    "id": "hanwang-lisu-medium",
+    "file": "data/fonts/HanWangLiSuMedium.ttf",
+    "license_file": "data/licenses/WangFonts-GPL.txt",
+    "source": "https://code.google.com/archive/p/wangfonts/",
+    "sha256": "ab881b246e6a16dc5b684d54151284b0a613d7d6eb17909d2e0a86f3efc02b42",
+    "family": "HanWangLiSuMedium",
+    "version": "Version 1.3(license under GNU GPL)",
+    "coverage": {
+      "presets": 18,
+      "unique_traditional_characters": 250,
+      "missing": ""
+    }
+  },
+  {
+    "id": "qiji-font-kai",
+    "file": "data/fonts/qiji-combo.ttf",
+    "license_file": "data/licenses/Qiji-OFL.txt",
+    "source": "https://github.com/LingDong-/qiji-font",
+    "sha256": "f842291b039e9c5ae69edfe924edbe28b3cfba91bcac95791bf1fbc11db330cf",
+    "family": "QIJIC",
+    "version": "Version 0.0.1 ",
+    "coverage": {
+      "presets": 18,
+      "unique_traditional_characters": 250,
+      "missing": ""
+    }
+  }
+]

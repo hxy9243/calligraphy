@@ -138,7 +138,20 @@ def list_styles():
         "cwtex-fangsong": "cwTeX 仿宋體 (cwTeX FangSong)",
         "hanwang-shinsu": "王漢宗中新書繁 (HanWang ShinSu)",
     }
+    catalog_path = Path(__file__).resolve().parent.parent / "data" / "calligraphy_fonts.json"
+    poetry_ids = {"lxgw-wenkai-tc", "iansui-kai", "lxgw-zhenkai", "hanwang-lisu-medium", "qiji-font-kai"}
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    for font in catalog:
+        if font["id"] in poetry_ids and (catalog_path.parent.parent / font["file_path"]).is_file():
+            styles.append({
+                "id": STYLE_ALIASES.get(font["id"], font["id"]),
+                "name": font["name_zh"],
+                "description": font["style_display"],
+                "type": "font",
+            })
     for entry in registered_styles():
+        if any(s["id"] == entry["style"] for s in styles):
+            continue
         display_name = font_names.get(entry["style"], entry["style"])
         styles.append({
             "id": entry["style"],

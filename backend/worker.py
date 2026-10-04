@@ -55,7 +55,9 @@ def _auto_prepare_font(style: str, text: str) -> None:
 
     licenses_dir = Path(__file__).resolve().parent.parent / "data" / "licenses"
     license_type = (entry.get("license") or "").lower()
-    if "gpl" in license_type or "wang" in clean_style or "hanwang" in clean_style:
+    if entry.get("license_path"):
+        license_path = Path(__file__).resolve().parent.parent / entry["license_path"]
+    elif "gpl" in license_type or "wang" in clean_style or "hanwang" in clean_style:
         license_path = licenses_dir / "WangFonts-GPL.txt"
     elif "arphic" in clean_style:
         license_path = licenses_dir / "Arphic-License.txt"

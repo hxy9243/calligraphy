@@ -164,3 +164,19 @@ commit (when available), dirty state, source-code hash, package version and UTC
 preparation time. Extending an old bank does not relabel its existing geometry.
 See [geometry caching](geometry-cache.md) for explicit SQLite storage, startup
 snapshot import and JSON export. The existing font registry remains JSON-backed.
+
+## Bundled poetry fonts in the Studio
+
+The style selector and font catalog include LXGW WenKai TC, Iansui, LXGW ZhenKai
+GB, HanWang LiSu Medium and Qiji before any local fitting bank exists. Selecting
+one previews its bundled font face; exports prepare inferred strokes on demand.
+Each catalog entry records its own `license_path`, which the worker preserves
+in the fitting bank. Four fonts use OFL 1.1; HanWang uses GPL 2 or later.
+
+`data/poetry-fonts.json` records the exact bundled files, family names, versions,
+SHA-256 checksums, source projects and coverage audit. All five cover the 250
+unique traditional characters in the 18 current UI presets, including excerpts.
+This checks code-point mappings, not semantic stroke correctness. Qiji maps some
+characters to variant forms; ZhenKai GB uses mainland glyph conventions and
+includes AI-assisted additions. Qiji is a Ming woodblock typeface, not Kai.
+The original license notices are in `data/licenses/`.

@@ -26,7 +26,7 @@ const LOCAL_FONTS_MAP = {
   "yanshu-youran-xiaokai": { family: "YouRanXiaoKai", file: "fonts/YouRanXiaoKai.ttf", charSupport: "simp" },
   "maoken-yingbi-kai": { family: "MaokenYingBiKai", file: "fonts/MaokenYingBiKai.ttf", charSupport: "simp" },
   "icrane-pen-kai": { family: "ICranePenKai", file: "fonts/ICranePenKai.ttf", charSupport: "trad" },
-  "lxgw-zhenkai": { family: "LXGWZhenKai", file: "fonts/LXGWZhenKai.ttf", charSupport: "simp" },
+  "lxgw-zhenkai": { family: "LXGWZhenKai", file: "fonts/LXGWZhenKai.ttf", charSupport: "both" },
   "yozai-kai": { family: "YozaiKai", file: "fonts/YozaiKai.ttf", charSupport: "simp" },
   "chill-longcang-kai": { family: "ChillLongCangKai", file: "fonts/ChillLongCangKai.otf", charSupport: "simp" },
   "chill-longcang-kai-bold": { family: "ChillLongCangKaiBold", file: "fonts/ChillLongCangKaiBold.otf", charSupport: "simp" },
@@ -50,6 +50,10 @@ const LOCAL_FONTS_MAP = {
   "hanwang-xing-shu": { family: "HanWangXingShu", file: "fonts/HanWangXingShu.ttf", charSupport: "trad" },
   "hanwang-wei-bei": { family: "HanWangWeiBei", file: "fonts/HanWangWeiBei.ttf", charSupport: "trad" },
   "hanwang-pen-xing-kai": { family: "HanWangPenXingKai", file: "fonts/HanWangPenXingKai.ttf", charSupport: "trad" },
+
+  "iansui-kai": { family: "Iansui", file: "fonts/Iansui-Regular.ttf", charSupport: "trad" },
+  "qiji-font-kai": { family: "Qiji", file: "fonts/qiji-combo.ttf", charSupport: "trad" },
+  "qiji-kai": { family: "Qiji", file: "fonts/qiji-combo.ttf", charSupport: "trad" },
 
   // Song Ti & Woodblock (宋体 / 雕版刻本)
   "tw-sung": { family: "TWSung", file: "fonts/TW-Sung.ttf", charSupport: "trad" },
@@ -298,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Determine character support of active selected font
   function getActiveFontCharSupport() {
     const styleId = styleSelect ? styleSelect.value : '';
-    const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
+    const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'qiji-kai' && f.id === 'qiji-font-kai') || (styleId === 'lishu hanwang' && f.id === 'hanwang-lisu-medium') || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
     if (fontMeta) return fontMeta.char_support;
     if (LOCAL_FONTS_MAP[styleId]) return LOCAL_FONTS_MAP[styleId].charSupport;
     return "both";
@@ -415,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Find font metadata in catalog if available
-    const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
+    const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'qiji-kai' && f.id === 'qiji-font-kai') || (styleId === 'lishu hanwang' && f.id === 'hanwang-lisu-medium') || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
     if (fontMeta && activeFontBadge) {
       activeFontBadge.innerHTML = `
         <strong>当前临摹字库：</strong>${fontMeta.name_zh} (${fontMeta.name_en}) · 
@@ -443,14 +447,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateStyleHint() {
     const val = styleSelect.value;
     const activeSupport = getActiveFontCharSupport();
-    if (val === 'i-yan-kai') {
+    if (val === 'iansui-kai') {
+      styleHint.textContent = '芫荽：臺灣教育標準字形的手寫楷體。SIL OFL 1.1。';
+    } else if (val === 'lxgw-zhenkai') {
+      styleHint.textContent = '霞鶩臻楷 GB：較厚重的手寫楷體，採大陸字形慣例；後期補字使用 AI。SIL OFL 1.1。';
+    } else if (val === 'qiji-font-kai' || val === 'qiji-kai') {
+      styleHint.textContent = '齊伋體：明代凌閔刻本字形，部分字碼採異體字映射；動畫為推算筆畫。SIL OFL 1.1。';
+    } else if (val === 'i-yan-kai') {
       styleHint.innerHTML = '💡 <strong>刻石录颜体</strong>：唐代颜真卿多宝塔碑真迹风骨，横轻竖重，<strong>已自动切换为繁体法帖示例</strong>。';
     } else if (val === 'tw-kai') {
       styleHint.innerHTML = '💡 <strong>全字库正楷体</strong>：CNS11643 标准正体，完全覆盖唐诗三百首无一缺字，<strong>已自动切换为繁体法帖示例</strong>。';
     } else if (val === 'edukai') {
       styleHint.innerHTML = '💡 <strong>教育部标准楷书</strong>：国字标准楷体法度，笔意清挺中正，<strong>已自动切换为繁体法帖示例</strong>。';
     } else if (val === 'lxgw-wenkai-tc') {
-      styleHint.innerHTML = '💡 <strong>霞鹜文楷繁体版</strong>：文人手书清雅风骨，全字库完备覆盖，<strong>已自动切换为繁体法帖示例</strong>。';
+      styleHint.innerHTML = '💡 <strong>霞鹜文楷繁体版</strong>：繁體與傳承字形取向的手寫楷體，<strong>已自动切换为繁体法帖示例</strong>。';
     } else if (val === 'tw-sung') {
       styleHint.innerHTML = '💡 <strong>全字庫正宋體</strong>：CNS11643 官方正宋體，金石刀刻筆意，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'genryu-min') {
@@ -918,7 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="badge badge-style">${font.style_display}</span>
             <span class="badge ${charBadgeClass}">${charBadgeText}</span>
             <span class="badge ${font.medium === 'brush' ? 'badge-brush' : 'badge-pen'}">
-              ${font.medium === 'brush' ? '毛笔' : '硬笔'}
+              ${font.medium === 'woodblock' ? '木刻' : (font.medium === 'brush' ? '毛笔' : '硬笔')}
             </span>
             ${isDl ? '<span class="badge badge-dl">✓ 离线可用</span>' : '<span class="badge badge-unavailable">典藏未载</span>'}
           </div>
@@ -971,7 +981,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tryBtn = card.querySelector(".btn-try");
       if (tryBtn) {
         tryBtn.addEventListener("click", () => {
-          const targetStyleId = font.id === 'mashanzheng-kai' ? 'mashanzheng' : (font.id === 'hanwang-lisu-medium' ? 'lishu hanwang' : (font.id === 'longcang-xingshu' ? 'longcang' : font.id));
+          const targetStyleId = font.id === 'mashanzheng-kai' ? 'mashanzheng' : (font.id === 'hanwang-lisu-medium' ? 'lishu hanwang' : (font.id === 'longcang-xingshu' ? 'longcang' : (font.id === 'qiji-font-kai' ? 'qiji-kai' : font.id)));
           
           let optionExists = Array.from(styleSelect.options).some(o => o.value === targetStyleId || o.value === font.id);
           if (optionExists) {
