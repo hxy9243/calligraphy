@@ -188,10 +188,31 @@ const currentEntry = () => state.byId.get(state.styleId) || state.entries[0];
 const entryName = (id) => state.byId.get(id)?.name || id;
 
 function sampleFor(entry, max = 5) {
-  const raw = (els.text.value || '').replace(/\s+/g, '').slice(0, max) || '永和九年';
-  if (entry.support === 'trad') return fallbackConvert(raw, 'trad');
-  if (entry.support === 'simp') return fallbackConvert(raw, 'simp');
-  return raw;
+  const isTrad = (entry?.support === 'trad') || (entry?.support === 'both' && state.script === 'trad');
+  const targetScript = isTrad ? 'trad' : 'simp';
+
+  // 1. If entry has meta.sample_text, use its authentic classical demo words converted to font's support
+  if (entry?.meta?.sample_text) {
+    const cleaned = entry.meta.sample_text.replace(/[，。；：\s\n]/g, '');
+    if (cleaned) {
+      const conv = fallbackConvert(cleaned, targetScript);
+      return [...conv].slice(0, max).join('');
+    }
+  }
+
+  // 2. Otherwise check current user text
+  const raw = (els.text?.value || '').replace(/\s+/g, '');
+  if (raw) {
+    const converted = fallbackConvert(raw, targetScript);
+    if (converted) {
+      return [...converted].slice(0, max).join('');
+    }
+  }
+
+  // 3. Fallback curated calligraphy phrases
+  return targetScript === 'trad'
+    ? ['永和九年', '墨寶鑑賞', '風和日麗', '至公無私'][0].slice(0, max)
+    : ['永和九年', '墨宝鉴赏', '风和日丽', '至公无私'][0].slice(0, max);
 }
 
 function selectFont(id, { silent = false } = {}) {
@@ -315,7 +336,7 @@ function renderPresets() {
   els.presetList.innerHTML = '';
   PRESET_EXAMPLES.forEach((p) => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'chip'; b.textContent = p.name;
+    b.type = 'button'; b.className = 'chip preset-chip'; b.textContent = p.name;
     b.addEventListener('click', () => {
       const e = currentEntry();
       const script = e && e.support !== 'both' ? e.support : state.script;
@@ -350,12 +371,13 @@ function renderPicker() {
   list.forEach((e) => {
     const li = document.createElement('li');
     li.className = 'picker-item';
+    li.dataset.fontId = e.id;
     li.setAttribute('role', 'option');
     li.setAttribute('aria-selected', String(e.id === state.styleId));
     li.innerHTML = `
       <div class="picker-sample">${esc(sampleFor(e, 3))}</div>
       <div class="picker-info"><strong>${esc(e.name)}</strong><small>${esc(e.sub)}</small>
-        <div class="badges"><span class="badge ${e.support === 'both' ? '' : 'accent'}">${SUPPORT_LABEL[e.support]}</span></div></div>
+        <div class="badges"><span class="badge font-badge-support ${e.support === 'both' ? '' : 'accent'}">${SUPPORT_LABEL[e.support]}</span></div></div>
       <button type="button" class="star ${state.favs.includes(e.id) ? 'on' : ''}" aria-label="收藏" title="收藏">${state.favs.includes(e.id) ? '★' : '☆'}</button>`;
     const sample = $('.picker-sample', li);
     whenVisible(sample, () => { sample.style.fontFamily = e.family; });
@@ -663,14 +685,15 @@ function renderFontsView() {
     const entry = state.entries.find((e) => e.meta?.id === m.id) || state.byId.get(m.id);
     const card = document.createElement('article');
     card.className = 'font-card';
+    card.dataset.fontId = m.id;
     card.innerHTML = `
       <div><h3>${esc(m.name_zh)}</h3><div class="en">${esc(m.name_en)}</div></div>
       <div class="badges">
         <span class="badge accent">${esc(m.style_display)}</span>
-        <span class="badge">${SUPPORT_LABEL[m.char_support] || ''}</span>
+        <span class="badge font-badge-support">${SUPPORT_LABEL[m.char_support] || ''}</span>
         <span class="badge">${m.medium === 'brush' ? '毛笔' : '硬笔'}</span>
       </div>
-      <div class="glyph-sample">${esc(sampleFor({ support: m.char_support }, 6))}</div>
+      <div class="glyph-sample">${esc(sampleFor(entry || { support: m.char_support, meta: m }, 6))}</div>
       <div class="aesthetic">${esc(m.aesthetic_notes)}</div>
       <details><summary>出处与协议</summary>
         <dl class="meta-list">
@@ -803,6 +826,7 @@ async function init() {
 
   els.count.textContent = els.text.value.length;
   renderFontCard();
+  if (els.picker?.open) renderPicker();
   updateText();
   route();
   await refreshJobs();

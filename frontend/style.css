@@ -126,11 +126,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
 .note { font-size: 13px; color: var(--muted); margin-top: 8px; }
 .note.warn { color: var(--warn); }
-.presets { margin-top: 8px; }
-.presets summary, .filters summary { cursor: pointer; font-size: 13px; color: var(--accent); padding: 6px 0; list-style: none; min-height: 32px; }
-.presets summary::before, .filters summary::before { content: "▸ "; }
-.presets[open] summary::before, .filters[open] summary::before { content: "▾ "; }
-.presets .chip-row { margin-top: 6px; }
+.presets-block { margin-top: 10px; }
+.presets-block .field-label { margin-bottom: 6px; }
+.presets-block .chip-row { gap: 6px; }
 
 /* current-font button */
 .font-current { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; text-align: left; }
@@ -167,12 +165,43 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
   scrollbar-width: thin;
 }
 .stage-viewport.horizontal { writing-mode: horizontal-tb; }
-.stage-paper { position: relative; padding: 28px 32px; min-width: 100%; min-height: 100%; box-sizing: border-box; }
-.stage-paper.vertical { height: 100%; }
-.stage-paper.horizontal { width: 100%; }
-.stage-text { white-space: pre-wrap; word-break: break-all; line-height: 1.5; font-size: 68px; color: var(--ink); }
-.stage-paper.vertical .stage-text { writing-mode: vertical-rl; text-orientation: upright; height: 100%; }
-.stage-paper.horizontal .stage-text { writing-mode: horizontal-tb; width: 100%; }
+.stage-paper {
+  position: relative;
+  padding: 28px 32px;
+  min-width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+}
+.stage-paper.vertical {
+  height: 100%;
+  width: max-content;
+  align-items: center;
+  justify-content: center;
+}
+.stage-paper.horizontal {
+  width: 100%;
+  height: max-content;
+  align-items: center;
+  justify-content: center;
+}
+.stage-text {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  line-height: 1.5;
+  font-size: 68px;
+  color: var(--ink);
+}
+.stage-paper.vertical .stage-text {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  height: max-content;
+}
+.stage-paper.horizontal .stage-text {
+  writing-mode: horizontal-tb;
+  width: max-content;
+}
 .stage-caption { margin-top: 8px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 
 /* result viewer: fits by default, scroll when actual size */
