@@ -143,3 +143,19 @@ def resolve_glyphs(
             pass
 
     return result
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) < 2:
+        print('Usage: python -m calligraphy.text.glyphs "明月松间照清泉石上流" [output.json]', file=sys.stderr)
+        sys.exit(1)
+
+    input_text = sys.argv[1]
+    dest = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(__file__).resolve().parent.parent.parent / "assets" / "data" / "poem-characters.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    records = resolve_glyphs(input_text, glyphs={}, fetch_missing=True)
+    dest.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote {len(records)} characters to {dest}")

@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 from calligraphy.renderer import create_scene, export_still, export_svg, export_video
 from calligraphy.spec import Appearance, SceneSpec, Transforms
 from .database import Database, get_db
+from .style_catalog import downloaded_catalog_entry
 
 logger = logging.getLogger("calligraphy.worker")
 
@@ -40,10 +41,7 @@ def _auto_prepare_font(style: str, text: str) -> None:
         return
 
     clean_style = style.strip()
-    entry = next(
-        (f for f in catalog if (f.get("id") == clean_style or f.get("id") == f"{clean_style}-kai") and f.get("is_downloaded") == 1),
-        None
-    )
+    entry = downloaded_catalog_entry(catalog, clean_style)
     if not entry:
         return
 
@@ -118,7 +116,7 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
             style=style,
             layout=layout_dict,
             timing=timing_dict,
-            punctuation=params.get("punctuation", "break"),
+            punctuation=params.get("punctuation", "omit"),
             appearance=appearance,
             transforms=transforms,
         )

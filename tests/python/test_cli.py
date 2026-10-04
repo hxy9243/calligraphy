@@ -100,6 +100,13 @@ class CLITests(unittest.TestCase):
         with self.assertRaises(ValueError):
             check_placement_bounds(x=0.0, y=0.0, size=200.0, transforms=t, page_width=100, page_height=100)
 
+    def test_fetch_to(self):
+        json_out = self.work_dir / "fetched.json"
+        exit_code = main(["--text", "永", "--fetch-to", str(json_out)])
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(json_out.exists())
+        self.assertIn('"永"', json_out.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

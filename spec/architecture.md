@@ -65,3 +65,17 @@ so browser examples import scene modules directly. Compatibility modules
 **Preserve behavior during structural changes.** Frame hashes and downstream
 fixture comparisons protect the existing output. Deliberate visual changes need
 explicitly reviewed new expectations; changing a hash alone is not validation.
+
+## Studio script conversion
+
+`calligraphy.text.converter` uses the declared `zhconv` Python dependency for
+Traditional/Simplified conversion. `POST /api/convert-script` accepts `simp` or
+`zh-hans`, and `trad` or `zh-hant`. Unsupported targets receive HTTP 422. If the
+conversion engine cannot be imported, nonempty conversion requests receive HTTP
+503 rather than a successful response containing unchanged text.
+
+The studio can fall back to its limited offline character dictionary when the
+API is unavailable or malformed; the UI explicitly labels that result as partial
+and asks the user to check it. Conversion responses, including fallback results,
+apply only to the initiating text revision and latest script choice. Typing,
+choosing a preset or making a newer script choice supersedes older requests.

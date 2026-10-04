@@ -1,6 +1,6 @@
 # Workbench web UI
 
-Source: `frontend/` (`index.html`, `style.css`, `js/app.js`, `js/data.js`), served by `backend/app.py`.
+Source: `frontend/` (`index.html`, `style.css`, `app.js`), served by `backend/app.py`.
 The backend API is unchanged.
 
 ## Structure

@@ -248,6 +248,8 @@ def export_still(scene: Any, output: Union[str, Path], time: Optional[float] = N
 def create_scene(
     scene_spec: SceneSpec,
     font_path: Optional[Union[str, Path]] = None,
+    license_path: Optional[Union[str, Path]] = None,
+    source: Optional[str] = None,
     glyphs: Optional[Dict[str, Any]] = None,
     fetch_missing: bool = False,
     mode: str = "auto",
@@ -302,7 +304,28 @@ def create_scene(
         return scene
 
     # Registered font bank
-    bank = load_bank(style)
+    try:
+        bank = load_bank(style)
+    except FileNotFoundError:
+        if font_path and (fetch_missing or glyphs):
+            from .font_pipeline import prepare_style
+            needed_glyphs = resolve_glyphs(
+                scene_spec.text,
+                glyphs=glyphs,
+                fetch_missing=fetch_missing,
+                punctuation=scene_spec.punctuation,
+            )
+            prepare_style(
+                style,
+                needed_glyphs,
+                font_path=font_path,
+                license_path=license_path,
+                source=source,
+            )
+            bank = load_bank(style)
+        else:
+            raise
+
     font_file = font_path or bank["font"]["path"]
     missing = list(dict.fromkeys(c for c in scene_spec.normalized_characters if c not in bank["glyphs"]))
     if missing:
@@ -314,7 +337,7 @@ def create_scene(
                 fetch_missing=fetch_missing,
                 punctuation=scene_spec.punctuation,
             )
-            prepare_style(style, needed_glyphs, font_path=font_file)
+            prepare_style(style, needed_glyphs, font_path=font_file, license_path=license_path, source=source)
             bank = load_bank(style)
         else:
             raise ValueError(

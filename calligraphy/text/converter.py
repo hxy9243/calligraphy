@@ -1,11 +1,12 @@
 """Traditional and Simplified Chinese bidirectional conversion using zhconv."""
-from typing import Dict
-
 try:
     import zhconv
-    _HAS_ZHCONV = True
 except ImportError:
-    _HAS_ZHCONV = False
+    zhconv = None
+
+
+class ConversionUnavailableError(RuntimeError):
+    """The required Chinese script conversion engine could not be loaded."""
 
 
 def convert_text(text: str, target: str = "simp") -> str:
@@ -17,10 +18,18 @@ def convert_text(text: str, target: str = "simp") -> str:
         
     Returns:
         Converted string.
+
+    Raises:
+        ValueError: The target is not a supported script.
+        ConversionUnavailableError: The required zhconv dependency is unavailable.
     """
+    locales = {"simp": "zh-hans", "zh-hans": "zh-hans", "trad": "zh-hant", "zh-hant": "zh-hant"}
+    if target not in locales:
+        raise ValueError(f"Unsupported script conversion target: {target}")
     if not text:
         return ""
-    if _HAS_ZHCONV:
-        locale = "zh-hans" if target in ("simp", "zh-hans") else "zh-hant"
-        return zhconv.convert(text, locale)
-    return text
+    if zhconv is None:
+        raise ConversionUnavailableError(
+            "Chinese script conversion requires zhconv. Reinstall the declared Python dependencies."
+        )
+    return zhconv.convert(text, locales[target])

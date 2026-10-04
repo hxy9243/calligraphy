@@ -3,7 +3,7 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 from fastapi import Cookie, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -13,38 +13,27 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from calligraphy.font_pipeline import registered_styles
-from calligraphy.text.converter import convert_text
+from calligraphy.text.converter import ConversionUnavailableError, convert_text
 from calligraphy.text.input import parse_text
 from .database import Database, get_db
+from .style_catalog import STYLE_ALIASES
 from .worker import execute_job, get_runner
 
 MAX_INPUT_CHARACTERS = 256
 MAX_LINE_CHARACTERS = 20
 
-STYLE_ALIASES = {
-    "mashanzheng-kai": "mashanzheng",
-    "qiji-font-kai": "qiji-kai",
-    "hanwang-lisu-medium": "lishu hanwang",
-    "longcang-xingshu": "longcang",
-    "tw-sung": "tw-sung",
-    "genryu-min": "genryu-min",
-    "genwan-min": "genwan-min",
-    "cwtex-fangsong": "cwtex-fangsong",
-    "hanwang-shinsu": "hanwang-shinsu",
-}
-
-
 class ConvertRequest(BaseModel):
     text: str
-    target: str = Field(default="simp")
+    target: Literal["simp", "trad", "zh-hans", "zh-hant"] = "trad"
 
 
 class PreviewRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
+    direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
-    direction: Optional[str] = Field(default=None)
+    punctuation: str = Field(default="omit")
     width: Optional[int] = Field(default=None)
     height: Optional[int] = Field(default=None)
 
@@ -62,10 +51,11 @@ class PreviewRequest(BaseModel):
 class RenderRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
+    direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
-    direction: Optional[str] = Field(default=None)
+    punctuation: str = Field(default="omit")
     width: Optional[int] = Field(default=None)
     height: Optional[int] = Field(default=None)
 
@@ -165,18 +155,18 @@ async def session_middleware(request: Request, call_next):
 def list_styles():
     """List available writing styles (fixed collection fonts removed)."""
     styles = [
-        {"id": "kai", "name": "楷书 (Kai)", "description": "Fitted stroke writing / 拟合笔画书写", "type": "stroke_ir"},
-        {"id": "yan", "name": "颜体 (Yan)", "description": "Yan-inspired fitted contact strokes", "type": "stroke_ir"},
+        {"id": "kai", "name": "楷書 (Kai)", "description": "Fitted stroke writing / 擬合筆畫書寫", "type": "stroke_ir"},
+        {"id": "yan", "name": "顏體 (Yan)", "description": "Yan-inspired fitted contact strokes", "type": "stroke_ir"},
     ]
     font_names = {
-        "mashanzheng": "钟齐马善政毛笔楷书 (Ma Shan Zheng)",
-        "i-yan-kai": "刻石录颜体 (I.Yan Kai)",
+        "mashanzheng": "鐘齊馬善政毛筆楷書 (Ma Shan Zheng)",
+        "i-yan-kai": "刻石錄顏體 (I.Yan Kai)",
         "qiji-kai": "令東齊伋體楷書 (LingDong Qiji Kai)",
-        "chill-qiuhong-kai": "寒蝉秋鸿楷书 (Chill QiuHong Kai)",
-        "longcang": "龙藏体 (Long Cang)",
-        "lishu hanwang": "王汉宗中隶书 (HanWang LiSu)",
-        "aa shoujin": "瘦金体 (Shoujin)",
-        "chiron-goround": "昭源黑体 (Chiron GoRound)",
+        "chill-qiuhong-kai": "寒蟬秋鴻楷書 (Chill QiuHong Kai)",
+        "longcang": "龍藏體 (Long Cang)",
+        "lishu hanwang": "王漢宗中隸書 (HanWang LiSu)",
+        "aa shoujin": "瘦金體 (Shoujin)",
+        "chiron-goround": "昭源黑體 (Chiron GoRound)",
         "tw-sung": "全字庫正宋體 (TW-Sung)",
         "genryu-min": "源流明體 (GenRyuMin)",
         "genwan-min": "源雲明體 (GenWanMin)",
@@ -197,7 +187,10 @@ def list_styles():
 @app.post("/api/convert-script")
 def convert_script_endpoint(req: ConvertRequest):
     """Convert text between Traditional and Simplified Chinese."""
-    converted = convert_text(req.text, req.target)
+    try:
+        converted = convert_text(req.text, req.target)
+    except ConversionUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"text": converted, "target": req.target}
 
 
@@ -216,8 +209,9 @@ def get_font_catalog():
 def generate_preview(req: PreviewRequest, request: Request, response: Response):
     """Generate a quick still preview."""
     session_id = request.state.session_id
+    chosen_punct = req.punctuation if req.punctuation in ("break", "omit") else "omit"
     try:
-        parsed = parse_text(req.text)
+        parsed = parse_text(req.text, punctuation=chosen_punct)
         if len(parsed["characters"]) > MAX_INPUT_CHARACTERS:
             raise HTTPException(
                 status_code=400,
@@ -231,9 +225,12 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
     job_id = f"prev_{uuid.uuid4().hex[:12]}"
     db = get_db()
     chosen_style = STYLE_ALIASES.get(req.style, req.style)
-    params = {"format": req.format, "spacing": req.spacing}
-    if req.direction:
-        params["direction"] = req.direction
+    params = {
+        "format": req.format,
+        "spacing": req.spacing,
+        "direction": req.direction,
+        "punctuation": chosen_punct,
+    }
     if req.width:
         params["width"] = req.width
     if req.height:
@@ -246,6 +243,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         text=req.text,
         style=chosen_style,
         params=params,
+        status="rendering",
     )
     # Execute preview immediately for snappy preview response
     success = execute_job(job, db)
@@ -276,8 +274,9 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
 def submit_render(req: RenderRequest, request: Request, response: Response):
     """Submit asynchronous video generation job."""
     session_id = request.state.session_id
+    chosen_punct = req.punctuation if req.punctuation in ("break", "omit") else "omit"
     try:
-        parsed = parse_text(req.text)
+        parsed = parse_text(req.text, punctuation=chosen_punct)
         if len(parsed["characters"]) > MAX_INPUT_CHARACTERS:
             raise HTTPException(
                 status_code=400,
@@ -291,18 +290,21 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
     job_id = f"vid_{uuid.uuid4().hex[:12]}"
     db = get_db()
     chosen_style = STYLE_ALIASES.get(req.style, req.style)
-    params = {"fps": req.fps, "speed": req.speed, "spacing": req.spacing}
-    if req.direction:
-        params["direction"] = req.direction
+    params = {
+        "fps": req.fps,
+        "speed": req.speed,
+        "spacing": req.spacing,
+        "direction": req.direction,
+        "punctuation": chosen_punct,
+    }
     if req.width:
         params["width"] = req.width
     if req.height:
         params["height"] = req.height
 
-    job = db.create_job(
+    job = db.enqueue_render(
         job_id=job_id,
         session_id=session_id,
-        job_type="render",
         text=req.text,
         style=chosen_style,
         params=params,
@@ -311,9 +313,9 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
     runner.notify()
 
     return {
-        "job_id": job_id,
-        "status": "queued",
-        "message": "Video rendering started",
+        "job_id": job["job_id"],
+        "status": job["status"],
+        "message": "Video render accepted",
     }
 
 

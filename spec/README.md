@@ -24,8 +24,14 @@ contact-brush replay. [Generic Kai generation](kai-generation.md) describes its
 default CLI/web integration and bounded crossing-aware smoothing. General contour
 cleanup, fairing and smooth sweeps remain experiments.
 
+The [studio preview display and direction](web-preview.md) documents export-panel
+media lifecycle, layout-direction requests and their DOM/API regression checks.
+
 The [brush-fitting experiment checkpoint](brush-fit-experiments.md) pins the
 associated laboratory revision, measured results, and artifact boundaries.
+
+[Studio jobs](studio-jobs.md) describes active-render deduplication, atomic queue
+claims, synchronous previews and per-job browser status.
 
 [Geometry caching](geometry-cache.md) describes Git snapshots, explicit SQLite
 import/export and per-fit engine identity.

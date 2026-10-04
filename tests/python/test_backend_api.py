@@ -2,6 +2,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -26,7 +27,10 @@ class BackendApiTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
-    def test_list_styles(self):
+    @patch('backend.app.registered_styles', return_value=[
+        {'style': name, 'prepared': 1} for name in ('mashanzheng', 'i-yan-kai', 'qiji-kai')
+    ])
+    def test_list_styles(self, registered):
         res = self.client.get("/api/styles")
         self.assertEqual(res.status_code, 200)
         data = res.json()
@@ -45,6 +49,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn("mashanzheng", style_ids)
         self.assertIn("i-yan-kai", style_ids)
         self.assertIn("qiji-kai", style_ids)
+        registered.assert_called_once()
 
     def test_convert_script(self):
         res_trad = self.client.post("/api/convert-script", json={"text": "春眠不觉晓，处处闻啼鸟", "target": "trad"})
@@ -201,6 +206,33 @@ class BackendApiTests(unittest.TestCase):
         self.assertEqual(res_excess.status_code, 400)
         data = res_excess.json()
         self.assertIn("20", data["detail"])
+
+    def test_punctuation_option_default_omit(self):
+        # By default, punctuation is ignored/omitted
+        res_omit = self.client.post(
+            "/api/previews",
+            json={"text": "明，月。", "style": "kai"},
+        )
+        self.assertEqual(res_omit.status_code, 200)
+        svg_omit = res_omit.json().get("svg", "")
+        self.assertIn('data-character="明"', svg_omit)
+        self.assertIn('data-character="月"', svg_omit)
+
+        # Explicit break punctuation
+        res_break = self.client.post(
+            "/api/previews",
+            json={"text": "明，月。", "style": "kai", "punctuation": "break"},
+        )
+        self.assertEqual(res_break.status_code, 200)
+
+        # Video render with default punctuation omit
+        res_render = self.client.post(
+            "/api/renders",
+            json={"text": "明，月。", "style": "kai"},
+        )
+        self.assertEqual(res_render.status_code, 202)
+        job = self.db.get_job(res_render.json()["job_id"])
+        self.assertEqual(job["params"].get("punctuation"), "omit")
 
 
 if __name__ == "__main__":

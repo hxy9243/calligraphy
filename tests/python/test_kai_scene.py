@@ -59,11 +59,43 @@ class KaiSceneTests(unittest.TestCase):
 
     def test_reject_failed_fit_without_caching(self):
         glyphs = resolve_glyphs('永')
-        with patch('calligraphy.kai_scene.fit_contact_stroke', return_value={'report': {'targetReached': False}}):
+        with patch('calligraphy.kai_scene.fit_contact_stroke', return_value={'report': {'iou480': .8999}}):
             with self.assertRaisesRegex(ValueError, 'failed shape/motion'):
                 prepare_kai(glyphs, self.cache)
         from calligraphy.artifact_cache import ArtifactCache
         self.assertEqual(ArtifactCache(self.cache).list_versions(), [])
+
+    def test_ninety_percent_gate_still_requires_valid_motion(self):
+        glyphs = resolve_glyphs('永')
+        for prefix_connected, monotonic in ((False, True), (True, False)):
+            with self.subTest(prefix_connected=prefix_connected, monotonic=monotonic):
+                report = {'iou480': .95, 'prefixConnected': prefix_connected, 'monotonic': monotonic}
+                with patch('calligraphy.kai_scene.fit_contact_stroke', return_value={'report': report}):
+                    with self.assertRaisesRegex(ValueError, 'failed shape/motion'):
+                        prepare_kai(glyphs, self.cache)
+
+    def test_ninety_percent_boundary_is_accepted_without_lowering_fit_target(self):
+        from calligraphy.stroke_fitting import fit_contact_stroke
+
+        def boundary_fit(*args, **kwargs):
+            self.assertEqual(kwargs['target_iou'], .95)
+            fitted = fit_contact_stroke(*args, **kwargs)
+            fitted['report'].update(iou480=.90, targetReached=False)
+            return fitted
+
+        with patch('calligraphy.kai_scene.fit_contact_stroke', side_effect=boundary_fit):
+            program = prepare_kai(resolve_glyphs('永'), self.cache)['永']
+        self.assertEqual(program['provenance']['minimumFitIoU'], .90)
+        self.assertEqual(program['provenance']['fitTargetIoU'], .95)
+
+    def test_fengqiao_man_glyph_renders_below_former_rejection_threshold(self):
+        scene = create_scene(SceneSpec(text='滿', layout={'width': 128, 'height': 128}))
+        report = scene.programs['滿']['provenance']['fitReports'][12]
+        self.assertGreaterEqual(report['iou480'], .90)
+        self.assertLess(report['iou480'], .95)
+        self.assertTrue(report['prefixConnected'])
+        self.assertTrue(report['monotonic'])
+        self.assertEqual(scene.frame(scene.duration).size, (128, 128))
 
     def test_changed_guide_gets_a_new_cache_version(self):
         glyphs = resolve_glyphs('永')

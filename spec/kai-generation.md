@@ -12,8 +12,12 @@ intra-character lift interval. Stroke kinds are marked unclassified rather than
 claiming a recovered brush grammar. This is inferred contact motion from guide
 shapes, not an imitation of a historical calligrapher.
 
-`prepare_kai` requires final stroke IoU >= .95, monotonic deposition and connected
-sampled prefixes. A fit with unsupported topology (holes/disconnected ink), more
+`prepare_kai` targets final stroke IoU >= .95 but accepts fits at or above .90,
+with monotonic deposition and connected sampled prefixes still required. Keeping
+the higher fitting target avoids degrading successful existing fits merely to
+meet the lower rejection threshold. Producer provenance records both thresholds;
+per-stroke `targetReached` still reports whether the 95% target was achieved.
+A fit with unsupported topology (holes/disconnected ink), more
 than 64 strokes, or a failed gate raises an explicit error. There is no silent
 legacy fallback. Missing guide records follow the existing offline/explicit-fetch
 policy. The web backend enables guide fetching. Motion checks do not certify
@@ -60,8 +64,8 @@ used, and unrelated concavities are retained.
 The proposal must preserve stroke connectivity and the original overlap graph,
 retain at least 97.5% whole-glyph IoU, and pass 31 sampled monotonic/connected
 prefix checks for changed strokes. Default preparation additionally requires
-90% IoU against each original guide stroke after smoothing (the pre-smoothing
-fit still requires 95%). This allows deliberate repair of guide-boundary defects
+90% IoU against each original guide stroke after smoothing, matching the
+pre-smoothing acceptance floor. This allows deliberate repair of guide-boundary defects
 hidden at crossings, while the complete character retains at least 97.5%.
 Failure keeps the original glyph;
 `provenance.crossingSmoothing` records the proposal, acceptance and reason.

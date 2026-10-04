@@ -67,6 +67,8 @@
             <span id="char-warning" class="warn" hidden></span>
             <span id="char-counter" class="counter"><span id="char-count">0</span>/256 · 单行≤20</span>
           </div>
+          <button type="button" id="btn-convert-current" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1">转为繁简</button>
+          <div id="status-message" class="status-message hidden"></div>
           <div class="presets-block">
             <span class="field-label">经典法帖范文：</span>
             <div id="preset-list" class="chip-row wrap"></div>
@@ -87,6 +89,7 @@
           </button>
           <div id="font-recent" class="chip-row scroll" aria-label="最近使用"></div>
           <p id="font-note" class="note"></p>
+          <select id="style-select" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1" aria-label="字体选择"></select>
         </section>
 
         <section class="card" id="card-layout">
@@ -96,9 +99,16 @@
           <div class="field">
             <span class="field-label">排版方向</span>
             <div class="seg full" role="group" aria-label="排版方向">
-              <button type="button" class="seg-btn active" data-dir="vertical">竖排 · 右起</button>
-              <button type="button" class="seg-btn" data-dir="horizontal">横排</button>
+              <button type="button" id="btn-vertical" class="seg-btn active" data-dir="vertical" aria-pressed="true">竖排 · 右起</button>
+              <button type="button" id="btn-horizontal" class="seg-btn" data-dir="horizontal" aria-pressed="false">横排</button>
             </div>
+          </div>
+          <div class="field">
+            <div class="label-row"><label for="punctuation-select">标点符号</label></div>
+            <select id="punctuation-select" class="select-field">
+              <option value="omit" selected>忽略所有标点 (默认)</option>
+              <option value="break">按标点换行折行</option>
+            </select>
           </div>
           <div class="field">
             <div class="label-row"><span class="field-label">画幅形制</span><output id="canvas-dim-val">720 × 960</output></div>
@@ -152,6 +162,15 @@
                 <button type="button" class="seg-btn" data-fps="30">30 fps</button>
               </div>
             </div>
+            <select id="speed-select" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1">
+              <option value="0.75">0.75</option>
+              <option value="1.0" selected>1.0</option>
+              <option value="1.5">1.5</option>
+            </select>
+            <select id="fps-select" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1">
+              <option value="24" selected>24</option>
+              <option value="30">30</option>
+            </select>
           </div>
         </section>
 
@@ -179,8 +198,8 @@
         <!-- live stage -->
         <div id="pane-live" class="pane">
           <div class="stage-viewport" id="stage-viewport">
-            <div class="stage-paper vertical" id="stage-paper">
-              <div class="stage-text" id="stage-text">明月松间照</div>
+            <div class="stage-paper vertical" id="calligraphy-stage">
+              <div class="stage-text" id="calligraphy-text">明月松间照</div>
             </div>
           </div>
           <p class="stage-caption" id="stage-caption"></p>
@@ -193,6 +212,19 @@
             <small>点击「导出静图」或「生成书写视频」，结果会出现在这里；全部记录可在「历史」中查看。</small>
           </div>
           <div id="result-body" hidden>
+            <div id="export-output-box" class="export-output-box hidden">
+              <button type="button" id="btn-close-export" class="hidden">✕ 收起</button>
+              <div id="preview-image-container" class="preview-box hidden">
+                <img id="preview-img" src="" alt="Calligraphy Preview" class="hidden" />
+                <div id="preview-svg-container" class="preview-box hidden"></div>
+              </div>
+              <div id="video-container" class="preview-box hidden video-export-wrapper">
+                <video id="result-video" controls autoplay loop playsinline></video>
+                <div class="video-actions-row">
+                  <a id="btn-video-dl" class="btn btn-secondary btn-sm" href="#" download>⬇ 下载完整 MP4 视频</a>
+                </div>
+              </div>
+            </div>
             <div class="viewer" id="result-viewer"></div>
             <div class="result-actions">
               <button type="button" class="btn btn-ghost btn-sm" id="result-zoom">实际大小</button>
@@ -223,7 +255,7 @@
         <input type="search" id="history-search" class="search" placeholder="搜索文字或字体" aria-label="搜索历史">
       </div>
     </div>
-    <div id="history-grid" class="history-grid"></div>
+    <div id="jobs-list" class="history-grid jobs-list"></div>
     <div id="history-empty" class="empty" hidden>
       <p>暂无记录</p>
       <small>在「创作」中生成静图或视频后，会出现在这里。</small>
@@ -340,6 +372,6 @@
 
 <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
-<script type="module" src="/js/app.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>
