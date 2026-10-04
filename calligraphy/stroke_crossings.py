@@ -22,7 +22,7 @@ def _directions(a):
     return p,v/np.maximum(np.linalg.norm(v,axis=1,keepdims=True),1e-8)
 
 
-def repair_crossings(strokes, *, preserve_corners=False):
+def repair_crossings(strokes, *, preserve_corners=False, inferred_corners=False):
     result=copy.deepcopy(strokes)
     if len(strokes) < 2:
         return result, []
@@ -52,16 +52,36 @@ def repair_crossings(strokes, *, preserve_corners=False):
             protected=(arc<CONFIG['terminalFraction']*length)|(arc>(1-CONFIG['terminalFraction'])*length)
             hidden[protected]=False
             # Expand by physical arc length rather than by irregular control count.
-            expanded=np.array([np.any(hidden & (np.abs(arc-x)<=CONFIG['intervalPadding'])) for x in arc])
+            padding = 20 if inferred_corners else CONFIG['intervalPadding']
+            expanded=np.array([np.any(hidden & (np.abs(arc-x)<=padding)) for x in arc])
             expanded[protected]=False
             bounds=np.flatnonzero(np.diff(np.r_[False,expanded,False])).reshape(-1,2)
             for start,stop in bounds:
                 lo=max(1,start-1);hi=min(n-2,stop)
+                if inferred_corners:
+                    # An interval edge can itself land on a fitted bump corner.
+                    # Move to its outside shoulder before choosing interpolation anchors.
+                    tags = set(stroke.get('corners', []))
+                    while lo > 1 and (lo in tags or lo + 1 in tags):
+                        lo -= 1
+                    while hi < n - 2 and (hi in tags or hi - 1 in tags):
+                        hi += 1
                 if hi-lo<2 or (arc[hi]-arc[lo])>CONFIG['maximumFraction']*length:continue
                 # An authored entry/exit shoulder is not an overlap artifact.
                 # Protect it even when the broad centerline barely changes angle.
-                if any(lo<=k<=hi and (preserve_corners or arc[k]<.25*length or arc[k]>.8*length)
-                       for k in stroke.get('corners',[])):continue
+                marked = any(lo<=k<=hi for k in stroke.get('corners', []))
+                # Fitted corner tags include contour notches. Only relax them
+                # when both ends describe the same straight body direction.
+                centers = a.mean(1)
+                chord_center = centers[hi] - centers[lo]
+                chord_length = np.linalg.norm(chord_center)
+                normal = np.array([-chord_center[1], chord_center[0]]) / max(chord_length, 1e-8)
+                body_deviation = np.max(np.abs((centers[lo:hi+1] - centers[lo]) @ normal))
+                straight_inferred = (inferred_corners and np.dot(direction[lo], direction[hi]) > .95
+                                     and body_deviation < min(8, .12 * chord_length))
+                if marked and not straight_inferred and any(
+                    lo<=k<=hi and (preserve_corners or arc[k]<.25*length or arc[k]>.8*length)
+                    for k in stroke.get('corners', [])):continue
                 chord=p[hi]-p[lo];axis=int(np.argmax(abs(chord)));other=1-axis
                 span=abs(chord[axis])
                 if span<CONFIG['minimumSpan']:continue
@@ -177,7 +197,7 @@ def repair_crossings(strokes, *, preserve_corners=False):
     return result,reports
 
 
-def smooth_kai_program(program, targets=None):
+def smooth_kai_program(program, targets=None, *, inferred_corners=False):
     """Repair crossing-local rail defects, retaining Kai corners and terminals.
 
     Returns a fresh program and evidence. The complete proposal is rejected if
@@ -191,7 +211,7 @@ def smooth_kai_program(program, targets=None):
     if program['schemaVersion'] != SCHEMA_VERSION:
         raise ValueError('crossing smoothing requires paired-contact IR 0.2')
     before = compile_program(program)
-    records, edits = repair_crossings(before, preserve_corners=True)
+    records, edits = repair_crossings(before, preserve_corners=True, inferred_corners=inferred_corners)
     result = copy.deepcopy(program)
     evidence = {'method': 'crossing-rails-kai/1', 'edits': edits, 'strokes': [], 'minimumTargetIoU': .90}
     rejected = None
@@ -230,3 +250,61 @@ def smooth_kai_program(program, targets=None):
     result['provenance']['crossingSmoothing'] = evidence
     validate_program(result)
     return result, evidence
+
+
+def smooth_kai_contacts(strokes, *, inferred_corners=False):
+    """Clean fitted Kai contacts, preserving scheduled strokes and major pieces.
+
+    Tiny satellite pieces below 1% of their stroke and 128 canonical pixels are
+    fitting debris. Whole dots and substantial disconnected components survive.
+    Removed satellites are reported, never silently merged into another stroke.
+    """
+    from .contact_stroke import complete_stroke
+    from .stroke_fitting import _motion_checks, _iou
+
+    source = copy.deepcopy(strokes)
+    clean = copy.deepcopy(strokes)
+    removed = []
+    for i, stroke in enumerate(clean):
+        if 'segments' not in stroke:
+            continue
+        areas = [int(np.count_nonzero(complete(s['stroke']) > .5)) for s in stroke['segments']]
+        largest = max(areas)
+        keep = []
+        for j, (segment, area) in enumerate(zip(stroke['segments'], areas)):
+            if area <= 128 and area < .01 * largest:
+                removed.append({'stroke': i + 1, 'segment': j + 1, 'pixels': area})
+            else:
+                keep.append(segment)
+        stroke['segments'] = keep
+    flat, locations = [], []
+    for i, stroke in enumerate(clean):
+        if 'segments' in stroke:
+            for j, segment in enumerate(stroke['segments']):
+                flat.append(segment['stroke']); locations.append((i, j))
+        else:
+            flat.append(stroke); locations.append((i, None))
+    fixed, edits = repair_crossings(flat, preserve_corners=True, inferred_corners=inferred_corners)
+    result = copy.deepcopy(clean)
+    reason, motion = None, []
+    for old, new, (i, j) in zip(flat, fixed, locations):
+        check = _motion_checks(new) if old['contacts'] != new['contacts'] else None
+        motion.append(check)
+        if check and not (check['monotonic'] and check['prefixConnected']):
+            reason = 'sampled-motion'
+        if j is None:
+            result[i] = new
+        else:
+            result[i]['segments'][j]['stroke'] = new
+    before = np.maximum.reduce([complete_stroke(s) for s in source])
+    after = np.maximum.reduce([complete_stroke(s) for s in result])
+    retention = _iou(after, before > .5)
+    if retention < .975:
+        reason = 'combined-glyph-retention'
+    if reason:
+        result = source
+    report = {'method': 'crossing-rails-kai/2', 'accepted': reason is None, 'reason': reason,
+              'glyphRetentionIoU': retention, 'edits': edits, 'componentMotionChecks': motion,
+              'removedSatellites': removed if reason is None else [],
+              'strokes': [{'changed': a != b} for a, b in zip(source, result)]}
+    return result, report

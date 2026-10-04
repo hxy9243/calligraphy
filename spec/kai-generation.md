@@ -52,7 +52,7 @@ Kai stills and videos come from this shared engine.
 
 After fitting, `stroke_crossings.smooth_kai_program` repairs local rail dents and
 protrusions where another stroke crosses the body. This ports the Lishu study's
-crossing-local interpolation to Kai; the Kai policy preserves all marked corners
+crossing-local interpolation to Kai; the Kai policy preserves authored corners
 and the first/last two contact pairs. It does not apply Lishu's straight internal
 bar rebuilding or hidden-tip extension to Kai. No character-specific rules are
 used, and unrelated concavities are retained.
@@ -69,3 +69,22 @@ Failure keeps the original glyph;
 contains post-proposal target scores. This remains inferred geometry, with
 no guarantee that every crossing defect is identified. Existing frozen examples
 are not rewritten. The engine source hash invalidates stale preparation caches.
+
+### Fitted-corner and satellite policy
+
+`inferred_corners=True` distinguishes automatically fitted contour markers from
+explicitly authored corners. Within a transverse crossing, a marker may be removed
+only when the surrounding centerline directions agree (cosine > .95), the local
+body stays close to its chord, and existing displacement/shape/connectivity guards
+pass. The crossing interval includes a 20px collar so its interpolation anchors
+sit outside the bump. Generic preparation uses this inferred policy; direct
+`smooth_kai_program` calls preserve authored corners unless explicitly opted in.
+
+`smooth_kai_contacts` also handles the font pipeline's segmented contacts without
+changing scheduled stroke count. A detached component is classified as fitting
+debris only if it has at most 128 canonical pixels and less than 1% of the largest
+component of that same stroke. Entire dot strokes and substantial disconnected
+pieces are retained. Surviving segment progress intervals are unchanged. Removals
+are recorded in `removedSatellites`; the complete proposal still requires .975
+retention. This intentionally permits removal of tiny disconnected components;
+it is not a general deletion rule for disconnected handwriting.

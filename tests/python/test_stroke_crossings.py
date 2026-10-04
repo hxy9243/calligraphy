@@ -62,3 +62,38 @@ class CornerMotionTests(unittest.TestCase):
         report = _motion_checks(compile_program(p)[0])
         self.assertTrue(report['monotonic'])
         self.assertEqual(report['prefixFrames'], 31)
+
+
+class InferredGeometryTests(unittest.TestCase):
+    def test_inferred_crossing_corner_is_repaired_but_authored_one_is_not(self):
+        from calligraphy.stroke_crossings import repair_crossings
+        from calligraphy.stroke_ir import compile_program
+        p = specimen()
+        p['strokes'][0]['geometry']['corners'] = [15]
+        records = compile_program(p)
+        protected, _ = repair_crossings(records, preserve_corners=True)
+        repaired, _ = repair_crossings(records, preserve_corners=True, inferred_corners=True)
+        self.assertEqual(protected[0]['contacts'], records[0]['contacts'])
+        self.assertNotEqual(repaired[0]['contacts'], records[0]['contacts'])
+        self.assertNotIn(15, repaired[0]['corners'])
+
+    def test_tiny_segment_removed_without_deleting_real_disconnected_piece(self):
+        from calligraphy.stroke_crossings import smooth_kai_contacts
+        from calligraphy.stroke_ir import compile_program
+        main = compile_program(specimen())[0]
+        def piece(width):
+            return {'contacts': [[[x,80],[x,80+width]] for x in (100,104,108)],
+                    'corners': [], 'tension': 0}
+        tiny, substantial = piece(1), piece(35)
+        stroke = {'segments': [{'start': 0, 'end': .8, 'stroke': main},
+                               {'start': .8, 'end': .9, 'stroke': tiny},
+                               {'start': .9, 'end': 1, 'stroke': substantial}]}
+        result, report = smooth_kai_contacts([stroke], inferred_corners=True)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(len(result[0]['segments']), 2)
+        self.assertEqual(result[0]['segments'][1], stroke['segments'][2])
+        self.assertEqual(len(report['removedSatellites']), 1)
+        # A small complete stroke must never be treated as a satellite.
+        dot, dot_report = smooth_kai_contacts([tiny], inferred_corners=True)
+        self.assertEqual(dot, [tiny])
+        self.assertEqual(dot_report['removedSatellites'], [])

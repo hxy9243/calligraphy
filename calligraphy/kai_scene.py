@@ -61,7 +61,7 @@ def prepare_kai(glyphs, cache_path=None):
                                'inferred': True, 'engine': metadata, 'template_sha256': guide_hash,
                                'strokeKinds': 'Unclassified; kind has no rendering semantics',
                                'fitReports': reports}}
-                program, _ = smooth_kai_program(program, targets=targets)
+                program, _ = smooth_kai_program(program, targets=targets, inferred_corners=True)
                 validate_program(program)
                 cache.put(key, program)
             validate_program(program)
