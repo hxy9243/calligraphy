@@ -210,3 +210,28 @@ test('an older success timer cannot hide a newer conversion status', async t => 
   ui.conversions[1].resolve(jsonResponse({ text: '鸟' }));
   await flush();
 });
+
+test('missing characters in font triggers warning and blocks preview', async t => {
+  const ui = await setup(t);
+  const style = ui.document.getElementById('style-select');
+  style.appendChild(new ui.window.Option('i-yan-kai', 'i-yan-kai'));
+  style.value = 'i-yan-kai';
+  style.dispatchEvent(new ui.window.Event('change'));
+  await flush();
+
+  ui.setText('东去浪淘尽');
+  const warning = ui.document.getElementById('char-warning');
+  assert.ok(!warning.hidden, 'warning should be visible');
+  assert.match(warning.textContent, /缺少字符/);
+  assert.match(warning.textContent, /无法生成/);
+
+  ui.click('btn-preview');
+  assert.match(ui.status.textContent, /无法生成/);
+
+  ui.click('btn-trad');
+  ui.conversions[ui.conversions.length - 1].resolve(jsonResponse({ text: '東去浪淘盡' }));
+  await flush();
+  assert.equal(ui.input.value, '東去浪淘盡');
+  assert.ok(warning.hidden, 'warning should be cleared after converting to traditional');
+});
+
