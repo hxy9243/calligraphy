@@ -169,13 +169,15 @@ class BackendApiTests(unittest.TestCase):
         self.assertEqual(res_b_dl.status_code, 404)
 
     def test_character_limit_expansion_and_error_message(self):
-        # 256 characters is accepted
-        valid_text = "永" * 256
+        # 256 characters total (including newlines, each line <= 20 chars) is accepted
+        valid_text = "\n".join(["永" * 16 for _ in range(15)] + ["永"])
+        self.assertEqual(len(valid_text), 256)
         res_valid = self.client.post("/api/renders", json={"text": valid_text, "style": "kai"})
         self.assertEqual(res_valid.status_code, 202)
 
         # 257 characters exceeds limit and returns clear 400 error message
-        excess_text = "永" * 257
+        excess_text = valid_text + "永"
+        self.assertEqual(len(excess_text), 257)
         res_excess = self.client.post("/api/renders", json={"text": excess_text, "style": "kai"})
         self.assertEqual(res_excess.status_code, 400)
         data = res_excess.json()
@@ -188,6 +190,17 @@ class BackendApiTests(unittest.TestCase):
         prev_data = res_prev_excess.json()
         self.assertIn("detail", prev_data)
         self.assertIn("256", prev_data["detail"])
+
+    def test_single_line_limit(self):
+        # Line with <= 20 characters is accepted
+        res_valid = self.client.post("/api/previews", json={"text": "永" * 20, "style": "kai"})
+        self.assertEqual(res_valid.status_code, 200)
+
+        # Single line with 21 characters is rejected with 400
+        res_excess = self.client.post("/api/previews", json={"text": "永" * 21, "style": "kai"})
+        self.assertEqual(res_excess.status_code, 400)
+        data = res_excess.json()
+        self.assertIn("20", data["detail"])
 
 
 if __name__ == "__main__":

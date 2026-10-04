@@ -159,19 +159,21 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 
 /* ---------- Live stage (handles any text length) ---------- */
 .stage-viewport {
-  width: 100%; height: clamp(300px, 62vh, 640px);
+  width: 100%; height: clamp(280px, 50vh, 540px);
   overflow: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
   writing-mode: vertical-rl;   /* scroll origin on the right for vertical text */
   scrollbar-width: thin;
+  padding: 16px;
+  box-sizing: border-box;
 }
 .stage-viewport.horizontal { writing-mode: horizontal-tb; }
 .stage-paper {
   position: relative;
   padding: 28px 32px;
-  min-width: 100%;
-  min-height: 100%;
   box-sizing: border-box;
   display: flex;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
 }
 .stage-paper.vertical {
   height: 100%;
@@ -204,12 +206,47 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 }
 .stage-caption { margin-top: 8px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 
-/* result viewer: fits by default, scroll when actual size */
-.viewer { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; height: clamp(300px, 62vh, 640px); overflow: auto; display: grid; place-items: center; }
-.viewer > svg, .viewer > img, .viewer > video { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }
-.viewer > video { background: #000; width: 100%; height: 100%; object-fit: contain; }
-.viewer.actual { display: block; place-items: unset; }
-.viewer.actual > svg, .viewer.actual > img { max-width: none; max-height: none; }
+/* result viewer: fits by default and zoomed out slightly for comfortable viewing, scroll when actual size */
+.viewer {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  height: clamp(260px, 48vh, 520px);
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.viewer > svg, .viewer > img {
+  max-width: 88%;
+  max-height: 88%;
+  width: auto;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+}
+.viewer > video {
+  background: #000;
+  max-width: 88%;
+  max-height: 88%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+.viewer.actual { display: block; padding: 0; }
+.viewer.actual > svg, .viewer.actual > img, .viewer.actual > video {
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
 .result-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
 .empty { text-align: center; padding: 48px 16px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; align-items: center; }
@@ -322,7 +359,7 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
 
   .action-bar { position: fixed; left: 8px; right: 8px; bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); border-radius: 14px; z-index: 35; }
   body:not([data-view="create"]) .action-bar { display: none; }
-  .stage-viewport, .viewer { height: clamp(240px, 42vh, 420px); }
+  .stage-viewport, .viewer { height: clamp(220px, 38vh, 380px); }
   .stage-paper { padding: 18px 20px; }
   .canvas { padding: 10px; }
   .field-row { grid-template-columns: 1fr; }

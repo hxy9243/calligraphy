@@ -36,9 +36,12 @@ const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+const MAX_LINE_CHARS = 20;
+
 /* ------------------------------------------------------------------ state */
 const state = {
   script: 'simp', dir: 'vertical', size: 68, spacing: 0.18, fit: true, speed: 1, fps: 24,
+  canvasWidth: 720, canvasHeight: 960, canvasFormat: '3:4',
   styleId: 'kai', recent: [], favs: [], theme: 'theme-xuan',
   entries: [], byId: new Map(), catalog: [],
   jobs: [], tracked: new Map(), jobSig: '',
@@ -51,7 +54,7 @@ const state = {
 function loadStore() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE) || '{}');
-    for (const k of ['script', 'dir', 'size', 'spacing', 'fit', 'speed', 'fps', 'styleId', 'recent', 'favs', 'theme']) {
+    for (const k of ['script', 'dir', 'size', 'spacing', 'fit', 'speed', 'fps', 'canvasWidth', 'canvasHeight', 'canvasFormat', 'styleId', 'recent', 'favs', 'theme']) {
       if (s[k] !== undefined) state[k] = s[k];
     }
     return s;
@@ -61,8 +64,9 @@ function saveStore() {
   try {
     localStorage.setItem(STORE, JSON.stringify({
       text: els.text.value, script: state.script, dir: state.dir, size: state.size, spacing: state.spacing,
-      fit: state.fit, speed: state.speed, fps: state.fps, styleId: state.styleId,
-      recent: state.recent, favs: state.favs, theme: state.theme,
+      fit: state.fit, speed: state.speed, fps: state.fps,
+      canvasWidth: state.canvasWidth, canvasHeight: state.canvasHeight, canvasFormat: state.canvasFormat,
+      styleId: state.styleId, recent: state.recent, favs: state.favs, theme: state.theme,
     }));
   } catch { /* storage unavailable */ }
 }
@@ -74,6 +78,8 @@ function bindEls() {
     presetList: $('#preset-list'),
     fontCurrent: $('#font-current'), fontGlyph: $('#font-current-glyph'), fontName: $('#font-current-name'),
     fontSub: $('#font-current-sub'), fontRecent: $('#font-recent'), fontNote: $('#font-note'),
+    canvasDimVal: $('#canvas-dim-val'), canvasFormats: $('#canvas-formats'),
+    canvasLenSlider: $('#canvas-len-slider'), canvasLenVal: $('#canvas-len-val'),
     sizeSlider: $('#size-slider'), sizeVal: $('#size-val'), spacingSlider: $('#spacing-slider'), spacingVal: $('#spacing-val'),
     fit: $('#fit-toggle'),
     btnPreview: $('#btn-preview'), btnRender: $('#btn-render'),
@@ -254,6 +260,11 @@ function renderFontCard() {
   });
 }
 
+function updateCanvasDimDisplay() {
+  els.canvasDimVal.textContent = `${state.canvasWidth} × ${state.canvasHeight} (${state.canvasFormat})`;
+  els.canvasLenVal.textContent = `${state.canvasHeight}px`;
+}
+
 /* ---------------------------------------------------------------- stage */
 function applyStage() {
   const e = currentEntry();
@@ -264,6 +275,12 @@ function applyStage() {
   els.paper.classList.toggle('vertical', state.dir === 'vertical');
   els.paper.classList.toggle('horizontal', state.dir === 'horizontal');
   els.viewport.classList.toggle('horizontal', state.dir === 'horizontal');
+
+  // Reflect defined canvas proportions onto the stage paper
+  if (state.canvasWidth && state.canvasHeight) {
+    els.paper.style.aspectRatio = `${state.canvasWidth} / ${state.canvasHeight}`;
+  }
+
   fitStage();
   if (e?.file) {
     const fam = e.family.match(/"(wb-[^"]+)"/)[1];
@@ -275,9 +292,15 @@ function overflowing() {
   const v = els.viewport;
   const r = els.stageText.getBoundingClientRect();
   const cs = getComputedStyle(els.paper);
-  return state.dir === 'vertical'
-    ? r.width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) > v.clientWidth + 1
-    : r.height + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) > v.clientHeight + 1;
+  const padW = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padH = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+
+  // In vertical layout, column length cannot exceed canvas height, and columns count cannot exceed width
+  if (state.dir === 'vertical') {
+    return (r.height + padH > v.clientHeight + 1) || (r.width + padW > v.clientWidth + 1);
+  }
+  // In horizontal layout, row length cannot exceed canvas width, and rows count cannot exceed height
+  return (r.width + padW > v.clientWidth + 1) || (r.height + padH > v.clientHeight + 1);
 }
 function fitStage() {
   const t = els.stageText;
@@ -296,24 +319,41 @@ function fitStage() {
   const shrunk = size < state.size;
   els.sizeVal.textContent = shrunk ? `${state.size}px → 适应 ${size}px` : `${state.size}px`;
   const len = [...els.text.value.replace(/\s/g, '')].length;
-  els.caption.innerHTML = `<span>${len} 字 · ${state.dir === 'vertical' ? '竖排右起' : '横排'}</span><span>${shrunk ? '已自动缩小以完整呈现' : (overflowing() ? '内容较长，可在画布内滚动' : '')}</span>`;
+  els.caption.innerHTML = `<span>${len} 字 · ${state.dir === 'vertical' ? '竖排右起' : '横排'} · 画布 ${state.canvasWidth}×${state.canvasHeight}</span><span>${shrunk ? '已自动缩小以完整呈现' : (overflowing() ? '内容较长，可在画布内滚动' : '')}</span>`;
   els.canvasMeta.textContent = currentEntry()?.name || '';
   if (state.dir === 'vertical') els.viewport.scrollLeft = els.viewport.scrollWidth; // keep the first column visible (right edge)
 }
 
 /* ------------------------------------------------------------------ text */
 function updateText() {
-  const len = els.text.value.length;
+  const val = els.text.value;
+  const len = val.length;
   els.count.textContent = len;
-  const over = len > MAX_CHARS;
-  els.counter.classList.toggle('exceeded', over);
-  els.text.classList.toggle('exceeded', over);
-  els.warning.hidden = !over;
-  if (over) els.warning.textContent = `超出 ${len - MAX_CHARS} 字，请删减后再生成`;
+
+  const lines = val.split('\n');
+  const longLines = lines
+    .map((l, idx) => ({ num: idx + 1, len: [...l].length }))
+    .filter((x) => x.len > MAX_LINE_CHARS);
+
+  const overLen = len > MAX_CHARS;
+  const overLine = longLines.length > 0;
+  const invalid = overLen || overLine;
+
+  els.counter.classList.toggle('exceeded', invalid);
+  els.text.classList.toggle('exceeded', invalid);
+  els.warning.hidden = !invalid;
+
+  if (overLine) {
+    const first = longLines[0];
+    els.warning.textContent = `第 ${first.num} 行含 ${first.len} 字，超出单行 ${MAX_LINE_CHARS} 字限制，请按回车换行分列`;
+  } else if (overLen) {
+    els.warning.textContent = `总字数达 ${len} 字，超出 ${MAX_CHARS} 字上限，请删减`;
+  }
+
   applyStage();
   renderFontCard();
   saveStore();
-  return !over;
+  return !invalid;
 }
 
 function setScriptButtons(script) {
@@ -459,7 +499,16 @@ function showResult(media) {
 /* ------------------------------------------------------------- actions */
 function validate() {
   if (!els.text.value.trim()) { toast('请输入要书写的文本', 'error'); return false; }
-  if (!updateText()) { toast(`字数超出 ${MAX_CHARS} 字上限`, 'error'); return false; }
+  if (!updateText()) {
+    const lines = els.text.value.split('\n');
+    const longLines = lines.map((l, i) => ({ num: i + 1, len: [...l].length })).filter((x) => x.len > MAX_LINE_CHARS);
+    if (longLines.length) {
+      toast(`第 ${longLines[0].num} 行超出单行 ${MAX_LINE_CHARS} 字限制，请换行分列`, 'error');
+    } else {
+      toast(`总字数超出 ${MAX_CHARS} 字上限`, 'error');
+    }
+    return false;
+  }
   return true;
 }
 
@@ -468,7 +517,15 @@ async function doPreview() {
   els.btnPreview.disabled = true;
   showProgress('正在生成静图…', null);
   try {
-    const data = await postJson('/api/previews', { text: els.text.value.trim(), style: state.styleId, format: 'auto', spacing: state.spacing });
+    const data = await postJson('/api/previews', {
+      text: els.text.value.trim(),
+      style: state.styleId,
+      format: 'auto',
+      spacing: state.spacing,
+      direction: state.dir === 'vertical' ? 'vertical-rl' : 'horizontal-lr',
+      width: state.canvasWidth,
+      height: state.canvasHeight,
+    });
     const ext = data.svg ? 'svg' : 'png';
     showResult({ kind: 'image', src: data.preview_url, download: data.preview_url, filename: `calligraphy_${data.job_id}.${ext}` });
     toast('静图已生成', 'success');
@@ -485,7 +542,16 @@ async function doRender() {
   if (!validate()) return;
   els.btnRender.disabled = true;
   try {
-    const data = await postJson('/api/renders', { text: els.text.value.trim(), style: state.styleId, speed: state.speed, fps: state.fps, spacing: state.spacing });
+    const data = await postJson('/api/renders', {
+      text: els.text.value.trim(),
+      style: state.styleId,
+      speed: state.speed,
+      fps: state.fps,
+      spacing: state.spacing,
+      direction: state.dir === 'vertical' ? 'vertical-rl' : 'horizontal-lr',
+      width: state.canvasWidth,
+      height: state.canvasHeight,
+    });
     toast('视频任务已入队，可在「历史」查看进度', 'info');
     track(data.job_id);
     refreshJobs();
@@ -761,6 +827,29 @@ function bindUi() {
     $$('[data-dir]').forEach((x) => x.classList.toggle('active', x === b));
     applyStage(); saveStore();
   }));
+
+  els.canvasFormats.addEventListener('click', (ev) => {
+    const b = ev.target.closest('.chip');
+    if (!b) return;
+    $$('.chip', els.canvasFormats).forEach((c) => c.classList.toggle('active', c === b));
+    state.canvasFormat = b.dataset.cf;
+    state.canvasWidth = parseInt(b.dataset.w, 10);
+    state.canvasHeight = parseInt(b.dataset.h, 10);
+    els.canvasLenSlider.value = state.canvasHeight;
+    updateCanvasDimDisplay();
+    applyStage(); saveStore();
+  });
+
+  els.canvasLenSlider.addEventListener('input', () => {
+    state.canvasHeight = parseInt(els.canvasLenSlider.value, 10);
+    state.canvasFormat = 'custom';
+    $$('.chip', els.canvasFormats).forEach((c) => {
+      c.classList.toggle('active', parseInt(c.dataset.h, 10) === state.canvasHeight && parseInt(c.dataset.w, 10) === state.canvasWidth);
+    });
+    updateCanvasDimDisplay();
+    applyStage(); saveStore();
+  });
+
   els.sizeSlider.addEventListener('input', () => { state.size = +els.sizeSlider.value; applyStage(); saveStore(); });
   els.spacingSlider.addEventListener('input', () => { state.spacing = +els.spacingSlider.value; els.spacingVal.textContent = `${state.spacing}em`; applyStage(); saveStore(); });
   els.fit.addEventListener('change', () => { state.fit = els.fit.checked; applyStage(); saveStore(); });
@@ -807,6 +896,11 @@ async function init() {
   const saved = loadStore();
   if (saved.text) els.text.value = saved.text;
   applyTheme(state.theme);
+  els.canvasLenSlider.value = state.canvasHeight;
+  updateCanvasDimDisplay();
+  $$('#canvas-formats .chip').forEach((c) => {
+    c.classList.toggle('active', c.dataset.cf === state.canvasFormat || (parseInt(c.dataset.h, 10) === state.canvasHeight && parseInt(c.dataset.w, 10) === state.canvasWidth));
+  });
   els.sizeSlider.value = state.size;
   els.spacingSlider.value = state.spacing; els.spacingVal.textContent = `${state.spacing}em`;
   els.fit.checked = state.fit;

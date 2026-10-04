@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from calligraphy.font_pipeline import registered_styles
 from calligraphy.text.converter import convert_text
@@ -19,6 +19,7 @@ from .database import Database, get_db
 from .worker import execute_job, get_runner
 
 MAX_INPUT_CHARACTERS = 256
+MAX_LINE_CHARACTERS = 20
 
 STYLE_ALIASES = {
     "mashanzheng-kai": "mashanzheng",
@@ -43,6 +44,19 @@ class PreviewRequest(BaseModel):
     style: str = Field(default="kai")
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
+    direction: Optional[str] = Field(default=None)
+    width: Optional[int] = Field(default=None)
+    height: Optional[int] = Field(default=None)
+
+    @field_validator("text")
+    @classmethod
+    def validate_line_length(cls, v: str) -> str:
+        for idx, line in enumerate(v.split("\n"), 1):
+            if len(line) > MAX_LINE_CHARACTERS:
+                raise ValueError(
+                    f"第 {idx} 行超出单行 {MAX_LINE_CHARACTERS} 字限制（当前 {len(line)} 字），请换行后再试 / Line {idx} exceeds {MAX_LINE_CHARACTERS}-character limit ({len(line)} chars)."
+                )
+        return v
 
 
 class RenderRequest(BaseModel):
@@ -51,6 +65,19 @@ class RenderRequest(BaseModel):
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
+    direction: Optional[str] = Field(default=None)
+    width: Optional[int] = Field(default=None)
+    height: Optional[int] = Field(default=None)
+
+    @field_validator("text")
+    @classmethod
+    def validate_line_length(cls, v: str) -> str:
+        for idx, line in enumerate(v.split("\n"), 1):
+            if len(line) > MAX_LINE_CHARACTERS:
+                raise ValueError(
+                    f"第 {idx} 行超出单行 {MAX_LINE_CHARACTERS} 字限制（当前 {len(line)} 字），请换行后再试 / Line {idx} exceeds {MAX_LINE_CHARACTERS}-character limit ({len(line)} chars)."
+                )
+        return v
 
 
 @asynccontextmanager
@@ -85,6 +112,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 content={
                     "detail": "输入文本不能为空 / Text must not be empty."
                 },
+            )
+        if err.get("type") == "value_error":
+            msg = err.get("msg", "")
+            if msg.startswith("Value error, "):
+                msg = msg[len("Value error, "):]
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"detail": msg},
             )
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -196,13 +231,21 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
     job_id = f"prev_{uuid.uuid4().hex[:12]}"
     db = get_db()
     chosen_style = STYLE_ALIASES.get(req.style, req.style)
+    params = {"format": req.format, "spacing": req.spacing}
+    if req.direction:
+        params["direction"] = req.direction
+    if req.width:
+        params["width"] = req.width
+    if req.height:
+        params["height"] = req.height
+
     job = db.create_job(
         job_id=job_id,
         session_id=session_id,
         job_type="preview",
         text=req.text,
         style=chosen_style,
-        params={"format": req.format, "spacing": req.spacing},
+        params=params,
     )
     # Execute preview immediately for snappy preview response
     success = execute_job(job, db)
@@ -248,13 +291,21 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
     job_id = f"vid_{uuid.uuid4().hex[:12]}"
     db = get_db()
     chosen_style = STYLE_ALIASES.get(req.style, req.style)
+    params = {"fps": req.fps, "speed": req.speed, "spacing": req.spacing}
+    if req.direction:
+        params["direction"] = req.direction
+    if req.width:
+        params["width"] = req.width
+    if req.height:
+        params["height"] = req.height
+
     job = db.create_job(
         job_id=job_id,
         session_id=session_id,
         job_type="render",
         text=req.text,
         style=chosen_style,
-        params={"fps": req.fps, "speed": req.speed, "spacing": req.spacing},
+        params=params,
     )
     runner = get_runner()
     runner.notify()
