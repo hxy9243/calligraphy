@@ -164,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCloseExport = document.getElementById('btn-close-export');
   const previewImageContainer = document.getElementById('preview-image-container');
   const previewImg = document.getElementById('preview-img');
+  const previewSvgContainer = document.getElementById('preview-svg-container');
   const videoContainer = document.getElementById('video-container');
   const resultVideo = document.getElementById('result-video');
   const jobsList = document.getElementById('jobs-list');
@@ -432,10 +433,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function showPreviewImage(url) {
     if (exportOutputBox) exportOutputBox.classList.remove('hidden');
     videoContainer.classList.add('hidden');
+    resultVideo.pause();
     previewImg.classList.remove('hidden');
     previewImg.src = url;
-    const existingSvg = previewImageContainer.querySelector('svg');
-    if (existingSvg) existingSvg.remove();
+    previewSvgContainer.replaceChildren();
+    previewSvgContainer.classList.add('hidden');
     previewImageContainer.classList.remove('hidden');
     exportOutputBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -443,9 +445,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function showPreviewSvg(svgContent) {
     if (exportOutputBox) exportOutputBox.classList.remove('hidden');
     videoContainer.classList.add('hidden');
+    resultVideo.pause();
     previewImg.classList.add('hidden');
-    previewImageContainer.innerHTML = svgContent;
-    const svgEl = previewImageContainer.querySelector('svg');
+    // Keep the image node mounted for later direct and history previews.
+    previewSvgContainer.innerHTML = svgContent;
+    previewSvgContainer.classList.remove('hidden');
+    const svgEl = previewSvgContainer.querySelector('svg');
     if (svgEl) {
       svgEl.style.maxWidth = '100%';
       svgEl.style.maxHeight = '420px';
@@ -474,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnCloseExport) {
     btnCloseExport.addEventListener('click', () => {
       exportOutputBox.classList.add('hidden');
+      resultVideo.pause();
     });
   }
 

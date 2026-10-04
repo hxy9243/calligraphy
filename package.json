@@ -31,5 +31,8 @@
   },
   "dependencies": {
     "sharp": "^0.34.3"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
   }
 }
