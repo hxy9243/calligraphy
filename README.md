@@ -35,8 +35,12 @@ without a line break). Missing glyphs and unsupported text produce explicit erro
 Use `--width`, `--height`, `--per-line`, `--stroke-seconds` and `--gap` to control
 the page and cadence. MP4 also accepts `--fps` and `--speed` and requires FFmpeg.
 Generic `kai` now defaults to fitted Stroke IR with per-character SQLite caching.
-`--mode template` explicitly selects the legacy Kai renderer; `yan` retains its
-measured template width adjustment. Kai SVG contains embedded rendered pixels;
+All web previews and videos now default to the smoothed contact engine, including
+registered fonts. Derived repairs are cached separately from source font banks,
+keyed by font, geometry and engine source. `CALLIGRAPHY_CONTACT_CACHE` overrides
+the derived cache location. Existing font banks receive the repairs on first use.
+`--mode template` explicitly selects the legacy Kai/Yan renderer; `yan` retains its
+measured width adjustment before fitting. Contact SVG contains embedded rendered pixels;
 use template mode for editable vector paths. Prepared
 contact-brush styles are `lishu`, `liu` and `yan-contact`, supporting PNG and MP4.
 Install the Python engine below first, then run:

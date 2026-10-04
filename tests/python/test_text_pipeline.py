@@ -124,7 +124,7 @@ class TextPipelineTests(unittest.TestCase):
         self.assertIn("月", resolved)
 
         with self.assertRaises(ValueError):
-            resolve_glyphs("天地", glyphs=bundled, fetch_missing=False)
+            resolve_glyphs("天地", glyphs={"永": bundled["永"]}, fetch_missing=False)
 
         bad_glyph = {"strokes": [], "medians": []}
         with self.assertRaises(TypeError):

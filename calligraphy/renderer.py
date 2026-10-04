@@ -10,7 +10,9 @@ import numpy as np
 from PIL import Image
 
 from .animation import trace_polyline
-from .contact_renderer import ContactScene, style_manifest, load_style
+from .contact_renderer import style_manifest, load_style
+from .styled_contact_scene import StyledContactScene
+from .contact_preparation import prepare_contacts
 from .font_layers import FontLayerScene, LayerStore, prepare_character_layers
 from .font_pipeline import style_path, load_bank, target_masks
 from .spec import SceneSpec, RenderPlan, Appearance, Transforms
@@ -253,7 +255,7 @@ def create_scene(
     """Create a renderable scene from a SceneSpec.
     
     Modes:
-      - 'auto': fitted Kai IR for generic kai; style-specific renderer otherwise.
+      - 'auto': fitted, smoothed contact replay for every style.
       - 'stroke_ir': fitted Kai IR (generic kai only).
       - 'template': vector TemplateScene (kai, yan).
       - 'contact': ContactScene for contact styles or registered font banks.
@@ -275,9 +277,9 @@ def create_scene(
         )
         stroke_counts = {c: len(loaded_glyphs[c]["strokes"]) for c in loaded_glyphs}
         plan = RenderPlan.create(scene_spec, stroke_counts=stroke_counts)
-        if style == "kai" and mode in ("auto", "stroke_ir"):
+        if mode in ("auto", "stroke_ir", "contact"):
             from .kai_scene import KaiScene, prepare_kai
-            return KaiScene(plan.to_dict(), prepare_kai(loaded_glyphs),
+            return KaiScene(plan.to_dict(), prepare_kai(loaded_glyphs, outline_expansion=TEMPLATE_EXPANSIONS[style]),
                             appearance=scene_spec.appearance, transforms=scene_spec.transforms)
         return TemplateScene(plan, loaded_glyphs, style=style)
 
@@ -292,8 +294,12 @@ def create_scene(
             )
         stroke_counts = {c: len(contact_glyphs[c]) for c in contact_glyphs}
         plan = RenderPlan.create(scene_spec, stroke_counts=stroke_counts)
-        # Convert plan to dict for ContactScene compatibility
-        return ContactScene(plan.to_dict(), contact_glyphs)
+        prepared, reports = prepare_contacts(
+            {c: contact_glyphs[c] for c in scene_spec.unique_characters},
+            source={'style': style, 'kind': 'built-in'})
+        scene = StyledContactScene(plan.to_dict(), prepared, scene_spec.appearance, scene_spec.transforms)
+        scene.smoothing_reports = reports
+        return scene
 
     # Registered font bank
     bank = load_bank(style)
@@ -319,10 +325,15 @@ def create_scene(
     stroke_counts = {c: len(bank["glyphs"][c]) for c in bank["glyphs"]}
     plan = RenderPlan.create(scene_spec, stroke_counts=stroke_counts)
 
-    if mode == "contact":
-        return ContactScene(plan.to_dict(), bank["glyphs"])
+    if mode != "font_layers":
+        prepared, reports = prepare_contacts(
+            {c: bank['glyphs'][c] for c in scene_spec.unique_characters},
+            source={'style': style, 'font': bank['font']}, inferred_corners=True)
+        scene = StyledContactScene(plan.to_dict(), prepared, scene_spec.appearance, scene_spec.transforms)
+        scene.smoothing_reports = reports
+        return scene
 
-    # Default to FontLayerScene for exact source font reconstruction
+    # Explicit compatibility mode for source font reconstruction
     store = LayerStore()
     for char, target in target_masks(font_file, scene_spec.unique_characters):
         cached = store.get(char)

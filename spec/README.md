@@ -48,3 +48,9 @@ runs; the tests and source determine current behavior.
 | Reference fitting study or new style experiment | Sibling `calligraphy-lab` | Assets and validation |
 
 All paths in this table are relative to the repository root unless stated otherwise.
+
+Default scene creation uses fitted, smoothed contact replay for generic Kai/Yan,
+registered fonts and built-in contact collections. Still, SVG and video exports
+share the same styled contact frame implementation. Registered source banks remain
+unchanged; derived smoothing caches include source identity, geometry and engine
+source hash. Explicit `template` and `font_layers` modes retain legacy rendering.

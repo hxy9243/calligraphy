@@ -1,27 +1,21 @@
 """Generic Han text prepared as fitted Kai IR, cached in SQLite and replayed."""
-import base64
 from hashlib import sha256
-import io
 import json
 import os
 from pathlib import Path
 
 import cv2
-import numpy as np
-from PIL import Image
 
+from .styled_contact_scene import StyledContactScene
 from .artifact_cache import ArtifactCache
-from .contact_renderer import ContactScene
 from .engine_metadata import engine_metadata
 from .font_fitting import template
-from .font_layers import FontLayerScene
-from .spec import Appearance, Transforms
 from .stroke_ir import compile_program, validate_program
 from .stroke_fitting import fit_contact_stroke
 from .stroke_crossings import smooth_kai_program
 
 
-def prepare_kai(glyphs, cache_path=None):
+def prepare_kai(glyphs, cache_path=None, *, outline_expansion=0):
     metadata = engine_metadata('kai-fitted')
     cache_path = cache_path or os.environ.get('CALLIGRAPHY_KAI_CACHE',
         str(Path.home() / '.local/share/calligraphy/kai-geometry.db'))
@@ -29,12 +23,12 @@ def prepare_kai(glyphs, cache_path=None):
     programs = {}
     for character, glyph in glyphs.items():
         guide_hash = sha256(json.dumps(glyph, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-        key = f"kai:{character}:{guide_hash}:{metadata['engine_version']}:{metadata['engine_source_sha256']}"
+        key = f"kai:{outline_expansion}:{character}:{guide_hash}:{metadata['engine_version']}:{metadata['engine_source_sha256']}"
         with cache.lock(key):
             try:
                 program = cache.get(key)
             except KeyError:
-                layers, _, guides = template(glyph, return_guides=True)
+                layers, _, guides = template(glyph, return_guides=True, outline_expansion=outline_expansion)
                 if len(layers) > 64:
                     raise ValueError(f'Kai IR supports at most 64 strokes: {character}')
                 strokes, reports, targets = [], [], []
@@ -58,7 +52,7 @@ def prepare_kai(glyphs, cache_path=None):
                 program = {'schemaVersion': 'kai-stroke-ir/0.2', 'character': character,
                            'script': 'kai', 'strokes': strokes, 'relations': [],
                            'provenance': {'source': 'Caller supplied Hanzi Writer outlines and medians',
-                               'inferred': True, 'engine': metadata, 'template_sha256': guide_hash,
+                               'inferred': True, 'engine': metadata, 'outline_expansion': outline_expansion, 'template_sha256': guide_hash,
                                'strokeKinds': 'Unclassified; kind has no rendering semantics',
                                'fitReports': reports}}
                 program, _ = smooth_kai_program(program, targets=targets, inferred_corners=True)
@@ -71,55 +65,11 @@ def prepare_kai(glyphs, cache_path=None):
     return programs
 
 
-class KaiScene(ContactScene):
-    """Compile once and reuse contact painters; backwards seeks reset active ink."""
-    parallel_frames = False
+class KaiScene(StyledContactScene):
+    """Compile fitted IR and replay through the shared contact scene."""
     engine_type = 'kai-fitted'
 
     def __init__(self, plan, programs, appearance=None, transforms=None):
         self.programs = programs
         glyphs = {char: compile_program(program) for char, program in programs.items()}
-        super().__init__(plan, glyphs)
-        self.appearance = appearance or Appearance()
-        self.transforms = transforms or Transforms()
-        self.width, self.height = plan['width'], plan['height']
-        self.duration = plan['duration']
-
-    _create_patch = FontLayerScene._create_patch
-
-    def frame(self, time):
-        time = float(time)
-        if not np.isfinite(time):
-            raise ValueError('time must be finite')
-        time = min(self.duration, max(0, time))
-        if time < self._last_time:
-            self._active = None
-        self._last_time = time
-        page = Image.new('RGB', (self.width, self.height), self.appearance.paper_color)
-        for index, entry in enumerate(self.plan['schedule']):
-            if time <= entry['start']:
-                break
-            if time >= entry['end']:
-                key = (entry['character'], entry['size'])
-                if key not in self._patches:
-                    self._patches[key] = self._create_patch(self.glyph_mask(entry['character']), entry['size'])
-                patch = self._patches[key]
-                if self._active and self._active['index'] == index:
-                    self._active = None
-            else:
-                patch = self._create_patch(self._partial(index, entry, time), entry['size'])
-            x = round(entry['x'] + entry['size'] / 2 - patch.width / 2)
-            y = round(entry['y'] + entry['size'] / 2 - patch.height / 2)
-            page.paste(patch, (x, y), patch)
-        return page
-
-    def frame_svg(self, time):
-        # Same deposited pixels as PNG/video; SVG is a raster container here.
-        stream = io.BytesIO()
-        self.frame(time).save(stream, format='PNG')
-        payload = base64.b64encode(stream.getvalue()).decode()
-        characters = ''.join(f'<g data-character="{item["character"]}"/>' for item in self.plan['schedule'])
-        return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" '
-                f'viewBox="0 0 {self.width} {self.height}" data-engine="kai-fitted">'
-                f'<image width="{self.width}" height="{self.height}" href="data:image/png;base64,{payload}"/>'
-                f'{characters}</svg>')
+        super().__init__(plan, glyphs, appearance, transforms)

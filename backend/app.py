@@ -132,7 +132,7 @@ def list_styles():
     """List available writing styles (fixed collection fonts removed)."""
     styles = [
         {"id": "kai", "name": "楷书 (Kai)", "description": "Fitted stroke writing / 拟合笔画书写", "type": "stroke_ir"},
-        {"id": "yan", "name": "颜体 (Yan)", "description": "Yan Zhenqing regular script template", "type": "template"},
+        {"id": "yan", "name": "颜体 (Yan)", "description": "Yan-inspired fitted contact strokes", "type": "stroke_ir"},
     ]
     font_names = {
         "mashanzheng": "钟齐马善政毛笔楷书 (Ma Shan Zheng)",

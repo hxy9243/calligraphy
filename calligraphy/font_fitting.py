@@ -17,11 +17,11 @@ S = 160
 SIZE = 480
 
 
-def template(d, return_guides=False):
+def template(d, return_guides=False, outline_expansion=0):
     n=len(d['strokes'])
     stack=[]
     for outline in d['strokes']:
-        svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><g transform="scale(.15625) translate(0 900) scale(1 -1)"><path d="{outline}"/></g></svg>'
+        svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><g transform="scale(.15625) translate(0 900) scale(1 -1)"><path d="{outline}" stroke="black" stroke-width="{outline_expansion}" stroke-linejoin="round"/></g></svg>'
         stack.append(np.asarray(Image.open(io.BytesIO(cairosvg.svg2png(bytestring=svg.encode()))).convert('RGBA'))[:,:,3])
     stack=np.asarray(stack)
     union=stack.max(0)>128
