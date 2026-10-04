@@ -41,7 +41,7 @@ const MAX_LINE_CHARS = 20;
 /* ------------------------------------------------------------------ state */
 const state = {
   script: 'simp', dir: 'vertical', size: 68, spacing: 0.18, fit: true, speed: 1, fps: 24,
-  canvasWidth: 720, canvasHeight: 960, canvasFormat: '3:4',
+  canvasWidth: 720, canvasHeight: 960, canvasFormat: 'auto', canvasAutoLen: true,
   styleId: 'kai', recent: [], favs: [], theme: 'theme-xuan',
   entries: [], byId: new Map(), catalog: [],
   jobs: [], tracked: new Map(), jobSig: '',
@@ -54,7 +54,7 @@ const state = {
 function loadStore() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE) || '{}');
-    for (const k of ['script', 'dir', 'size', 'spacing', 'fit', 'speed', 'fps', 'canvasWidth', 'canvasHeight', 'canvasFormat', 'styleId', 'recent', 'favs', 'theme']) {
+    for (const k of ['script', 'dir', 'size', 'spacing', 'fit', 'speed', 'fps', 'canvasWidth', 'canvasHeight', 'canvasFormat', 'canvasAutoLen', 'styleId', 'recent', 'favs', 'theme']) {
       if (s[k] !== undefined) state[k] = s[k];
     }
     return s;
@@ -65,7 +65,7 @@ function saveStore() {
     localStorage.setItem(STORE, JSON.stringify({
       text: els.text.value, script: state.script, dir: state.dir, size: state.size, spacing: state.spacing,
       fit: state.fit, speed: state.speed, fps: state.fps,
-      canvasWidth: state.canvasWidth, canvasHeight: state.canvasHeight, canvasFormat: state.canvasFormat,
+      canvasWidth: state.canvasWidth, canvasHeight: state.canvasHeight, canvasFormat: state.canvasFormat, canvasAutoLen: state.canvasAutoLen,
       styleId: state.styleId, recent: state.recent, favs: state.favs, theme: state.theme,
     }));
   } catch { /* storage unavailable */ }
@@ -79,7 +79,7 @@ function bindEls() {
     fontCurrent: $('#font-current'), fontGlyph: $('#font-current-glyph'), fontName: $('#font-current-name'),
     fontSub: $('#font-current-sub'), fontRecent: $('#font-recent'), fontNote: $('#font-note'),
     canvasDimVal: $('#canvas-dim-val'), canvasFormats: $('#canvas-formats'),
-    canvasLenSlider: $('#canvas-len-slider'), canvasLenVal: $('#canvas-len-val'),
+    canvasLenSlider: $('#canvas-len-slider'), canvasLenVal: $('#canvas-len-val'), canvasLenAxis: $('#canvas-len-axis'),
     sizeSlider: $('#size-slider'), sizeVal: $('#size-val'), spacingSlider: $('#spacing-slider'), spacingVal: $('#spacing-val'),
     fit: $('#fit-toggle'),
     btnPreview: $('#btn-preview'), btnRender: $('#btn-render'),
@@ -260,9 +260,146 @@ function renderFontCard() {
   });
 }
 
+function calcAutoCanvasDim() {
+  const val = (els.text?.value || '永').trim() || '永';
+  const lines = val.split('\n');
+  const lineLens = lines.map((l) => [...l].length);
+  const maxLine = Math.max(...lineLens, 1);
+  const numLines = Math.max(lines.length, 1);
+
+  if (state.dir === 'vertical') {
+    // In vertical mode:
+    // Columns run right-to-left. Number of columns = numLines.
+    // Longest column has maxLine characters.
+    const targetCell = Math.max(48, Math.min(84, state.size));
+    const contentH = maxLine * (targetCell * 1.15) + (maxLine - 1) * (targetCell * state.spacing);
+    const marginY = Math.max(160, contentH * 0.16);
+    let autoH = Math.round((contentH + marginY * 2) / 40) * 40;
+    autoH = Math.max(720, Math.min(2200, autoH));
+
+    let autoW = 720;
+    if (numLines === 1) autoW = 640;
+    else if (numLines === 2) autoW = 720;
+    else if (numLines <= 4) autoW = 800;
+    else autoW = Math.min(1280, Math.round((numLines * targetCell * 1.5 + 240) / 40) * 40);
+
+    state.canvasWidth = autoW;
+    state.canvasHeight = autoH;
+  } else {
+    // In horizontal mode:
+    const targetCell = Math.max(48, Math.min(84, state.size));
+    const contentW = maxLine * (targetCell * 1.15) + (maxLine - 1) * (targetCell * state.spacing);
+    const marginX = Math.max(160, contentW * 0.16);
+    let autoW = Math.round((contentW + marginX * 2) / 40) * 40;
+    autoW = Math.max(880, Math.min(2400, autoW));
+
+    let autoH = Math.min(1200, Math.max(540, Math.round((numLines * targetCell * 1.5 + 200) / 40) * 40));
+
+    state.canvasWidth = autoW;
+    state.canvasHeight = autoH;
+  }
+}
+
 function updateCanvasDimDisplay() {
-  els.canvasDimVal.textContent = `${state.canvasWidth} × ${state.canvasHeight} (${state.canvasFormat})`;
-  els.canvasLenVal.textContent = `${state.canvasHeight}px`;
+  const isAuto = Boolean(state.canvasAutoLen || state.canvasFormat === 'auto');
+  const isVert = state.dir === 'vertical';
+  const axis = isVert ? '高度' : '宽度';
+  const len = isVert ? state.canvasHeight : state.canvasWidth;
+
+  if (els.canvasLenAxis) els.canvasLenAxis.textContent = axis;
+  if (els.canvasLenSlider) els.canvasLenSlider.value = len;
+
+  const modeLabel = isAuto ? '自动伸长' : (state.canvasFormat === 'custom' ? '手动指定' : state.canvasFormat);
+  els.canvasDimVal.textContent = `${state.canvasWidth} × ${state.canvasHeight} (${modeLabel})`;
+  els.canvasLenVal.textContent = isAuto ? `${len}px (自动)` : `${len}px`;
+
+  $$('#canvas-formats .chip').forEach((c) => {
+    if (isAuto) {
+      c.classList.toggle('active', c.dataset.cf === 'auto');
+    } else {
+      c.classList.toggle('active', c.dataset.cf === state.canvasFormat);
+    }
+  });
+}
+
+function layoutStagePaper() {
+  const v = els.viewport;
+  const p = els.paper;
+  const t = els.stageText;
+  if (!v || !p || !t) return;
+
+  const vw = Math.max(260, v.clientWidth - 48);
+  const vh = Math.max(240, v.clientHeight - 48);
+
+  const cw = state.canvasWidth || 720;
+  const ch = state.canvasHeight || 960;
+  const aspect = cw / ch;
+
+  if (state.dir === 'vertical') {
+    const pw = Math.min(vw, Math.max(220, Math.min(440, Math.round((cw / 720) * 340))));
+    const ph = Math.round(pw / aspect);
+
+    p.style.width = `${pw}px`;
+    p.style.height = `${ph}px`;
+    p.style.minWidth = `${pw}px`;
+    p.style.minHeight = `${ph}px`;
+
+    const scale = pw / cw;
+    const baseFontSize = Math.max(16, Math.round(state.size * scale));
+    t.style.fontSize = `${baseFontSize}px`;
+    p.dataset.baseFontSize = baseFontSize;
+  } else {
+    const ph = Math.min(vh, Math.max(180, Math.min(380, Math.round((ch / 640) * 260))));
+    const pw = Math.round(ph * aspect);
+
+    p.style.width = `${pw}px`;
+    p.style.height = `${ph}px`;
+    p.style.minWidth = `${pw}px`;
+    p.style.minHeight = `${ph}px`;
+
+    const scale = ph / ch;
+    const baseFontSize = Math.max(16, Math.round(state.size * scale));
+    t.style.fontSize = `${baseFontSize}px`;
+    p.dataset.baseFontSize = baseFontSize;
+  }
+}
+
+function overflowingPaper() {
+  const p = els.paper;
+  const r = els.stageText.getBoundingClientRect();
+  const cs = getComputedStyle(p);
+  const padW = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padH = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+
+  return (r.width + padW > p.clientWidth + 2) || (r.height + padH > p.clientHeight + 2);
+}
+
+function fitStage() {
+  const p = els.paper;
+  const t = els.stageText;
+  if (!p || !t) return;
+
+  const baseSize = parseFloat(p.dataset.baseFontSize) || Math.max(16, Math.round(state.size * (p.clientWidth / (state.canvasWidth || 720))));
+  let size = baseSize;
+  t.style.fontSize = `${size}px`;
+
+  if (state.fit && overflowingPaper()) {
+    let lo = 12, hi = size;
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      t.style.fontSize = `${mid}px`;
+      if (overflowingPaper()) hi = mid; else lo = mid;
+    }
+    size = lo;
+    t.style.fontSize = `${size}px`;
+  }
+  const shrunk = size < baseSize;
+  els.sizeVal.textContent = shrunk ? `${state.size}px → 试写缩放 ${Math.round(size * ((state.canvasWidth || 720) / p.clientWidth))}px` : `${state.size}px`;
+  const len = [...els.text.value.replace(/\s/g, '')].length;
+  const isAuto = Boolean(state.canvasAutoLen || state.canvasFormat === 'auto');
+  const scrollable = els.viewport.scrollHeight > els.viewport.clientHeight || els.viewport.scrollWidth > els.viewport.clientWidth;
+  els.caption.innerHTML = `<span>${len} 字 · ${state.dir === 'vertical' ? '竖排右起' : '横排'} · 画布 ${state.canvasWidth}×${state.canvasHeight} ${isAuto ? '(自动伸长)' : '(手动指定)'}</span><span>${shrunk ? '字数超出已微调适应' : (scrollable ? '可滚动浏览完整长卷' : '')}</span>`;
+  els.canvasMeta.textContent = currentEntry()?.name || '';
 }
 
 /* ---------------------------------------------------------------- stage */
@@ -276,52 +413,20 @@ function applyStage() {
   els.paper.classList.toggle('horizontal', state.dir === 'horizontal');
   els.viewport.classList.toggle('horizontal', state.dir === 'horizontal');
 
-  // Reflect defined canvas proportions onto the stage paper
-  if (state.canvasWidth && state.canvasHeight) {
-    els.paper.style.aspectRatio = `${state.canvasWidth} / ${state.canvasHeight}`;
+  if (state.canvasAutoLen || state.canvasFormat === 'auto') {
+    calcAutoCanvasDim();
   }
-
+  updateCanvasDimDisplay();
+  layoutStagePaper();
   fitStage();
+
   if (e?.file) {
     const fam = e.family.match(/"(wb-[^"]+)"/)[1];
-    document.fonts.load(`40px "${fam}"`, text.slice(0, 40)).then(fitStage).catch(() => {});
+    document.fonts.load(`40px "${fam}"`, text.slice(0, 40)).then(() => {
+      layoutStagePaper();
+      fitStage();
+    }).catch(() => {});
   }
-}
-
-function overflowing() {
-  const v = els.viewport;
-  const r = els.stageText.getBoundingClientRect();
-  const cs = getComputedStyle(els.paper);
-  const padW = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-  const padH = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-
-  // In vertical layout, column length cannot exceed canvas height, and columns count cannot exceed width
-  if (state.dir === 'vertical') {
-    return (r.height + padH > v.clientHeight + 1) || (r.width + padW > v.clientWidth + 1);
-  }
-  // In horizontal layout, row length cannot exceed canvas width, and rows count cannot exceed height
-  return (r.width + padW > v.clientWidth + 1) || (r.height + padH > v.clientHeight + 1);
-}
-function fitStage() {
-  const t = els.stageText;
-  let size = state.size;
-  t.style.fontSize = `${size}px`;
-  if (state.fit && overflowing()) {
-    let lo = 14, hi = size;
-    while (hi - lo > 1) {
-      const mid = Math.floor((lo + hi) / 2);
-      t.style.fontSize = `${mid}px`;
-      if (overflowing()) hi = mid; else lo = mid;
-    }
-    size = lo;
-    t.style.fontSize = `${size}px`;
-  }
-  const shrunk = size < state.size;
-  els.sizeVal.textContent = shrunk ? `${state.size}px → 适应 ${size}px` : `${state.size}px`;
-  const len = [...els.text.value.replace(/\s/g, '')].length;
-  els.caption.innerHTML = `<span>${len} 字 · ${state.dir === 'vertical' ? '竖排右起' : '横排'} · 画布 ${state.canvasWidth}×${state.canvasHeight}</span><span>${shrunk ? '已自动缩小以完整呈现' : (overflowing() ? '内容较长，可在画布内滚动' : '')}</span>`;
-  els.canvasMeta.textContent = currentEntry()?.name || '';
-  if (state.dir === 'vertical') els.viewport.scrollLeft = els.viewport.scrollWidth; // keep the first column visible (right edge)
 }
 
 /* ------------------------------------------------------------------ text */
@@ -825,29 +930,54 @@ function bindUi() {
   $$('[data-dir]').forEach((b) => b.addEventListener('click', () => {
     state.dir = b.dataset.dir;
     $$('[data-dir]').forEach((x) => x.classList.toggle('active', x === b));
-    applyStage(); saveStore();
+    if (state.canvasAutoLen || state.canvasFormat === 'auto') {
+      calcAutoCanvasDim();
+    } else {
+      if ((state.dir === 'horizontal' && state.canvasWidth < state.canvasHeight) ||
+          (state.dir === 'vertical' && state.canvasHeight < state.canvasWidth)) {
+        const tmp = state.canvasWidth;
+        state.canvasWidth = state.canvasHeight;
+        state.canvasHeight = tmp;
+      }
+    }
+    updateCanvasDimDisplay();
+    applyStage();
+    saveStore();
   }));
 
   els.canvasFormats.addEventListener('click', (ev) => {
     const b = ev.target.closest('.chip');
     if (!b) return;
-    $$('.chip', els.canvasFormats).forEach((c) => c.classList.toggle('active', c === b));
-    state.canvasFormat = b.dataset.cf;
-    state.canvasWidth = parseInt(b.dataset.w, 10);
-    state.canvasHeight = parseInt(b.dataset.h, 10);
-    els.canvasLenSlider.value = state.canvasHeight;
+    const cf = b.dataset.cf;
+    if (cf === 'auto') {
+      state.canvasAutoLen = true;
+      state.canvasFormat = 'auto';
+      calcAutoCanvasDim();
+      toast('已开启自动伸长，画布随字数自适应', 'info', 1600);
+    } else {
+      state.canvasAutoLen = false;
+      state.canvasFormat = cf;
+      state.canvasWidth = parseInt(b.dataset.w, 10);
+      state.canvasHeight = parseInt(b.dataset.h, 10);
+    }
     updateCanvasDimDisplay();
-    applyStage(); saveStore();
+    applyStage();
+    saveStore();
   });
 
   els.canvasLenSlider.addEventListener('input', () => {
-    state.canvasHeight = parseInt(els.canvasLenSlider.value, 10);
+    state.canvasAutoLen = false;
     state.canvasFormat = 'custom';
-    $$('.chip', els.canvasFormats).forEach((c) => {
-      c.classList.toggle('active', parseInt(c.dataset.h, 10) === state.canvasHeight && parseInt(c.dataset.w, 10) === state.canvasWidth);
-    });
+    const val = parseInt(els.canvasLenSlider.value, 10);
+    if (state.dir === 'vertical') {
+      state.canvasHeight = val;
+    } else {
+      state.canvasWidth = val;
+    }
     updateCanvasDimDisplay();
-    applyStage(); saveStore();
+    layoutStagePaper();
+    fitStage();
+    saveStore();
   });
 
   els.sizeSlider.addEventListener('input', () => { state.size = +els.sizeSlider.value; applyStage(); saveStore(); });
@@ -886,7 +1016,13 @@ function bindUi() {
   $$('#view-fonts [data-filter]').forEach((group) => bindChips(group, 'val', (v) => { state.fontFilters[group.dataset.filter] = v; renderFontsView(); }));
 
   let resizeTimer;
-  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(fitStage, 120); });
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      layoutStagePaper();
+      fitStage();
+    }, 100);
+  });
   window.addEventListener('hashchange', route);
 }
 
@@ -896,11 +1032,11 @@ async function init() {
   const saved = loadStore();
   if (saved.text) els.text.value = saved.text;
   applyTheme(state.theme);
-  els.canvasLenSlider.value = state.canvasHeight;
+  if (state.canvasAutoLen || state.canvasFormat === 'auto') {
+    calcAutoCanvasDim();
+  }
   updateCanvasDimDisplay();
-  $$('#canvas-formats .chip').forEach((c) => {
-    c.classList.toggle('active', c.dataset.cf === state.canvasFormat || (parseInt(c.dataset.h, 10) === state.canvasHeight && parseInt(c.dataset.w, 10) === state.canvasWidth));
-  });
+  applyStage();
   els.sizeSlider.value = state.size;
   els.spacingSlider.value = state.spacing; els.spacingVal.textContent = `${state.spacing}em`;
   els.fit.checked = state.fit;

@@ -157,33 +157,39 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 .job-progress-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .job-progress-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
 
-/* ---------- Live stage (handles any text length) ---------- */
+/* ---------- Live stage (handles any text length with auto-lengthening and scrolling) ---------- */
 .stage-viewport {
-  width: 100%; height: clamp(280px, 50vh, 540px);
-  overflow: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
-  writing-mode: vertical-rl;   /* scroll origin on the right for vertical text */
+  width: 100%;
+  height: clamp(300px, 50vh, 540px);
+  overflow: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   scrollbar-width: thin;
-  padding: 16px;
-  box-sizing: border-box;
-}
-.stage-viewport.horizontal { writing-mode: horizontal-tb; }
-.stage-paper {
-  position: relative;
-  padding: 28px 32px;
+  padding: 24px;
   box-sizing: border-box;
   display: flex;
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
-  border-radius: 4px;
+}
+.stage-paper {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  padding: 24px 28px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+  flex-shrink: 0;
+  transition: width 0.15s ease, height 0.15s ease;
 }
 .stage-paper.vertical {
-  height: 100%;
-  width: max-content;
   align-items: center;
   justify-content: center;
 }
 .stage-paper.horizontal {
-  width: 100%;
-  height: max-content;
   align-items: center;
   justify-content: center;
 }
@@ -191,8 +197,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
   white-space: pre;
   word-break: normal;
   overflow-wrap: normal;
-  line-height: 1.5;
-  font-size: 68px;
+  line-height: 1.45;
   color: var(--ink);
 }
 .stage-paper.vertical .stage-text {
