@@ -343,10 +343,16 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
 
 .tabbar { display: none; }
 
-/* ---------- Tablet ---------- */
+/* ---------- Tablet / Narrow screen (<= 960px) ---------- */
 @media (max-width: 960px) {
-  .create-grid { grid-template-columns: 1fr; }
-  .canvas { position: static; order: -1; }
+  .create-grid { display: flex; flex-direction: column; gap: 14px; }
+  .compose { display: contents; }
+  #card-text { order: 1; }
+  .canvas { order: 2; position: static; }
+  #card-font { order: 3; }
+  #card-layout { order: 4; }
+  #card-output { order: 5; }
+  .action-bar { order: 6; }
   .detail-body { grid-template-columns: 1fr; }
 }
 

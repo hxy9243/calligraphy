@@ -5,7 +5,9 @@ The backend API is unchanged.
 
 ## Structure
 - Three hash-routed views: `#create` (working), `#history` (past jobs), `#fonts` (catalogue).
-  Desktop uses a top nav; viewports <= 640px use a bottom tab bar, a fixed action bar and bottom sheets.
+  Desktop uses a 2-column layout (compose left, preview right).
+  Mobile and narrow viewports (<= 960px) place text input at the very top, followed by live preview, font, layout, and output controls.
+  Viewports <= 640px use a bottom tab bar, a fixed floating action bar and bottom sheets.
 - Create flow: 1 text, 2 font, 3 layout, 4 output. Fonts are chosen in a searchable picker
   (category, script, favourites, recents) that previews the user's own text in each face.
 - Font entries merge `/api/styles` with `/api/font-catalog`; catalogue-only fonts are also
