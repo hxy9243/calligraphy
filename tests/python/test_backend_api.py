@@ -2,6 +2,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -26,7 +27,10 @@ class BackendApiTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
-    def test_list_styles(self):
+    @patch('backend.app.registered_styles', return_value=[
+        {'style': name, 'prepared': 1} for name in ('mashanzheng', 'i-yan-kai', 'qiji-kai')
+    ])
+    def test_list_styles(self, registered):
         res = self.client.get("/api/styles")
         self.assertEqual(res.status_code, 200)
         data = res.json()
@@ -45,6 +49,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn("mashanzheng", style_ids)
         self.assertIn("i-yan-kai", style_ids)
         self.assertIn("qiji-kai", style_ids)
+        registered.assert_called_once()
 
     def test_convert_script(self):
         res_trad = self.client.post("/api/convert-script", json={"text": "春眠不觉晓，处处闻啼鸟", "target": "trad"})

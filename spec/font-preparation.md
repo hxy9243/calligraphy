@@ -152,6 +152,13 @@ a second MP4. No lab module or original lab font path is required at render time
 
 ## Engine identity and database snapshots
 
+The web API and on-demand font registration share `backend/style_catalog.py`
+for catalog-to-registry aliases. In particular, `longcang-xingshu` resolves to
+`longcang` and `hanwang-lisu-medium` to `lishu hanwang` on both admission and
+first-use preparation. A downloaded catalog font can therefore initialize an
+empty local style registry. Existing registrations are reused unchanged;
+unavailable or unknown catalog entries are not substituted with another font.
+
 New glyphs carry per-character `glyph_metadata` with engine type/version, Git
 commit (when available), dirty state, source-code hash, package version and UTC
 preparation time. Extending an old bank does not relabel its existing geometry.

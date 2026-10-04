@@ -16,22 +16,10 @@ from calligraphy.font_pipeline import registered_styles
 from calligraphy.text.converter import convert_text
 from calligraphy.text.input import parse_text
 from .database import Database, get_db
+from .style_catalog import STYLE_ALIASES
 from .worker import execute_job, get_runner
 
 MAX_INPUT_CHARACTERS = 256
-
-STYLE_ALIASES = {
-    "mashanzheng-kai": "mashanzheng",
-    "qiji-font-kai": "qiji-kai",
-    "hanwang-lisu-medium": "lishu hanwang",
-    "longcang-xingshu": "longcang",
-    "tw-sung": "tw-sung",
-    "genryu-min": "genryu-min",
-    "genwan-min": "genwan-min",
-    "cwtex-fangsong": "cwtex-fangsong",
-    "hanwang-shinsu": "hanwang-shinsu",
-}
-
 
 class ConvertRequest(BaseModel):
     text: str
