@@ -47,3 +47,25 @@ The stateful scene disables parallel frame generation even when workers > 1.
 The web studio defaults to generic Kai when there is no prior explicit selection.
 Font browsing still shows the selected font's ordinary text sample; generated
 Kai stills and videos come from this shared engine.
+
+## Crossing-aware body smoothing
+
+After fitting, `stroke_crossings.smooth_kai_program` repairs local rail dents and
+protrusions where another stroke crosses the body. This ports the Lishu study's
+crossing-local interpolation to Kai; the Kai policy preserves all marked corners
+and the first/last two contact pairs. It does not apply Lishu's straight internal
+bar rebuilding or hidden-tip extension to Kai. No character-specific rules are
+used, and unrelated concavities are retained.
+
+The proposal must preserve stroke connectivity and the original overlap graph,
+retain at least 97.5% whole-glyph IoU, and pass 31 sampled monotonic/connected
+prefix checks for changed strokes. Default preparation additionally requires
+90% IoU against each original guide stroke after smoothing (the pre-smoothing
+fit still requires 95%). This allows deliberate repair of guide-boundary defects
+hidden at crossings, while the complete character retains at least 97.5%.
+Failure keeps the original glyph;
+`provenance.crossingSmoothing` records the proposal, acceptance and reason.
+`fitReports` continue to describe the pre-smoothing fit; the smoothing report
+contains post-proposal target scores. This remains inferred geometry, with
+no guarantee that every crossing defect is identified. Existing frozen examples
+are not rewritten. The engine source hash invalidates stale preparation caches.

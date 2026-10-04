@@ -55,6 +55,10 @@ def _motion_checks(brush: dict) -> dict:
            np.linalg.norm(np.diff(contacts[-tail_count:].mean(axis=1), axis=0), axis=1).sum() < 1):
         tail_count += 1
     tail["contacts"] = contacts[-tail_count:].tolist()
+    tail_start = len(contacts) - tail_count
+    tail["corners"] = [k - tail_start for k in brush.get("corners", []) if k >= tail_start]
+    tail["features"] = [{**f, "station": f["station"] - tail_start}
+                        for f in brush.get("features", []) if f["station"] >= tail_start]
     terminal = ContactBrush(tail, size=480).advance(1.0) > 0.5
     future_hidden = not np.any(frames[15] & terminal)
     return {"prefixFrames": 31, "monotonic": monotonic,

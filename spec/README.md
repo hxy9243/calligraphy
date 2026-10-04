@@ -21,7 +21,8 @@ Read in order:
 
 [Kai stroke IR](stroke-ir.md) describes the bounded JSON compiler and deterministic
 contact-brush replay. [Generic Kai generation](kai-generation.md) describes its
-default CLI/web integration. Cleanup, fairing and smooth sweeps remain experiments.
+default CLI/web integration and bounded crossing-aware smoothing. General contour
+cleanup, fairing and smooth sweeps remain experiments.
 
 The [brush-fitting experiment checkpoint](brush-fit-experiments.md) pins the
 associated laboratory revision, measured results, and artifact boundaries.

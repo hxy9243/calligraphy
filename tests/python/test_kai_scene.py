@@ -31,6 +31,9 @@ class KaiSceneTests(unittest.TestCase):
         scene = create_scene(spec)
         self.assertIsInstance(scene, KaiScene)
         self.assertEqual(set(scene.programs), {'永'})
+        smoothing = scene.programs['永']['provenance']['crossingSmoothing']
+        self.assertEqual(smoothing['method'], 'crossing-rails-kai/1')
+        self.assertEqual(len(smoothing['strokes']), len(scene.programs['永']['strokes']))
         self.assertEqual(scene.programs['永']['provenance']['engine']['engine_version'], 'kai-fitted-v1')
         with patch('calligraphy.kai_scene.fit_contact_stroke', side_effect=AssertionError('cache miss')):
             cached = create_scene(spec)

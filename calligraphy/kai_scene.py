@@ -18,6 +18,7 @@ from .font_layers import FontLayerScene
 from .spec import Appearance, Transforms
 from .stroke_ir import compile_program, validate_program
 from .stroke_fitting import fit_contact_stroke
+from .stroke_crossings import smooth_kai_program
 
 
 def prepare_kai(glyphs, cache_path=None):
@@ -36,7 +37,7 @@ def prepare_kai(glyphs, cache_path=None):
                 layers, _, guides = template(glyph, return_guides=True)
                 if len(layers) > 64:
                     raise ValueError(f'Kai IR supports at most 64 strokes: {character}')
-                strokes, reports = [], []
+                strokes, reports, targets = [], [], []
                 for index, (layer, guide) in enumerate(zip(layers, guides)):
                     mask = cv2.resize(layer, (480, 480), interpolation=cv2.INTER_LINEAR) > .5
                     try:
@@ -53,12 +54,14 @@ def prepare_kai(glyphs, cache_path=None):
                                     'stations': fitted['contacts'], 'corners': fitted['corners'],
                                     'tension': fitted['tension']}})
                     reports.append(report)
+                    targets.append(mask)
                 program = {'schemaVersion': 'kai-stroke-ir/0.2', 'character': character,
                            'script': 'kai', 'strokes': strokes, 'relations': [],
                            'provenance': {'source': 'Caller supplied Hanzi Writer outlines and medians',
                                'inferred': True, 'engine': metadata, 'template_sha256': guide_hash,
                                'strokeKinds': 'Unclassified; kind has no rendering semantics',
                                'fitReports': reports}}
+                program, _ = smooth_kai_program(program, targets=targets)
                 validate_program(program)
                 cache.put(key, program)
             validate_program(program)
