@@ -194,6 +194,33 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn("detail", prev_data)
         self.assertIn("256", prev_data["detail"])
 
+    def test_punctuation_option_default_omit(self):
+        # By default, punctuation is ignored/omitted
+        res_omit = self.client.post(
+            "/api/previews",
+            json={"text": "明，月。", "style": "kai"},
+        )
+        self.assertEqual(res_omit.status_code, 200)
+        svg_omit = res_omit.json().get("svg", "")
+        self.assertIn('data-character="明"', svg_omit)
+        self.assertIn('data-character="月"', svg_omit)
+
+        # Explicit break punctuation
+        res_break = self.client.post(
+            "/api/previews",
+            json={"text": "明，月。", "style": "kai", "punctuation": "break"},
+        )
+        self.assertEqual(res_break.status_code, 200)
+
+        # Video render with default punctuation omit
+        res_render = self.client.post(
+            "/api/renders",
+            json={"text": "明，月。", "style": "kai"},
+        )
+        self.assertEqual(res_render.status_code, 202)
+        job = self.db.get_job(res_render.json()["job_id"])
+        self.assertEqual(job["params"].get("punctuation"), "omit")
+
 
 if __name__ == "__main__":
     unittest.main()

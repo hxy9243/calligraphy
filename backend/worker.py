@@ -116,7 +116,7 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
             style=style,
             layout=layout_dict,
             timing=timing_dict,
-            punctuation=params.get("punctuation", "break"),
+            punctuation=params.get("punctuation", "omit"),
             appearance=appearance,
             transforms=transforms,
         )

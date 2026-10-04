@@ -4,50 +4,65 @@ Shared source for reproducible Chinese calligraphy images and writing animations
 The sibling **calligraphy-lab** repository contains experiments, fitting workflows,
 reference artwork, comparisons and research videos.
 
-The proposed anonymous web studio, Python backend consolidation, style caching
-and admin tools are tracked in the [MVP implementation plan](docs/mvp-plan.md).
-These hosted features are planned, not yet implemented.
+The repository provides a complete 100% Python backend and rendering engine (`calligraphy`
+and `backend/`), an interactive web studio (`frontend/`), generic Han-text fitted Kai
+rendering, extensible font-derived style fitting, and reproducible still/video exporters.
+JavaScript is used solely for the browser client interface (`frontend/`) and interactive
+browser demos (`examples/`), with no Node server required at runtime.
 
-The main repository provides generic Han-text fitted Kai rendering, two preserved
-JavaScript demonstration scenes (永 and a Wang Wei couplet), shared still/video
-exporters, and reusable Python overlap, ellipse
-brush and contact brush algorithms. These are original style studies and inferred
-writing animations, not authenticated historical handwriting or physical bristle
-simulation. Arbitrary-text generation in every style is not implemented.
+## Quickstart and Installation
+
+Python 3.10+ is required. Set up a virtual environment and install the package:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+The package is distributed as `calligraphy-engine` and provides the `calligraphy` CLI
+command (as well as `python -m calligraphy.cli`). FFmpeg must be on PATH for video export.
+
+Node.js is optional—only needed if you want to develop browser demos or run JavaScript regression tests:
+
+```sh
+npm ci
+```
 
 ## Render your own text
 
-After `npm ci`, use one command for SVG, PNG or MP4:
+Use the unified `calligraphy` command to generate SVG, PNG or MP4:
 
 ```sh
-npm run render:text -- --text "明月松间照，清泉石上流" --per-line 5 --output outputs/my-poem.png
-npm run render:text -- --text "明月松间照" --direction horizontal-lr --output outputs/my-poem.svg
-npm run render:text -- --text "春眠不觉晓" --fetch --output outputs/new-poem.mp4
-npm run render:text -- --help
+calligraphy --text "明月松间照，清泉石上流" --per-line 5 --output outputs/my-poem.png
+calligraphy --text "明月松间照" --direction horizontal-lr --output outputs/my-poem.svg
+calligraphy --text "春眠不觉晓" --fetch --output outputs/new-poem.mp4
+calligraphy --help
 ```
 
+*(Note: `npm run render:text -- ...` is also configured to delegate to this Python CLI).*
+
 Rendering is offline by default. `--fetch` explicitly downloads missing character
-records; `--glyphs file.json` supplies a saved dictionary. No network requests
-occur while drawing frames. Newlines start columns/rows; supported punctuation
+records from Hanzi Writer Data; `--glyphs file.json` supplies a saved dictionary. No network
+requests occur while drawing frames. Newlines start columns/rows; supported punctuation
 starts a new line by default and is not drawn (`--punctuation omit` skips it
 without a line break). Missing glyphs and unsupported text produce explicit errors.
 
 Use `--width`, `--height`, `--per-line`, `--stroke-seconds` and `--gap` to control
 the page and cadence. MP4 also accepts `--fps` and `--speed` and requires FFmpeg.
-Generic `kai` now defaults to fitted Stroke IR with per-character SQLite caching.
-All web previews and videos now default to the smoothed contact engine, including
+Generic `kai` defaults to fitted Stroke IR with per-character SQLite caching.
+All web previews and videos default to the smoothed contact engine, including
 registered fonts. Derived repairs are cached separately from source font banks,
 keyed by font, geometry and engine source. `CALLIGRAPHY_CONTACT_CACHE` overrides
-the derived cache location. Existing font banks receive the repairs on first use.
-`--mode template` explicitly selects the legacy Kai/Yan renderer; `yan` retains its
+the derived cache location. Existing font banks receive repairs on first use.
+`--mode template` selects the legacy Kai/Yan vector renderer; `yan` retains its
 measured width adjustment before fitting. Contact SVG contains embedded rendered pixels;
 use template mode for editable vector paths. Prepared
-contact-brush styles are `lishu`, `liu` and `yan-contact`, supporting PNG and MP4.
-Install the Python engine below first, then run:
+contact-brush styles are `lishu`, `liu` and `yan-contact`, supporting PNG and MP4:
 
 ```sh
-npm run render:text -- --text "人有悲歡離合" --style lishu --output outputs/lishu.png
-npm run render:text -- --text "人有悲歡離合" --style liu --output outputs/liu.mp4
+calligraphy --text "人有悲歡離合" --style lishu --output outputs/lishu.png
+calligraphy --text "人有悲歡離合" --style liu --output outputs/liu.mp4
 ```
 
 Each contact style covers 25 prepared traditional characters; missing characters
@@ -55,25 +70,38 @@ produce errors. These are inferred style studies, not arbitrary-text synthesis.
 See [the contact renderer specification](spec/contact-renderer.md) for coverage,
 provenance and measured reconstruction quality.
 
-For programmatic use, `createTextScene({text, glyphs, layout, timing})` returns a
-scene for the existing exporters. `createTextPlan()` exposes the geometry-independent
-layout/timing contract shared by template and contact-brush adapters. See the
-[generic text API specification](spec/generic-text.md) for examples and limits.
+For programmatic use in Python:
+```python
+from calligraphy import create_scene, SceneSpec, export_still, export_video
+scene = create_scene(SceneSpec(text="明月松间照", style="kai"))
+export_still(scene, "output.png")
+```
+
+For programmatic JavaScript use in the browser, `createTextScene({text, glyphs, layout, timing})`
+and `createTextPlan()` expose the geometry-independent layout/timing contract shared by
+template and contact-brush adapters. See the [generic text API specification](spec/generic-text.md).
 
 ## Animate a downloaded font
 
-Registered extensible font styles include **`longcang`** (LongCang-Regular.ttf under SIL OFL 1.1) and **`lishu hanwang`** (HanWangLiSuMedium). After one-time registration, render or prepare additional characters explicitly:
+Registered extensible font styles include **`longcang`** (LongCang-Regular.ttf under SIL OFL 1.1)
+and **`lishu hanwang`** (HanWangLiSuMedium). After one-time registration, render or prepare
+additional characters explicitly:
 
 ```sh
-npm run render:text -- --list-styles
-npm run render:text -- --style "longcang" --text "春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。" --per-line 5 --output outputs/chunxiao-longcang.mp4
-npm run render:text -- --style "lishu hanwang" --text "春江花月夜" --fetch --output outputs/hanwang.mp4
+calligraphy --list-styles
+calligraphy --style "longcang" --text "春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。" --per-line 5 --output outputs/chunxiao-longcang.mp4
+calligraphy --style "lishu hanwang" --text "春江花月夜" --fetch --output outputs/hanwang.mp4
+```
+
+To prepare and register a font without immediate rendering:
+
+```sh
+calligraphy --prepare-only --style "lishu hanwang" --font data/fonts/HanWangLiSuMedium.ttf --license data/licenses/WangFonts-GPL.txt --text "春江花月夜" --fetch
 ```
 
 The pipeline fits ordered contact strokes to the font's shapes and caches them;
-subsequent renders are offline. It requires the Python engine and a font
-registration on this machine. See [font preparation](spec/font-preparation.md)
-for the HanWang setup command, registering other fonts, and quality limits.
+subsequent renders are offline. See [font preparation](spec/font-preparation.md)
+for font registration details, setup commands, and quality limits.
 
 ## Kai stroke programs and replay demo
 
@@ -83,75 +111,58 @@ bounded contacts from known stroke masks. The [portable Kai demo](examples/kai-s
 replays the 32-character study and 《春曉》 without depending on the lab checkout.
 Its 95% shape results are measured at 480px, not guaranteed at every output size.
 
-## Run the browser examples
+## Run the Web Studio and API
 
-Requires Node.js 22.12+ (or a current Node.js 24 release), npm and Python 3.
+The studio backend is a FastAPI service with asynchronous worker rendering and SQLite storage:
 
 ```sh
-npm ci
-npm run serve
+# Start the studio API and static web UI
+uvicorn backend.app:app --reload --port 8000
+# or via npm alias:
+npm run serve:api
 ```
 
-Open <http://localhost:8000/examples/yong.html> for 永 or
-<http://localhost:8000/examples/poem.html> for 明月松间照，清泉石上流.
-Both examples support timeline playback and seeking.
+Open <http://localhost:8000> to interact with the studio in the browser.
+
+For the static legacy browser examples (永 and poem couplet):
+
+```sh
+python3 -m http.server 8000
+# or: npm run serve
+```
+Open <http://localhost:8000/examples/yong.html> or <http://localhost:8000/examples/poem.html>.
 
 ## Export images and videos
 
-Run from the repository root. FFmpeg must be on PATH for video export.
+Run directly with Python from the repository root:
 
 ```sh
 # Completed writing as a PNG, or an intermediate frame as SVG
-npm run render:still
-SCENE=poem TIME=5 OUTPUT=outputs/poem-at-5s.svg npm run render:still
+calligraphy --text "永" --output outputs/yong.png
+calligraphy --text "明月松间照，清泉石上流" --per-line 5 --time 5 --output outputs/poem-at-5s.svg
 
-# Videos; low resolution and frame rate are useful for a quick smoke test
-FPS=2 SIZE=240 OUTPUT=outputs/yong-smoke.mp4 npm run render:video:yong
-FPS=2 WIDTH=360 SPEED=10 OUTPUT=outputs/poem-smoke.mp4 npm run render:video:poem
+# Videos; low resolution and frame rate for a smoke test
+calligraphy --text "永" --fps 2 --width 240 --height 240 --output outputs/yong-smoke.mp4
+calligraphy --text "明月松间照，清泉石上流" --per-line 5 --fps 2 --width 360 --height 480 --speed 10 --output outputs/poem-smoke.mp4
 
 # Measured Yan-inspired width preset for the poem scene
-STYLE=yan OUTPUT=outputs/yan-poem.mp4 npm run render:video:poem
+calligraphy --text "明月松间照，清泉石上流" --per-line 5 --style yan --output outputs/yan-poem.mp4
 ```
 
-`SCENE` selects `yong` or `poem` for still export. `TIME` selects a scene time
-in seconds; by default a still shows the completed scene. `OUTPUT` chooses the
-file path and, for stills, `.png` or `.svg`. SVG preserves the scene's native
-coordinates. `WIDTH`/`HEIGHT` resize PNG output. Video commands accept `FPS`,
-`OUTPUT` and `FFMPEG`; the Yong command accepts `SIZE`, and the poem command
-accepts `WIDTH`, `SPEED` and `STYLE=yan`. Video dimensions must be even.
-The original `npm run render` and `npm run render:poem` aliases are retained.
-
-Images and videos use the same scene frame functions. The Yan preset is a
-measured width adjustment to generic Kai geometry; it is not a learned or
-historically verified handwriting model.
-
-## Install the Python engine
-
-Python 3.10+ is required. Use a virtual environment:
-
-```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -e .
-.venv/bin/python -c "from calligraphy import BrushPainter, ContactBrush, compose_layers"
-```
-
-The package is distributed as `calligraphy-engine` and imported as `calligraphy`.
-The lab installs this package rather than maintaining duplicate brush algorithms.
-Use the lab README for experiment setup, fixtures and reproduction commands.
+Video dimensions must be even numbers. FFmpeg must be installed and on PATH.
 
 ## Source layout
 
 ```text
+calligraphy/            Reusable Python rendering engine, brush algorithms, geometry, layout, and CLI
+backend/                Python FastAPI server, database and async background worker
+frontend/               Web studio single-page application (browser UI)
 assets/                 Supported character data and measured presets
-examples/               Browser demos
-src/geometry.mjs        Shared path geometry
-src/scenes/             Scene composition and timing
-src/text/               Input parsing, glyph resolution, layout and writing plans
-src/export/             Still export and shared video encoding
-scripts/                Thin command entry points and character-data fetcher
-calligraphy/            Reusable Python brush and overlap engines
-tests/                  JavaScript and Python regressions
-docs/                   Migration, architecture and research context
+examples/               Interactive browser demos
+src/                    Legacy JavaScript scene modules and compatibility bridges
+scripts/                Command entry points and helpers
+tests/                  Python and JavaScript regression test suites
+docs/                   Architecture, migration plans, and research context
 ```
 
 Start with [the component specifications](spec/README.md) for architecture,
@@ -162,12 +173,12 @@ interfaces and design choices. See [the migration plan](docs/migration-plan.md),
 ## Tests
 
 ```sh
-npm test
+# Python regression test suite
 .venv/bin/python -m unittest discover -s tests/python -p 'test_*.py'
-```
 
-The lab retains the original experiment tests. Rendering tests establish
-mechanical behavior and regression consistency, not calligraphic authenticity.
+# JavaScript regression test suite (optional)
+npm test
+```
 
 ## Data and provenance
 
@@ -176,11 +187,13 @@ Hanzi. Their Arphic Public License is preserved in [ARPHICPL.TXT](ARPHICPL.TXT).
 The measured Yan preset records its experimental source. Historical research
 notes are preserved in [docs/research/style-research.md](docs/research/style-research.md).
 
-To fetch a different small character set, run
-`npm run fetch:characters -- "your Chinese text" path/to/characters.json`.
-The default output replaces the supported poem data, so use an explicit output
-path for exploratory data. The generic renderer accepts the dictionary through
-`--glyphs`; changing text in the two legacy demos still requires scene edits.
+To fetch a small character dictionary to a JSON file:
+
+```sh
+python -m calligraphy.text.glyphs "明月松间照清泉石上流" assets/data/characters.json
+# or:
+calligraphy --text "明月松间照清泉石上流" --fetch-to assets/data/characters.json
+```
 
 The supported source is published at [hxy9243/calligraphy](https://github.com/hxy9243/calligraphy)
 on `main`, with retained Git history. The original `caligraphy` checkout and its

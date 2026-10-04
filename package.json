@@ -21,13 +21,13 @@
     "serve:api": ".venv/bin/uvicorn backend.app:app --reload --port 8000",
     "render": "npm run render:video:yong",
     "render:poem": "npm run render:video:poem",
-    "render:video:yong": "node scripts/render-video.mjs",
-    "render:video:poem": "node scripts/render-poem.mjs",
-    "render:still": "node scripts/render-still.mjs",
-    "fetch:characters": "node scripts/fetch-characters.mjs",
+    "render:video:yong": ".venv/bin/calligraphy --text '永' --output outputs/yong-animation.mp4",
+    "render:video:poem": ".venv/bin/calligraphy --text '明月松间照，清泉石上流' --per-line 5 --output outputs/poem-animation.mp4",
+    "render:still": ".venv/bin/calligraphy --text '永' --output outputs/yong.png",
+    "fetch:characters": ".venv/bin/python -m calligraphy.text.glyphs",
     "test": "node --test tests/*.test.mjs",
-    "render:text": "node scripts/render-text.mjs",
-    "prepare:font": "node scripts/prepare-font.mjs"
+    "render:text": ".venv/bin/calligraphy",
+    "prepare:font": ".venv/bin/calligraphy --prepare-only"
   },
   "dependencies": {
     "sharp": "^0.34.3"

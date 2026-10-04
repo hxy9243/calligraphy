@@ -60,7 +60,26 @@ const LOCAL_FONTS_MAP = {
   "cwtex-fangsong": { family: "cwTeXFangSong", file: "fonts/cwTeXFangSong.ttf", charSupport: "trad" },
 
   // Running, ShinSu & Monumental Styles (行书 / 新书体 / 榜书匾额)
-  "hanwang-shinsu": { family: "HanWangShinSuMedium", file: "fonts/HanWangShinSuMedium.ttf", charSupport: "trad" }
+  "hanwang-shinsu": { family: "HanWangShinSuMedium", file: "fonts/HanWangShinSuMedium.ttf", charSupport: "trad" },
+
+  // Artist Fonts & New Traditional Wordset Additions (名家新收录字库)
+  "bakudai-kai": { family: "Bakudai", file: "fonts/Bakudai-Regular.ttf", charSupport: "trad" },
+  "masafont-xing": { family: "MasaFont", file: "fonts/MasaFont-Regular.ttf", charSupport: "trad" },
+  "qiji-woodblock-kai": { family: "QijiWoodblock", file: "fonts/qiji-combo.ttf", charSupport: "trad" },
+  "qiji-combo": { family: "QijiWoodblock", file: "fonts/qiji-combo.ttf", charSupport: "trad" },
+  "iansui-kai": { family: "Iansui", file: "fonts/Iansui-Regular.ttf", charSupport: "trad" },
+  "yuji-boku": { family: "YujiBoku", file: "fonts/YujiBoku-Regular.ttf", charSupport: "trad" },
+  "yuji-mai": { family: "YujiMai", file: "fonts/YujiMai-Regular.ttf", charSupport: "trad" },
+  "yuji-syuku": { family: "YujiSyuku", file: "fonts/YujiSyuku-Regular.ttf", charSupport: "trad" },
+  "klee-one": { family: "KleeOne", file: "fonts/KleeOne-Regular.ttf", charSupport: "both" },
+  "klee-one-semibold": { family: "KleeOneSemiBold", file: "fonts/KleeOne-SemiBold.ttf", charSupport: "both" },
+  "cwtex-q-ming": { family: "cwTeXQMing", file: "fonts/cwTeXQMing-Medium.ttf", charSupport: "trad" },
+  "cwtex-q-yuan": { family: "cwTeXQYuan", file: "fonts/cwTeXQYuan-Medium.ttf", charSupport: "trad" },
+  "jason-handwriting1": { family: "JasonHandwriting1", file: "fonts/JasonHandwriting1-Regular.ttf", charSupport: "trad" },
+  "jason-handwriting2": { family: "JasonHandwriting2", file: "fonts/JasonHandwriting2-Regular.ttf", charSupport: "trad" },
+  "jason-handwriting3": { family: "JasonHandwriting3", file: "fonts/JasonHandwriting3-Regular.ttf", charSupport: "trad" },
+  "jason-handwriting4": { family: "JasonHandwriting4", file: "fonts/JasonHandwriting4-Regular.ttf", charSupport: "trad" },
+  "hanwang-kantan": { family: "HanWangKanTan", file: "fonts/HanWangKanTan.ttf", charSupport: "trad" }
 };
 
 // Preset classical calligraphy examples (no punctuation, returns for line breaks, 10+ Tang poems added)
@@ -81,7 +100,7 @@ const PRESET_EXAMPLES = [
   { id: "yong", name: "永字八法", trad: "永", simp: "永" },
   { id: "river", name: "春江花月夜", trad: "春江花月夜", simp: "春江花月夜" },
   { id: "lanting", name: "兰亭集序", trad: "永和九年\n歲在癸丑\n暮春之初\n會於會稽山陰之蘭亭\n修禊事也", simp: "永和九年\n岁在癸丑\n暮春之初\n会于会稽山阴之兰亭\n修禊事也" },
-  { id: "redcliff", name: "赤壁怀古", trad: "大江東去\n浪淘盡\n千古風流人物\n故壘西邊\n人道是三國周郎赤壁", simp: "大江东去\n浪淘尽\n千古风流人物\n故垒西边\n人道是三国周郎赤壁" },
+  { id: "redcliff", name: "赤壁怀古", trad: "大江東去\n浪淘盡\n千古風流人物\n故壘西邊\n人道是\n三國周郎赤壁", simp: "大江东去\n浪淘尽\n千古风流人物\n故垒西边\n人道是\n三国周郎赤壁" },
   { id: "houde", name: "厚德自强", trad: "厚德載物\n自強不息", simp: "厚德载物\n自强不息" }
 ];
 
@@ -109,7 +128,7 @@ function fallbackConvert(text, target) {
 let allFonts = [];
 let activeFilters = {
   category: "all",
-  char_support: "all",
+  char_support: "trad",
   medium: "all",
   search: ""
 };
@@ -143,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const styleSelect = document.getElementById('style-select');
   const speedSelect = document.getElementById('speed-select');
   const fpsSelect = document.getElementById('fps-select');
+  const punctuationSelect = document.getElementById('punctuation-select');
   const btnPreview = document.getElementById('btn-preview');
   const btnRender = document.getElementById('btn-render');
   const statusMessage = document.getElementById('status-message');
@@ -179,15 +199,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSimp = document.getElementById('btn-simp');
   const btnConvertCurrent = document.getElementById('btn-convert-current');
 
+  // Strip punctuation for live stage preview when punctuation mode is 'omit'
+  function stripPunctuationForStage(str) {
+    if (!str) return '';
+    return str.replace(/[，。！？、；：,.!?;:「」『』（）()“”‘’《》〈〉…—·【】〔〕［］｛｝～~—\-'"\s]/g, (match) => {
+      // Preserve newlines for deliberate line breaks
+      return match === '\n' ? '\n' : '';
+    });
+  }
+
   // Sync text input with live calligraphy stage
   function updateText() {
-    const text = textInput.value;
-    const len = text.length;
+    const rawText = textInput.value;
+    const len = rawText.length;
     if (charCountEl) charCountEl.textContent = len;
+
+    const ignorePunct = !punctuationSelect || punctuationSelect.value === 'omit';
+    const displayText = ignorePunct ? stripPunctuationForStage(rawText) : rawText;
 
     // Update real-time calligraphy stage text
     if (calligraphyText) {
-      calligraphyText.textContent = text || '永';
+      calligraphyText.textContent = displayText || '永';
     }
 
     if (len > MAX_CHARS) {
@@ -223,6 +255,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateText();
   });
   textInput.addEventListener('paste', () => setTimeout(updateText, 20));
+  if (punctuationSelect) {
+    punctuationSelect.addEventListener('change', updateText);
+  }
 
   // High-precision Trad/Simp conversion with server-side zhconv + client fallback
   async function performScriptConversion(targetScript) {
@@ -418,13 +453,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
     if (fontMeta && activeFontBadge) {
       activeFontBadge.innerHTML = `
-        <strong>当前临摹字库：</strong>${fontMeta.name_zh} (${fontMeta.name_en}) · 
-        <strong>书法脉系：</strong>${fontMeta.style_display} · 
-        <strong>名家宗师：</strong>${fontMeta.artist} (${fontMeta.dynasty_era}) · 
-        <strong>经典出处：</strong>${fontMeta.historical_reference || "传世名作"}
+        <strong>當前臨摹字庫：</strong>${fontMeta.name_zh} (${fontMeta.name_en}) ·
+        <strong>書法脈系：</strong>${fontMeta.style_display} ·
+        <strong>名家宗師：</strong>${fontMeta.artist} (${fontMeta.dynasty_era}) ·
+        <strong>經典出處：</strong>${fontMeta.historical_reference || "傳世名作"}
       `;
     } else if (activeFontBadge) {
-      activeFontBadge.innerHTML = `<strong>当前书法风格：</strong>${styleId}`;
+      activeFontBadge.innerHTML = `<strong>當前書法風格：</strong>${styleId}`;
     }
 
     // Automatically adapt example section and script toggle to font's support
@@ -444,13 +479,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const val = styleSelect.value;
     const activeSupport = getActiveFontCharSupport();
     if (val === 'i-yan-kai') {
-      styleHint.innerHTML = '💡 <strong>刻石录颜体</strong>：唐代颜真卿多宝塔碑真迹风骨，横轻竖重，<strong>已自动切换为繁体法帖示例</strong>。';
+      styleHint.innerHTML = '💡 <strong>刻石錄顏體</strong>：唐代顏真卿多寶塔碑真跡風骨，橫輕豎重，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'tw-kai') {
-      styleHint.innerHTML = '💡 <strong>全字库正楷体</strong>：CNS11643 标准正体，完全覆盖唐诗三百首无一缺字，<strong>已自动切换为繁体法帖示例</strong>。';
+      styleHint.innerHTML = '💡 <strong>全字庫正楷體</strong>：CNS11643 標準正體，完全覆蓋唐詩三百首無一缺字，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'edukai') {
-      styleHint.innerHTML = '💡 <strong>教育部标准楷书</strong>：国字标准楷体法度，笔意清挺中正，<strong>已自动切换为繁体法帖示例</strong>。';
+      styleHint.innerHTML = '💡 <strong>教育部標準楷書</strong>：國字標準楷體法度，筆意清挺中正，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'lxgw-wenkai-tc') {
-      styleHint.innerHTML = '💡 <strong>霞鹜文楷繁体版</strong>：文人手书清雅风骨，全字库完备覆盖，<strong>已自动切换为繁体法帖示例</strong>。';
+      styleHint.innerHTML = '💡 <strong>霞鹜文楷繁體版</strong>：文人手書清雅風骨，全字庫完備覆蓋，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'tw-sung') {
       styleHint.innerHTML = '💡 <strong>全字庫正宋體</strong>：CNS11643 官方正宋體，金石刀刻筆意，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'genryu-min') {
@@ -462,17 +497,35 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (val === 'hanwang-shinsu') {
       styleHint.innerHTML = '💡 <strong>王漢宗中新書</strong>：行氣流暢，結字明朗灑脫，<strong>已自動切換為繁體法帖示例</strong>。';
     } else if (val === 'mashanzheng' || val === 'mashanzheng-kai') {
-      styleHint.innerHTML = '💡 <strong>钟齐马善政毛笔楷书</strong>：当代书法家马善政先生原笔手写真迹，刚劲有力，<strong>已自动切换为简体法帖示例</strong>。';
+      styleHint.innerHTML = '💡 <strong>鐘齊馬善政毛筆楷書</strong>：當代書法家馬善政先生原筆手寫真跡，剛勁有力，<strong>已自動切換為簡體法帖示例</strong>。';
     } else if (val === 'chill-qiuhong-kai') {
-      styleHint.innerHTML = '💡 <strong>寒蝉秋鸿楷书</strong>：行意文人楷书风格，结体舒展清朗，<strong>已自动切换为简体法帖示例</strong>。';
+      styleHint.innerHTML = '💡 <strong>寒蟬秋鴻楷書</strong>：行意文人楷書風格，結體舒展清朗，<strong>已自動切換為簡體法帖示例</strong>。';
     } else if (val === 'lishu hanwang' || val === 'hanwang-lisu-medium') {
-      styleHint.innerHTML = '💡 <strong>王汉宗中隶书</strong>：蚕头燕尾、一波三折，汉隶典范，<strong>已自动切换为繁体法帖示例</strong>。';
+      styleHint.innerHTML = '💡 <strong>王漢宗中隸書</strong>：蠶頭燕尾、一波三折，漢隸典範，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'bakudai-kai') {
+      styleHint.innerHTML = '💡 <strong>莫大毛筆楷書</strong>：青柳衡山殿堂大楷真跡，氣勢磅礴，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'masafont-xing') {
+      styleHint.innerHTML = '💡 <strong>衡山毛筆行書</strong>：青柳衡山行書墨寶，行雲流水、灑脫奔放，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'qiji-woodblock-kai' || val === 'qiji-combo') {
+      styleHint.innerHTML = '💡 <strong>閔齊伋令東齊伋體楷書</strong>：明代套印刻本巔峰之作，古雅絕倫、刀筆兼融，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'iansui-kai') {
+      styleHint.innerHTML = '💡 <strong>芫荽硬筆楷書</strong>：ButTaiwan 依據手寫楷體改造，清麗溫潤，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'yuji-boku') {
+      styleHint.innerHTML = '💡 <strong>佑字 · 墨</strong>：成田佑司手寫真跡，筆酣墨飽、枯筆飛白，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'yuji-mai') {
+      styleHint.innerHTML = '💡 <strong>佑字 · 舞</strong>：成田佑司手寫真跡，翩若驚鴻、富於律動，<strong>已自動切換為繁體法帖示例</strong>。';
+    } else if (val === 'yuji-syuku') {
+      styleHint.innerHTML = '💡 <strong>佑字 · 宿</strong>：成田佑司手寫真跡，端穆沉靜、內斂古拙，<strong>已自動切換为繁體法帖示例</strong>。';
+    } else if (val === 'klee-one' || val === 'klee-one-semibold') {
+      styleHint.innerHTML = '💡 <strong>Fontworks Klee 手寫楷體</strong>：日本頂級字廠典範，兼具正楷法度與日常手書靈韻。';
+    } else if (val.startsWith('jason-handwriting')) {
+      styleHint.innerHTML = '💡 <strong>游清松清松手寫體</strong>：當代書法名家游清松先生數年全字庫手寫真跡，溫潤清秀。';
     } else if (activeSupport === 'trad') {
-      styleHint.innerHTML = '💡 <strong>繁体字库</strong>：当前选定传统正体书法字库，示例文本与挥毫已自动切换为繁体中文。';
+      styleHint.innerHTML = '💡 <strong>繁體字庫</strong>：當前選定傳統正體書法字庫，示例文本與揮毫已自動切換為繁體中文。';
     } else if (activeSupport === 'simp') {
-      styleHint.innerHTML = '💡 <strong>简体字库</strong>：当前选定规范汉字字库，示例文本与挥毫已自动切换为简体中文。';
+      styleHint.innerHTML = '💡 <strong>簡體字庫</strong>：當前選定規範漢字字庫，示例文本與揮毫已自動切換為簡體中文。';
     } else {
-      styleHint.innerHTML = '💡 <strong>繁简兼备</strong>：当前字库繁简字形完备支持，可自由切换繁体与简体挥毫创作。';
+      styleHint.innerHTML = '💡 <strong>繁簡兼備</strong>：當前字庫繁簡字形完備支持，可自由切換繁體與簡體揮毫創作。';
     }
   }
 
@@ -576,29 +629,30 @@ document.addEventListener('DOMContentLoaded', () => {
   btnPreview.addEventListener('click', async () => {
     const text = textInput.value.trim();
     if (!text) {
-      showStatus('请输入要书写的文本', 'error');
+      showStatus('請輸入要書寫的文本', 'error');
       return;
     }
     if (!updateText()) {
-      showStatus(`输入字符数量已超出 ${MAX_CHARS} 字符限制，请删减后再预览`, 'error');
+      showStatus(`輸入字符數量已超出 ${MAX_CHARS} 字符限制，請刪減後再預覽`, 'error');
       return;
     }
 
     const style = styleSelect.value;
     btnPreview.disabled = true;
-    showStatus('正在生成高精度静图预览...', 'info');
+    showStatus('正在生成高精度靜圖預覽...', 'info');
 
     try {
       const spacing = spacingSlider ? parseFloat(spacingSlider.value) : 0.18;
+      const punctuation = punctuationSelect ? punctuationSelect.value : 'omit';
       const res = await fetch('/api/previews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, style, format: 'auto', spacing, direction: currentDirection })
+        body: JSON.stringify({ text, style, format: 'auto', spacing, direction: currentDirection, punctuation })
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || '预览失败');
+        throw new Error(err.detail || '預覽失敗');
       }
 
       const data = await res.json();
@@ -607,10 +661,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (data.preview_url) {
         showPreviewImage(data.preview_url);
       }
-      showStatus('矢量静图生成完毕', 'success');
+      showStatus('矢量靜圖生成完畢', 'success');
       setTimeout(hideStatus, 3000);
     } catch (e) {
-      showStatus(`预览失败: ${e.message}`, 'error');
+      showStatus(`預覽失敗: ${e.message}`, 'error');
     } finally {
       btnPreview.disabled = false;
     }
@@ -621,11 +675,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnRender.disabled) return;
     const text = textInput.value.trim();
     if (!text) {
-      showStatus('请输入要书写的文本', 'error');
+      showStatus('請輸入要書寫的文本', 'error');
       return;
     }
     if (!updateText()) {
-      showStatus(`输入字符数量已超出 ${MAX_CHARS} 字符限制，请删减后再生成`, 'error');
+      showStatus(`輸入字符數量已超出 ${MAX_CHARS} 字符限制，請刪減後再生成`, 'error');
       return;
     }
 
@@ -638,15 +692,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const spacing = spacingSlider ? parseFloat(spacingSlider.value) : 0.18;
+      const punctuation = punctuationSelect ? punctuationSelect.value : 'omit';
       const res = await fetch('/api/renders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, style, speed, fps, spacing, direction: currentDirection })
+        body: JSON.stringify({ text, style, speed, fps, spacing, direction: currentDirection, punctuation })
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || '任务创建失败');
+        throw new Error(err.detail || '任務創建失敗');
       }
 
       await res.json();
@@ -679,7 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
       {
         hasActiveJobs = (data.jobs || []).some(j => activeJobStatuses.has(j.status));
         if (!data.jobs || data.jobs.length === 0) {
-          jobsList.innerHTML = '<p class="empty-jobs">暂无生成任务</p>';
+          jobsList.innerHTML = '<p class="empty-jobs">暫無生成任務</p>';
           return;
         }
 
@@ -732,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
             playBtn.type = 'button';
             playBtn.className = 'btn-play-mini';
             playBtn.textContent = '▶ 播放';
-            playBtn.title = '在上方视窗播放视频';
+            playBtn.title = '在上方視窗播放視頻';
             playBtn.addEventListener('click', (e) => {
               e.stopPropagation();
               showVideo(videoSrc, dlSrc);
@@ -742,7 +797,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const dl = document.createElement('a');
             dl.href = dlSrc;
             dl.className = 'btn-download';
-            dl.textContent = '下载 MP4';
+            dl.textContent = '下載 MP4';
             dl.setAttribute('download', `calligraphy_${j.job_id}.mp4`);
             action.appendChild(dl);
           } else if (j.status === 'succeeded' && j.job_type === 'preview') {
@@ -881,7 +936,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filtered.length === 0) {
       grid.innerHTML = `
         <div style="grid-column: 1/-1; text-align: center; padding: 48px; color: var(--text-muted);">
-          未找到符合筛选条件的书法字库。您可点击「全部收录」查看历代名家法帖。
+          未找到符合篩選條件的書法字庫。您可點擊「全部風格」或「全部繁簡」查看歷代名家法帖。
         </div>
       `;
       return;
@@ -895,18 +950,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const local = LOCAL_FONTS_MAP[font.id];
       const previewFontFamily = (isDl && local) ? `'${local.family}', var(--font-serif)` : "var(--font-serif)";
 
-      // Sample preview text adapted for Trad vs Simp
-      let previewText = font.sample_text || "永和九年，天朗气清";
-      if (font.char_support === "trad") {
-        previewText = fallbackConvert(font.sample_text, "trad");
-      } else if (font.char_support === "simp") {
+      // Sample preview text adapted for Trad vs Simp (defaults to Traditional)
+      let previewText = font.sample_text || "永和九年，歲在癸丑";
+      if (font.char_support === "simp") {
         previewText = fallbackConvert(font.sample_text, "simp");
       } else {
-        previewText = currentScript === "trad" ? fallbackConvert(font.sample_text, "trad") : fallbackConvert(font.sample_text, "simp");
+        previewText = fallbackConvert(font.sample_text || "永和九年，歲在癸丑", "trad");
       }
 
       const charBadgeClass = font.char_support === "trad" ? "badge-trad" : (font.char_support === "simp" ? "badge-simp" : "badge-both");
-      const charBadgeText = font.char_support === "trad" ? "繁体支持" : (font.char_support === "simp" ? "简体优先" : "繁简兼备");
+      const charBadgeText = font.char_support === "trad" ? "繁體支持" : (font.char_support === "simp" ? "簡體優先" : "繁簡兼備");
 
       card.innerHTML = `
         <div class="card-header">
@@ -918,9 +971,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="badge badge-style">${font.style_display}</span>
             <span class="badge ${charBadgeClass}">${charBadgeText}</span>
             <span class="badge ${font.medium === 'brush' ? 'badge-brush' : 'badge-pen'}">
-              ${font.medium === 'brush' ? '毛笔' : '硬笔'}
+              ${font.medium === 'brush' ? '毛筆' : '硬筆'}
             </span>
-            ${isDl ? '<span class="badge badge-dl">✓ 离线可用</span>' : '<span class="badge badge-unavailable">典藏未载</span>'}
+            ${isDl ? '<span class="badge badge-dl">✓ 離線可用</span>' : '<span class="badge badge-unavailable">典藏未載</span>'}
           </div>
         </div>
 
@@ -930,19 +983,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="card-metadata-table">
           <div class="meta-row">
-            <span class="meta-label">宗师名家：</span>
+            <span class="meta-label">宗師名家：</span>
             <span class="meta-value"><strong>${font.artist}</strong> (${font.dynasty_era})</span>
           </div>
           <div class="meta-row">
-            <span class="meta-label">经典法帖：</span>
-            <span class="meta-value">${font.historical_reference || "历代名家书道真迹"}</span>
+            <span class="meta-label">經典法帖：</span>
+            <span class="meta-value">${font.historical_reference || "歷代名家書道真跡"}</span>
           </div>
           <div class="meta-row">
-            <span class="meta-label">开源造字：</span>
+            <span class="meta-label">開源造字：</span>
             <span class="meta-value">${font.font_author}</span>
           </div>
           <div class="meta-row">
-            <span class="meta-label">开源协议：</span>
+            <span class="meta-label">開源協議：</span>
             <span class="meta-value">${font.license}</span>
           </div>
         </div>
@@ -954,15 +1007,15 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="card-actions">
           ${isDl ? `
             <button type="button" class="card-btn btn-try" data-id="${font.id}">
-              ✍️ 选用此字体创作
+              ✍️ 選用此字體創作
             </button>
           ` : `
             <span class="card-btn" style="background:var(--paper-bg); color:var(--text-muted); cursor:not-allowed;">
-              📜 典藏收录
+              📜 典藏收錄
             </span>
           `}
           <a href="${font.source_url}" target="_blank" rel="noopener noreferrer" class="card-btn btn-source">
-            🔗 查阅源项目
+            🔗 查閱源項目
           </a>
         </div>
       `;
@@ -995,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           calligraphyStage.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          showStatus(`已选用【${font.name_zh}】，临摹台已实时呈现，点击「生成视频」即可生成书写动画`, 'info');
+          showStatus(`已選用【${font.name_zh}】，臨摹台已實時呈現，點擊「生成視頻」即可生成書寫動畫`, 'info');
         });
       }
 

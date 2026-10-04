@@ -43,6 +43,10 @@ def parse_args(args: Optional[list] = None) -> argparse.Namespace:
     parser.add_argument("--ink", type=str, default="#1c1b18", help="Ink color (hex or r,g,b)")
     parser.add_argument("--mode", choices=["auto", "template", "stroke_ir", "contact", "font_layers"], default="auto", help="Rendering engine mode")
     parser.add_argument("--font", type=str, default=None, help="Optional font path override for font-derived styles")
+    parser.add_argument("--license", type=str, default=None, help="License path when registering a new font style")
+    parser.add_argument("--source", type=str, default=None, help="Provenance or source description for font style")
+    parser.add_argument("--prepare-only", action="store_true", help="Prepare font characters without rendering an output file")
+    parser.add_argument("--fetch-to", type=str, default=None, help="Fetch character stroke records and save to a JSON file")
     parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers (default 8)")
     return parser.parse_args(args)
 
@@ -94,6 +98,35 @@ def main(args: Optional[list] = None) -> int:
             return 1
         additional_glyphs = json.loads(glyphs_path.read_text(encoding="utf-8"))
 
+    if parsed.fetch_to:
+        from .text.glyphs import resolve_glyphs
+        fetched = resolve_glyphs(text, glyphs=additional_glyphs, fetch_missing=True)
+        fetch_to_path = Path(parsed.fetch_to)
+        fetch_to_path.parent.mkdir(parents=True, exist_ok=True)
+        fetch_to_path.write_text(json.dumps(fetched, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote {len(fetched)} characters to {fetch_to_path}")
+        cli_args = args if args is not None else sys.argv[1:]
+        if not any(arg == "-o" or arg.startswith(("-o=", "--output")) for arg in cli_args):
+            return 0
+
+    if parsed.prepare_only:
+        from .font_pipeline import prepare_style
+        from .text.glyphs import resolve_glyphs
+        needed_glyphs = resolve_glyphs(text, glyphs=additional_glyphs, fetch_missing=parsed.fetch)
+        res = prepare_style(
+            parsed.style,
+            needed_glyphs,
+            font_path=parsed.font,
+            license_path=parsed.license,
+            source=parsed.source,
+            workers=parsed.workers,
+        )
+        flagged = [c for c in res.get("prepared", []) if res.get("metrics", {}).get(c, {}).get("review_required")]
+        print(f"Registered {res['style']}: {len(res['strokeCounts'])} prepared characters. Bank: {res['path']}")
+        if flagged:
+            print(f"Review inferred stroke fits: {' '.join(flagged)}")
+        return 0
+
     try:
         appearance = Appearance.from_dict({"paper": parsed.paper, "ink": parsed.ink})
         transforms = Transforms(scale=parsed.scale, stretch=parsed.stretch, rotation=parsed.rotate)
@@ -123,6 +156,8 @@ def main(args: Optional[list] = None) -> int:
         scene = create_scene(
             scene_spec,
             font_path=parsed.font,
+            license_path=parsed.license,
+            source=parsed.source,
             glyphs=additional_glyphs,
             fetch_missing=parsed.fetch,
             mode=parsed.mode,

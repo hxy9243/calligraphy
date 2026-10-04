@@ -23,7 +23,7 @@ MAX_INPUT_CHARACTERS = 256
 
 class ConvertRequest(BaseModel):
     text: str
-    target: Literal["simp", "trad", "zh-hans", "zh-hant"] = "simp"
+    target: Literal["simp", "trad", "zh-hans", "zh-hant"] = "trad"
 
 
 class PreviewRequest(BaseModel):
@@ -32,6 +32,7 @@ class PreviewRequest(BaseModel):
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
+    punctuation: str = Field(default="omit")
 
 
 class RenderRequest(BaseModel):
@@ -41,6 +42,7 @@ class RenderRequest(BaseModel):
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
+    punctuation: str = Field(default="omit")
 
 
 @asynccontextmanager
@@ -120,18 +122,18 @@ async def session_middleware(request: Request, call_next):
 def list_styles():
     """List available writing styles (fixed collection fonts removed)."""
     styles = [
-        {"id": "kai", "name": "楷书 (Kai)", "description": "Fitted stroke writing / 拟合笔画书写", "type": "stroke_ir"},
-        {"id": "yan", "name": "颜体 (Yan)", "description": "Yan-inspired fitted contact strokes", "type": "stroke_ir"},
+        {"id": "kai", "name": "楷書 (Kai)", "description": "Fitted stroke writing / 擬合筆畫書寫", "type": "stroke_ir"},
+        {"id": "yan", "name": "顏體 (Yan)", "description": "Yan-inspired fitted contact strokes", "type": "stroke_ir"},
     ]
     font_names = {
-        "mashanzheng": "钟齐马善政毛笔楷书 (Ma Shan Zheng)",
-        "i-yan-kai": "刻石录颜体 (I.Yan Kai)",
+        "mashanzheng": "鐘齊馬善政毛筆楷書 (Ma Shan Zheng)",
+        "i-yan-kai": "刻石錄顏體 (I.Yan Kai)",
         "qiji-kai": "令東齊伋體楷書 (LingDong Qiji Kai)",
-        "chill-qiuhong-kai": "寒蝉秋鸿楷书 (Chill QiuHong Kai)",
-        "longcang": "龙藏体 (Long Cang)",
-        "lishu hanwang": "王汉宗中隶书 (HanWang LiSu)",
-        "aa shoujin": "瘦金体 (Shoujin)",
-        "chiron-goround": "昭源黑体 (Chiron GoRound)",
+        "chill-qiuhong-kai": "寒蟬秋鴻楷書 (Chill QiuHong Kai)",
+        "longcang": "龍藏體 (Long Cang)",
+        "lishu hanwang": "王漢宗中隸書 (HanWang LiSu)",
+        "aa shoujin": "瘦金體 (Shoujin)",
+        "chiron-goround": "昭源黑體 (Chiron GoRound)",
         "tw-sung": "全字庫正宋體 (TW-Sung)",
         "genryu-min": "源流明體 (GenRyuMin)",
         "genwan-min": "源雲明體 (GenWanMin)",
@@ -174,8 +176,9 @@ def get_font_catalog():
 def generate_preview(req: PreviewRequest, request: Request, response: Response):
     """Generate a quick still preview."""
     session_id = request.state.session_id
+    chosen_punct = req.punctuation if req.punctuation in ("break", "omit") else "omit"
     try:
-        parsed = parse_text(req.text)
+        parsed = parse_text(req.text, punctuation=chosen_punct)
         if len(parsed["characters"]) > MAX_INPUT_CHARACTERS:
             raise HTTPException(
                 status_code=400,
@@ -195,7 +198,12 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         job_type="preview",
         text=req.text,
         style=chosen_style,
-        params={"format": req.format, "spacing": req.spacing, "direction": req.direction},
+        params={
+            "format": req.format,
+            "spacing": req.spacing,
+            "direction": req.direction,
+            "punctuation": chosen_punct,
+        },
         status="rendering",
     )
     # Execute preview immediately for snappy preview response
@@ -227,8 +235,9 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
 def submit_render(req: RenderRequest, request: Request, response: Response):
     """Submit asynchronous video generation job."""
     session_id = request.state.session_id
+    chosen_punct = req.punctuation if req.punctuation in ("break", "omit") else "omit"
     try:
-        parsed = parse_text(req.text)
+        parsed = parse_text(req.text, punctuation=chosen_punct)
         if len(parsed["characters"]) > MAX_INPUT_CHARACTERS:
             raise HTTPException(
                 status_code=400,
@@ -247,7 +256,13 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         session_id=session_id,
         text=req.text,
         style=chosen_style,
-        params={"fps": req.fps, "speed": req.speed, "spacing": req.spacing, "direction": req.direction},
+        params={
+            "fps": req.fps,
+            "speed": req.speed,
+            "spacing": req.spacing,
+            "direction": req.direction,
+            "punctuation": chosen_punct,
+        },
     )
     runner = get_runner()
     runner.notify()

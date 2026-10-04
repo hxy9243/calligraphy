@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>书法工坊与历代名家字库 | Calligraphy Studio & Font Database</title>
+  <title>書法工坊與歷代名家字庫 | Calligraphy Studio & Font Database</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Serif+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
 </head>
 <body class="theme-xuan">
   <div class="app-container">
@@ -16,24 +16,24 @@
         <div class="brand">
           <span class="seal-mark-brand">墨</span>
           <div class="brand-text">
-            <h1>书法工坊 <span>Calligraphy Studio</span></h1>
-            <p class="tagline">汉字笔画拓扑重构与开源书法视频工坊 · 历代名家法帖全库鉴赏</p>
+            <h1>書法工坊 <span>Calligraphy Studio</span></h1>
+            <p class="tagline">漢字筆畫拓撲重構與開源書法視頻工坊 · 歷代名家法帖全庫鑒賞</p>
           </div>
         </div>
         <div class="header-right">
           <div class="paper-theme-controls">
-            <span class="ctrl-label">宣纸意境：</span>
-            <button type="button" class="theme-btn active" data-theme="theme-xuan">澄心堂宣纸</button>
-            <button type="button" class="theme-btn" data-theme="theme-gold">洒金熟宣</button>
-            <button type="button" class="theme-btn" data-theme="theme-rubbing">汉唐碑帖拓片</button>
+            <span class="ctrl-label">宣紙意境：</span>
+            <button type="button" class="theme-btn active" data-theme="theme-xuan">澄心堂宣紙</button>
+            <button type="button" class="theme-btn" data-theme="theme-gold">灑金熟宣</button>
+            <button type="button" class="theme-btn" data-theme="theme-rubbing">漢唐碑帖拓片</button>
           </div>
           <div class="header-stats">
-            <span class="stat-pill highlight"><strong id="stat-total">39</strong> 款离线典藏法帖</span>
-            <span class="stat-pill"><strong id="stat-kai">26</strong> 款楷书</span>
-            <span class="stat-pill"><strong id="stat-li">2</strong> 款隶书</span>
-            <span class="stat-pill"><strong id="stat-song">3</strong> 款宋体雕版</span>
+            <span class="stat-pill highlight"><strong id="stat-total">55</strong> 款離線典藏法帖</span>
+            <span class="stat-pill"><strong id="stat-kai">32</strong> 款楷書</span>
+            <span class="stat-pill"><strong id="stat-li">2</strong> 款隸書</span>
+            <span class="stat-pill"><strong id="stat-song">4</strong> 款宋體雕版</span>
             <span class="stat-pill"><strong id="stat-fs">1</strong> 款仿宋</span>
-            <span class="stat-pill"><strong id="stat-other">7</strong> 款行草魏碑榜书</span>
+            <span class="stat-pill"><strong id="stat-other">16</strong> 款行草魏碑榜書</span>
           </div>
         </div>
       </div>
@@ -43,29 +43,29 @@
       <!-- Left Panel: Controls -->
       <section class="panel control-panel">
         <div class="panel-header">
-          <h2 class="panel-title"><span class="ink-mark">❖</span> 临摹挥毫与创作</h2>
+          <h2 class="panel-title"><span class="ink-mark">❖</span> 臨摹揮毫與創作</h2>
           <div class="script-toggle-container">
-            <span class="ctrl-label">字形转换：</span>
+            <span class="ctrl-label">字形轉換：</span>
             <div class="btn-toggle-group script-toggle-group">
-              <button type="button" id="btn-trad" class="toggle-btn" title="转换为繁体中文">繁體</button>
-              <button type="button" id="btn-simp" class="toggle-btn active" title="转换为简体中文">简体</button>
-              <button type="button" id="btn-convert-current" class="toggle-btn convert-btn" title="一键繁简互转">⇄ 转换繁简</button>
+              <button type="button" id="btn-trad" class="toggle-btn" title="切換為繁體中文">繁體</button>
+              <button type="button" id="btn-simp" class="toggle-btn active" title="切換為簡體中文">簡體</button>
+              <button type="button" id="btn-convert-current" class="toggle-btn convert-btn" title="一鍵繁簡互轉">⇄ 轉換繁簡</button>
             </div>
           </div>
         </div>
 
         <div class="form-group">
           <div class="label-row">
-            <label for="text-input">输入汉字文本 (1–256字，实时试写)</label>
+            <label for="text-input">輸入漢字文本 (1–256字，實時試寫)</label>
             <span id="char-counter" class="char-counter"><span id="char-count">5</span>/256</span>
           </div>
-          <textarea id="text-input" rows="3" placeholder="在此输入中文测试，支持换行分行...">明月松間照
+          <textarea id="text-input" rows="3" placeholder="在此輸入中文測試，支持換行分行...">明月松間照
 清泉石上流</textarea>
           <div id="char-limit-warning" class="char-limit-warning hidden">
-            ⚠️ 文本长度已超出 256 字符上限，请删减后再试
+            ⚠️ 文本長度已超出 256 字符上限，請刪減後再試
           </div>
           <div class="preset-chips">
-            <span class="chip-label">经典法帖：</span>
+            <span class="chip-label">經典法帖：</span>
             <div id="preset-buttons-container" class="preset-buttons">
               <!-- Dynamically populated based on Trad/Simp toggle -->
             </div>
@@ -73,24 +73,24 @@
         </div>
 
         <div class="form-group">
-          <label for="style-select">选定书法字库风格</label>
+          <label for="style-select">選定書法字庫風格</label>
           <select id="style-select" class="custom-select">
             <!-- Dynamically populated from /api/styles -->
           </select>
-          <div id="style-hint" class="style-hint">💡 建议：颜体/全字库/文楷繁体推荐繁体；马善政毛笔楷书推荐简体；文鼎中楷繁简兼备。</div>
+          <div id="style-hint" class="style-hint">💡 建議：已預設啟用繁體中文。顏體/全字庫/文楷繁體/王漢宗推薦繁體；馬善政毛筆楷書推薦簡體；文鼎中楷繁簡兼備。</div>
         </div>
 
         <div class="form-row">
           <div class="form-group half">
             <label>排版方式</label>
             <div class="btn-toggle-group full-width">
-              <button type="button" id="btn-vertical" class="toggle-btn half-btn active">传统竖排右起</button>
-              <button type="button" id="btn-horizontal" class="toggle-btn half-btn">现代横排</button>
+              <button type="button" id="btn-vertical" class="toggle-btn half-btn active">傳統豎排右起</button>
+              <button type="button" id="btn-horizontal" class="toggle-btn half-btn">現代橫排</button>
             </div>
           </div>
           <div class="form-group half">
             <div class="label-row">
-              <label for="font-size-slider">字号大小</label>
+              <label for="font-size-slider">字號大小</label>
               <span id="font-size-val" class="font-size-val">68px</span>
             </div>
             <input type="range" id="font-size-slider" min="28" max="140" value="68" class="range-slider">
@@ -100,37 +100,44 @@
         <div class="form-row">
           <div class="form-group half">
             <div class="label-row">
-              <label for="spacing-slider">字间距 (Character Spacing)</label>
+              <label for="spacing-slider">字間距 (Character Spacing)</label>
               <span id="spacing-val" class="spacing-val">0.18em</span>
             </div>
             <input type="range" id="spacing-slider" min="0" max="0.8" step="0.02" value="0.18" class="range-slider">
           </div>
           <div class="form-group half">
-            <label for="speed-select">书写视频速度</label>
+            <label for="speed-select">書寫視頻速度</label>
             <select id="speed-select">
-              <option value="0.75">0.75x 舒缓典雅</option>
-              <option value="1.0" selected>1.0x 标准挥毫</option>
-              <option value="1.5">1.5x 畅快写意</option>
+              <option value="0.75">0.75x 舒緩典雅</option>
+              <option value="1.0" selected>1.0x 標準揮毫</option>
+              <option value="1.5">1.5x 暢快寫意</option>
             </select>
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group half">
-            <label for="fps-select">视频帧率</label>
+            <label for="fps-select">視頻幀率</label>
             <select id="fps-select">
-              <option value="24" selected>24 fps (电影感)</option>
-              <option value="30">30 fps (高流畅)</option>
+              <option value="24" selected>24 fps (電影感)</option>
+              <option value="30">30 fps (高流暢)</option>
+            </select>
+          </div>
+          <div class="form-group half">
+            <label for="punctuation-select">標點符號</label>
+            <select id="punctuation-select">
+              <option value="omit" selected>忽略所有標點 (預設)</option>
+              <option value="break">按標點換行折行</option>
             </select>
           </div>
         </div>
 
         <div class="action-buttons">
           <button id="btn-preview" class="btn btn-secondary">
-            <span class="btn-icon">👁</span> 导出静图 (SVG/PNG)
+            <span class="btn-icon">👁</span> 導出靜圖 (SVG/PNG)
           </button>
           <button id="btn-render" class="btn btn-primary">
-            <span class="btn-icon">▶</span> 生成书写视频 (MP4)
+            <span class="btn-icon">▶</span> 生成書寫視頻 (MP4)
           </button>
         </div>
 
@@ -140,13 +147,13 @@
       <!-- Right Panel: Live Stage & Output -->
       <section class="panel stage-panel">
         <div class="panel-header">
-          <h2 class="panel-title"><span class="ink-mark">❖</span> 书斋临摹台 (实时字形展示)</h2>
+          <h2 class="panel-title"><span class="ink-mark">❖</span> 書齋臨摹台 (實時字形展示)</h2>
         </div>
 
         <!-- Real-time Live Calligraphy Stage -->
         <div class="calligraphy-stage-wrapper">
           <div id="calligraphy-stage" class="calligraphy-stage vertical">
-            <div id="calligraphy-text" class="calligraphy-rendered-text">明月松间照</div>
+            <div id="calligraphy-text" class="calligraphy-rendered-text">明月松間照</div>
             <div class="stage-seal top-right">法帖真賞</div>
             <div class="stage-seal bottom-left">妙墨天成</div>
           </div>
@@ -161,8 +168,8 @@
         <!-- Rendered Export Output Area (Appears on Preview/Render) -->
         <div id="export-output-box" class="export-output-box hidden">
           <div class="export-header">
-            <h4>导出成品</h4>
-            <button type="button" id="btn-close-export" class="btn-close-export" title="收起成品视图">✕ 收起</button>
+            <h4>導出成品</h4>
+            <button type="button" id="btn-close-export" class="btn-close-export" title="收起成品視圖">✕ 收起</button>
           </div>
           <div id="preview-image-container" class="preview-box hidden">
             <img id="preview-img" src="" alt="Calligraphy Preview" />
@@ -172,7 +179,7 @@
             <video id="result-video" controls autoplay loop playsinline></video>
             <div class="video-actions-row">
               <a id="btn-video-dl" class="btn btn-secondary btn-sm" href="#" download>
-                <span class="btn-icon">⬇</span> 下载完整 MP4 视频
+                <span class="btn-icon">⬇</span> 下載完整 MP4 視頻
               </a>
             </div>
           </div>
@@ -180,9 +187,9 @@
 
         <!-- Session Job History -->
         <div class="jobs-section">
-          <h3>书写任务记录 (当前会话)</h3>
+          <h3>書寫任務記錄 (當前會話)</h3>
           <div id="jobs-list" class="jobs-list">
-            <p class="empty-jobs">暂无生成任务</p>
+            <p class="empty-jobs">暫無生成任務</p>
           </div>
         </div>
       </section>
@@ -192,39 +199,39 @@
     <section class="database-browser-section">
       <div class="section-title-bar">
         <div class="title-with-badge">
-          <h2><span class="ink-mark">❖</span> 历代名家书法字库全库鉴赏与试写 (Calligraphy Font Database)</h2>
-          <span class="section-desc">即刻预览传世名家书法字体风骨，查阅考据溯源与开源协议，点击即可载入上方临摹台实时试写与生成视频</span>
+          <h2><span class="ink-mark">❖</span> 歷代名家書法字庫全庫鑒賞與試寫 (Calligraphy Font Database)</h2>
+          <span class="section-desc">即刻預覽傳世名家書法字體風骨，查閱考據溯源與開源協議，點擊即可載入上方臨摹台實時試寫與生成視頻</span>
         </div>
         <div class="search-box-wrapper">
-          <input type="text" id="search-input" class="search-input" placeholder="按名家 (颜真卿/马善政/齐伋/王羲之)、字库名、碑帖出处搜索...">
+          <input type="text" id="search-input" class="search-input" placeholder="按名家 (顏真卿/馬善政/齊伋/王羲之)、字庫名、碑帖出處搜索...">
         </div>
       </div>
 
       <!-- Filters Bar -->
       <div class="filters-bar">
         <div class="filter-group">
-          <span class="filter-label">字体风格：</span>
-          <button class="filter-pill active" data-filter="category" data-val="all">全部风格</button>
-          <button class="filter-pill" data-filter="category" data-val="kaishu">楷书</button>
-          <button class="filter-pill" data-filter="category" data-val="lishu">隶书</button>
-          <button class="filter-pill" data-filter="category" data-val="songti">宋体/雕版</button>
+          <span class="filter-label">字體風格：</span>
+          <button class="filter-pill active" data-filter="category" data-val="all">全部風格</button>
+          <button class="filter-pill" data-filter="category" data-val="kaishu">楷書</button>
+          <button class="filter-pill" data-filter="category" data-val="lishu">隸書</button>
+          <button class="filter-pill" data-filter="category" data-val="songti">宋體/雕版</button>
           <button class="filter-pill" data-filter="category" data-val="fangsong">仿宋</button>
-          <button class="filter-pill" data-filter="category" data-val="other">行草/魏碑/榜书</button>
+          <button class="filter-pill" data-filter="category" data-val="other">行草/魏碑/榜書</button>
         </div>
 
         <div class="filter-group">
           <span class="filter-label">字形偏好：</span>
-          <button class="filter-pill active" data-filter="char_support" data-val="all">全部繁简</button>
-          <button class="filter-pill" data-filter="char_support" data-val="trad">繁体字库 (颜体/全字库/文楷TC/王汉宗等)</button>
-          <button class="filter-pill" data-filter="char_support" data-val="simp">简体优先 (马善政/龙藏等)</button>
-          <button class="filter-pill" data-filter="char_support" data-val="both">繁简兼备 (霞鹜/文鼎)</button>
+          <button class="filter-pill" data-filter="char_support" data-val="all">全部繁簡</button>
+          <button class="filter-pill active" data-filter="char_support" data-val="trad">繁體字庫 (顏體/全字庫/文楷TC/王漢宗等)</button>
+          <button class="filter-pill" data-filter="char_support" data-val="simp">簡體優先 (馬善政/龍藏等)</button>
+          <button class="filter-pill" data-filter="char_support" data-val="both">繁簡兼備 (霞鹜/文鼎)</button>
         </div>
 
         <div class="filter-group">
-          <span class="filter-label">书写器具：</span>
+          <span class="filter-label">書寫器具：</span>
           <button class="filter-pill active" data-filter="medium" data-val="all">全部器具</button>
-          <button class="filter-pill" data-filter="medium" data-val="brush">毛笔书法</button>
-          <button class="filter-pill" data-filter="medium" data-val="pen">硬笔/钢笔书法</button>
+          <button class="filter-pill" data-filter="medium" data-val="brush">毛筆書法</button>
+          <button class="filter-pill" data-filter="medium" data-val="pen">硬筆/鋼筆書法</button>
         </div>
       </div>
 
@@ -235,7 +242,7 @@
     </section>
 
     <footer class="studio-footer">
-      <p>中华书法工坊与开源字库在线鉴赏 · 基于开源字体 (SIL OFL / GPL-2.0 / Arphic / Public Domain) · 专为书法数字化重现与生成设计</p>
+      <p>中華書法工坊與開源字庫在線鑒賞 · 基於開源字體 (SIL OFL / GPL-2.0 / Arphic / Public Domain) · 專為書法數字化重現與生成設計</p>
     </footer>
   </div>
 
