@@ -297,21 +297,46 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   renderPresets();
 
-  // Layout direction toggle (Vertical vs Horizontal)
-  if (btnVertical && btnHorizontal && calligraphyStage) {
-    btnVertical.addEventListener('click', () => {
-      btnVertical.classList.add('active');
-      btnHorizontal.classList.remove('active');
-      calligraphyStage.classList.remove('horizontal');
-      calligraphyStage.classList.add('vertical');
-    });
+  // Use the same persisted direction for the live stage and both export requests.
+  const directionStorageKey = 'calligraphy.direction';
+  let currentDirection = 'vertical-rl';
+  try {
+    const savedDirection = localStorage.getItem(directionStorageKey);
+    if (savedDirection === 'horizontal-lr' || savedDirection === 'vertical-rl') {
+      currentDirection = savedDirection;
+    }
+  } catch (_) {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
 
-    btnHorizontal.addEventListener('click', () => {
-      btnHorizontal.classList.add('active');
-      btnVertical.classList.remove('active');
-      calligraphyStage.classList.remove('vertical');
-      calligraphyStage.classList.add('horizontal');
-    });
+  function updateDirectionControls() {
+    const vertical = currentDirection === 'vertical-rl';
+    if (calligraphyStage) {
+      calligraphyStage.classList.toggle('vertical', vertical);
+      calligraphyStage.classList.toggle('horizontal', !vertical);
+    }
+    if (btnVertical && btnHorizontal) {
+      btnVertical.classList.toggle('active', vertical);
+      btnHorizontal.classList.toggle('active', !vertical);
+      btnVertical.setAttribute('aria-pressed', String(vertical));
+      btnHorizontal.setAttribute('aria-pressed', String(!vertical));
+    }
+  }
+
+  function selectDirection(direction) {
+    currentDirection = direction;
+    updateDirectionControls();
+    try {
+      localStorage.setItem(directionStorageKey, direction);
+    } catch (_) {
+      // Exports still honor the selection when persistence is unavailable.
+    }
+  }
+
+  updateDirectionControls();
+  if (btnVertical && btnHorizontal) {
+    btnVertical.addEventListener('click', () => selectDirection('vertical-rl'));
+    btnHorizontal.addEventListener('click', () => selectDirection('horizontal-lr'));
   }
 
   // Font size slider
@@ -533,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/previews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, style, format: 'auto', spacing })
+        body: JSON.stringify({ text, style, format: 'auto', spacing, direction: currentDirection })
       });
 
       if (!res.ok) {
@@ -580,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/renders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, style, speed, fps, spacing })
+        body: JSON.stringify({ text, style, speed, fps, spacing, direction: currentDirection })
       });
 
       if (!res.ok) {

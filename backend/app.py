@@ -3,7 +3,7 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 from fastapi import Cookie, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -29,6 +29,7 @@ class ConvertRequest(BaseModel):
 class PreviewRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
+    direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
 
@@ -36,6 +37,7 @@ class PreviewRequest(BaseModel):
 class RenderRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
+    direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
@@ -190,7 +192,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         job_type="preview",
         text=req.text,
         style=chosen_style,
-        params={"format": req.format, "spacing": req.spacing},
+        params={"format": req.format, "spacing": req.spacing, "direction": req.direction},
     )
     # Execute preview immediately for snappy preview response
     success = execute_job(job, db)
@@ -242,7 +244,7 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         job_type="render",
         text=req.text,
         style=chosen_style,
-        params={"fps": req.fps, "speed": req.speed, "spacing": req.spacing},
+        params={"fps": req.fps, "speed": req.speed, "spacing": req.spacing, "direction": req.direction},
     )
     runner = get_runner()
     runner.notify()
