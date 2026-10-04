@@ -781,7 +781,7 @@ textarea#text-input.exceeded {
   color: #137333;
 }
 
-.job-status-badge.rendering, .job-status-badge.queued {
+.job-status-badge.rendering, .job-status-badge.running, .job-status-badge.queued {
   background: #e8f0fe;
   color: #1a73e8;
 }

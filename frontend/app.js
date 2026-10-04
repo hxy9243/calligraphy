@@ -618,6 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render video action
   btnRender.addEventListener('click', async () => {
+    if (btnRender.disabled) return;
     const text = textInput.value.trim();
     if (!text) {
       showStatus('请输入要书写的文本', 'error');
@@ -633,7 +634,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fps = parseInt(fpsSelect.value, 10);
 
     btnRender.disabled = true;
-    showStatus('正在提交书写视频渲染任务...', 'info');
+    hideStatus();
 
     try {
       const spacing = spacingSlider ? parseFloat(spacingSlider.value) : 0.18;
@@ -648,64 +649,35 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(err.detail || '任务创建失败');
       }
 
-      const data = await res.json();
-      const jobId = data.job_id;
-      showStatus('任务已入队，正在逐笔拓扑重构与编码视频...', 'info');
-
-      pollJob(jobId);
+      await res.json();
+      // Only submission owns the button. Progress belongs to the job card,
+      // and a repeated request can reuse the same active server-side job.
+      hasActiveJobs = true;
+      loadJobs();
     } catch (e) {
       showStatus(`提交失败: ${e.message}`, 'error');
+    } finally {
       btnRender.disabled = false;
     }
   });
 
-  // Poll job status
-  async function pollJob(jobId) {
-    const pollInterval = 1000;
-    const maxAttempts = 180;
-    let attempts = 0;
-
-    const timer = setInterval(async () => {
-      attempts++;
-      try {
-        const res = await fetch(`/api/jobs/${jobId}`);
-        if (!res.ok) throw new Error('查询任务状态失败');
-
-        const job = await res.json();
-        if (job.status === 'succeeded') {
-          clearInterval(timer);
-          btnRender.disabled = false;
-          showStatus('书写视频生成完成！已就绪', 'success');
-          const videoSrc = job.video_url || job.download_url;
-          showVideo(videoSrc, job.download_url);
-          loadJobs();
-          setTimeout(hideStatus, 4000);
-        } else if (job.status === 'failed') {
-          clearInterval(timer);
-          btnRender.disabled = false;
-          showStatus(`渲染失败: ${job.error_message || '未知错误'}`, 'error');
-        } else {
-          const pct = Math.round((job.progress || 0) * 100);
-          showStatus(`书写视频渲染中 (${pct}%)...`, 'info');
-        }
-      } catch (e) {
-        console.error(e);
-      }
-
-      if (attempts >= maxAttempts) {
-        clearInterval(timer);
-        btnRender.disabled = false;
-        showStatus('渲染超时，请检查控制台或重新尝试', 'error');
-      }
-    }, pollInterval);
-  }
+  let jobsRefreshTimer = null;
+  let jobsLoadVersion = 0;
+  let hasActiveJobs = false;
+  const activeJobStatuses = new Set(['queued', 'rendering', 'running']);
 
   // Load session job history
   async function loadJobs() {
+    const version = ++jobsLoadVersion;
+    clearTimeout(jobsRefreshTimer);
     try {
       const res = await fetch('/api/jobs');
-      if (res.ok) {
-        const data = await res.json();
+      if (!res.ok) throw new Error('查询任务状态失败');
+      const data = await res.json();
+      // Ignore an older refresh that finishes after a new submission/refresh.
+      if (version !== jobsLoadVersion) return;
+      {
+        hasActiveJobs = (data.jobs || []).some(j => activeJobStatuses.has(j.status));
         if (!data.jobs || data.jobs.length === 0) {
           jobsList.innerHTML = '<p class="empty-jobs">暂无生成任务</p>';
           return;
@@ -715,6 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
         data.jobs.forEach(j => {
           const item = document.createElement('div');
           item.className = 'job-item';
+          item.dataset.jobId = j.job_id;
 
           const meta = document.createElement('div');
           meta.className = 'job-meta';
@@ -729,9 +702,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
           meta.appendChild(textEl);
           meta.appendChild(details);
+          if (j.status === 'failed' && j.error_message) {
+            const error = document.createElement('span');
+            error.className = 'job-details job-error';
+            error.textContent = j.error_message;
+            meta.appendChild(error);
+          }
 
           const action = document.createElement('div');
           action.className = 'job-action';
+          const badge = document.createElement('span');
+          badge.className = `job-status-badge ${j.status}`;
+          const pct = Math.round(Math.max(0, Math.min(1, j.progress || 0)) * 100);
+          const statusLabels = {
+            queued: '排队中',
+            rendering: `渲染中 (${pct}%)`,
+            running: `渲染中 (${pct}%)`,
+            succeeded: '完成',
+            failed: '失败',
+          };
+          badge.textContent = statusLabels[j.status] || j.status;
+          action.appendChild(badge);
 
           if (j.status === 'succeeded' && j.job_type === 'render') {
             const videoSrc = j.video_url || `/api/jobs/${j.job_id}/video`;
@@ -764,11 +755,6 @@ document.addEventListener('DOMContentLoaded', () => {
               showPreviewImage(j.download_url || `/api/jobs/${j.job_id}/image`);
             });
             action.appendChild(viewBtn);
-          } else {
-            const badge = document.createElement('span');
-            badge.className = `job-status-badge ${j.status}`;
-            badge.textContent = j.status === 'succeeded' ? '完成' : (j.status === 'failed' ? '失败' : '处理中');
-            action.appendChild(badge);
           }
 
           item.appendChild(meta);
@@ -778,6 +764,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (e) {
       console.warn('Failed to load session jobs:', e);
+    } finally {
+      // Resume active jobs after a reload, retry transient network errors, and
+      // never overlap polls or impose a browser-side render timeout.
+      if (version === jobsLoadVersion && hasActiveJobs) {
+        jobsRefreshTimer = setTimeout(loadJobs, 1000);
+      }
     }
   }
 

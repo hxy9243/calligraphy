@@ -196,6 +196,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         text=req.text,
         style=chosen_style,
         params={"format": req.format, "spacing": req.spacing, "direction": req.direction},
+        status="rendering",
     )
     # Execute preview immediately for snappy preview response
     success = execute_job(job, db)
@@ -241,10 +242,9 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
     job_id = f"vid_{uuid.uuid4().hex[:12]}"
     db = get_db()
     chosen_style = STYLE_ALIASES.get(req.style, req.style)
-    job = db.create_job(
+    job = db.enqueue_render(
         job_id=job_id,
         session_id=session_id,
-        job_type="render",
         text=req.text,
         style=chosen_style,
         params={"fps": req.fps, "speed": req.speed, "spacing": req.spacing, "direction": req.direction},
@@ -253,9 +253,9 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
     runner.notify()
 
     return {
-        "job_id": job_id,
-        "status": "queued",
-        "message": "Video rendering started",
+        "job_id": job["job_id"],
+        "status": job["status"],
+        "message": "Video render accepted",
     }
 
 

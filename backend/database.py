@@ -8,6 +8,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
+# Accepted output defaults also describe legacy rows written before a parameter
+# was explicit in the API. Unknown/new keys remain part of the render identity.
+RENDER_PARAMETER_DEFAULTS = {
+    "fps": 24, "speed": 1.0, "spacing": 0.18, "direction": "vertical-rl",
+}
+
+
 def now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -119,35 +126,86 @@ class Database:
         progress: float = 0.0,
     ) -> Dict[str, Any]:
         now = now_utc_iso()
-        params_str = json.dumps(params, ensure_ascii=False)
+        params_str = json.dumps(params, ensure_ascii=False, sort_keys=True)
         self.touch_session(session_id)
         if self._is_sqlite:
             conn = self._get_sqlite_conn()
             with self._lock:
                 with conn:
-                    conn.execute(
-                        """
-                        INSERT INTO jobs (
-                            job_id, session_id, job_type, status, text, style,
-                            params_json, output_path, error_message, progress,
-                            created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?);
-                        """,
-                        (
-                            job_id,
-                            session_id,
-                            job_type,
-                            status,
-                            text,
-                            style,
-                            params_str,
-                            output_path,
-                            progress,
-                            now,
-                            now,
-                        ),
+                    self._insert_job(
+                        conn, job_id, session_id, job_type, text, style,
+                        params_str, output_path, status, progress, now,
                     )
         return self.get_job(job_id)
+
+    @staticmethod
+    def _insert_job(conn, job_id, session_id, job_type, text, style,
+                    params_json, output_path, status, progress, now):
+        conn.execute(
+            """
+            INSERT INTO jobs (
+                job_id, session_id, job_type, status, text, style,
+                params_json, output_path, error_message, progress,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?);
+            """,
+            (job_id, session_id, job_type, status, text, style,
+             params_json, output_path, progress, now, now),
+        )
+
+    def enqueue_render(
+        self,
+        job_id: str,
+        session_id: str,
+        text: str,
+        style: str,
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Reuse identical active renders in this session, or enqueue a new one.
+
+        BEGIN IMMEDIATE serializes lookup + insert across SQLite connections and
+        processes, not just threads sharing this Database instance. Comparing the
+        decoded parameters also handles jobs saved before canonical JSON ordering.
+        Terminal jobs are deliberately excluded so users can retry or render again.
+        """
+        identity_params = {**RENDER_PARAMETER_DEFAULTS, **params}
+        self.touch_session(session_id)
+        if not self._is_sqlite:
+            raise NotImplementedError("Render queue requires SQLite")
+        conn = self._get_sqlite_conn()
+        with self._lock:
+            with conn:
+                conn.execute("BEGIN IMMEDIATE;")
+                rows = conn.execute(
+                    """
+                    SELECT * FROM jobs
+                    WHERE session_id = ? AND job_type = 'render'
+                        AND text = ? AND style = ?
+                        AND status IN ('queued', 'rendering', 'running')
+                    ORDER BY created_at ASC;
+                    """,
+                    (session_id, text, style),
+                ).fetchall()
+                for row in rows:
+                    job = self._decode_job(row)
+                    if {**RENDER_PARAMETER_DEFAULTS, **job["params"]} == identity_params:
+                        return job
+
+                self._insert_job(
+                    conn, job_id, session_id, "render", text, style,
+                    json.dumps(identity_params, ensure_ascii=False, sort_keys=True),
+                    None, "queued", 0.0, now_utc_iso(),
+                )
+                row = conn.execute(
+                    "SELECT * FROM jobs WHERE job_id = ?;", (job_id,)
+                ).fetchone()
+                return self._decode_job(row)
+
+    @staticmethod
+    def _decode_job(row) -> Dict[str, Any]:
+        data = dict(row)
+        data["params"] = json.loads(data.pop("params_json", "{}"))
+        return data
 
     def update_job(
         self,
@@ -194,9 +252,7 @@ class Database:
                 row = cursor.fetchone()
                 if row is None:
                     return None
-                data = dict(row)
-                data["params"] = json.loads(data.pop("params_json", "{}"))
-                return data
+                return self._decode_job(row)
         return None
 
     def list_jobs(self, session_id: str, limit: int = 50) -> List[Dict[str, Any]]:
@@ -210,31 +266,36 @@ class Database:
                 rows = cursor.fetchall()
                 result = []
                 for row in rows:
-                    data = dict(row)
-                    data["params"] = json.loads(data.pop("params_json", "{}"))
-                    result.append(data)
+                    result.append(self._decode_job(row))
                 return result
         return []
 
     def claim_next_job(self) -> Optional[Dict[str, Any]]:
-        """Worker claims the oldest queued job atomically."""
+        """Atomically claim the oldest queued render across worker processes."""
         if self._is_sqlite:
             conn = self._get_sqlite_conn()
             with self._lock:
                 with conn:
-                    cursor = conn.execute(
-                        "SELECT job_id FROM jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT 1;"
-                    )
-                    row = cursor.fetchone()
+                    conn.execute("BEGIN IMMEDIATE;")
+                    row = conn.execute(
+                        """
+                        SELECT * FROM jobs
+                        WHERE status = 'queued' AND job_type = 'render'
+                        ORDER BY created_at ASC LIMIT 1;
+                        """
+                    ).fetchone()
                     if not row:
                         return None
-                    job_id = row["job_id"]
                     now = now_utc_iso()
-                    conn.execute(
+                    cursor = conn.execute(
                         "UPDATE jobs SET status = 'rendering', updated_at = ? WHERE job_id = ? AND status = 'queued';",
-                        (now, job_id),
+                        (now, row["job_id"]),
                     )
-            return self.get_job(job_id)
+                    if cursor.rowcount != 1:
+                        return None
+                    job = self._decode_job(row)
+                    job.update(status="rendering", updated_at=now)
+                    return job
         return None
 
 
