@@ -16,12 +16,13 @@ The backend API is unchanged.
 - Total character limit: 256 characters (expanded from 120).
 - Single-line character limit: 20 characters per line/column. Input validation in both frontend and backend prevents overflowing single lines, prompting the user to break into lines/columns.
 - Canvas format & length:
-  - **Auto-lengthening (自动伸长)**: By default, the canvas length (height in vertical mode, width in horizontal mode) dynamically extends based on text character length (up to 2200px/2400px), preserving natural, legible calligraphy cell sizes rather than excessively shrinking fonts.
-  - **Manual adjustment (人工调整)**: Users can fine-tune length via the primary axis slider (`600px - 2200px`, 40px steps) or select fixed aspect ratios (`3:4 标准条幅`, `9:16 修长条屏`, `1:2 加长条幅`, `1:1 正方斗方`, `16:9 横披画幅`). A `✨ 自动伸长` chip toggles back to auto mode at any time.
+  - **Adaptive length (自适应)**: By default, the canvas length (height in vertical mode, width in horizontal mode) dynamically extends based on text character length (up to 2200px/2400px), preserving natural, legible calligraphy cell sizes rather than excessively shrinking fonts.
+  - **Manual adjustment (人工调整)**: Users can fine-tune length via the primary axis slider (`600px - 2200px`, 40px steps) or select fixed aspect ratios (`3:4 标准条幅`, `9:16 修长条屏`, `1:2 加长条幅`, `1:1 正方斗方`, `16:9 横披画幅`). A `自适应` chip toggles back to auto mode at any time.
+  - Dimension readouts display clean numerical dimensions without redundant status annotations.
   - Custom dimensions (`width`, `height`, `direction`) are sent with preview and render requests.
 
 ## Live Stage & Result Framing
-- **Real-time stage (实时试写)**: Stage paper physically lengthens with canvas proportions. Long vertical scrolls and horizontal banners scroll smoothly within the stage viewport, allowing full-scale preview of long calligraphy pieces.
+- **Real-time stage (实时试写)**: Both `.stage-viewport` and `.stage-paper` automatically lengthen on the web page to fit the artwork naturally without nested inner scrollbox clamping.
 - Auto-fit only intervenes if manual canvas boundaries constrain text.
 - Result viewers fit by default with comfortable zoom-out framing (88% bounds, padded container) so long vertical scrolls and full video dimensions fit on screen without vertical clipping.
 - History cards clamp text; the detail dialog shows full text, parameters, and download options.

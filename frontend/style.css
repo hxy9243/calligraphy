@@ -144,7 +144,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 /* ---------- Create layout ---------- */
 .create-grid { display: grid; grid-template-columns: minmax(340px, 400px) 1fr; gap: 20px; align-items: start; }
 .compose { display: flex; flex-direction: column; gap: 12px; }
-.canvas { position: sticky; top: calc(var(--topbar-h) + 16px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); min-width: 0; }
+.canvas { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); min-width: 0; }
 .canvas-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 .canvas-meta { font-size: 12px; color: var(--muted); }
 .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--seal); vertical-align: middle; margin-left: 2px; }
@@ -157,18 +157,22 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 .job-progress-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .job-progress-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
 
-/* ---------- Live stage (handles any text length with auto-lengthening and scrolling) ---------- */
+/* ---------- Live stage (automatically lengthens with canvas content) ---------- */
 .stage-viewport {
   width: 100%;
-  height: clamp(300px, 50vh, 540px);
-  overflow: auto;
+  min-height: 320px;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: visible;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
-  scrollbar-width: thin;
   padding: 24px;
   box-sizing: border-box;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: min-height 0.2s ease;
 }
 .stage-paper {
   position: relative;
@@ -363,8 +367,8 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
   body[data-view="fonts"] .tabbar [data-nav="fonts"] { color: var(--accent); font-weight: 700; }
 
   .action-bar { position: fixed; left: 8px; right: 8px; bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); border-radius: 14px; z-index: 35; }
-  body:not([data-view="create"]) .action-bar { display: none; }
-  .stage-viewport, .viewer { height: clamp(220px, 38vh, 380px); }
+  .viewer { height: clamp(220px, 38vh, 380px); }
+  .stage-viewport { min-height: 240px; height: auto; padding: 14px; overflow-x: auto; }
   .stage-paper { padding: 18px 20px; }
   .canvas { padding: 10px; }
   .field-row { grid-template-columns: 1fr; }

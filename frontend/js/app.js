@@ -309,9 +309,8 @@ function updateCanvasDimDisplay() {
   if (els.canvasLenAxis) els.canvasLenAxis.textContent = axis;
   if (els.canvasLenSlider) els.canvasLenSlider.value = len;
 
-  const modeLabel = isAuto ? '自动伸长' : (state.canvasFormat === 'custom' ? '手动指定' : state.canvasFormat);
-  els.canvasDimVal.textContent = `${state.canvasWidth} × ${state.canvasHeight} (${modeLabel})`;
-  els.canvasLenVal.textContent = isAuto ? `${len}px (自动)` : `${len}px`;
+  els.canvasDimVal.textContent = `${state.canvasWidth} × ${state.canvasHeight}`;
+  els.canvasLenVal.textContent = `${len}px`;
 
   $$('#canvas-formats .chip').forEach((c) => {
     if (isAuto) {
@@ -329,8 +328,6 @@ function layoutStagePaper() {
   if (!v || !p || !t) return;
 
   const vw = Math.max(260, v.clientWidth - 48);
-  const vh = Math.max(240, v.clientHeight - 48);
-
   const cw = state.canvasWidth || 720;
   const ch = state.canvasHeight || 960;
   const aspect = cw / ch;
@@ -349,7 +346,7 @@ function layoutStagePaper() {
     t.style.fontSize = `${baseFontSize}px`;
     p.dataset.baseFontSize = baseFontSize;
   } else {
-    const ph = Math.min(vh, Math.max(180, Math.min(380, Math.round((ch / 640) * 260))));
+    const ph = Math.max(180, Math.min(380, Math.round((ch / 640) * 260)));
     const pw = Math.round(ph * aspect);
 
     p.style.width = `${pw}px`;
@@ -396,9 +393,7 @@ function fitStage() {
   const shrunk = size < baseSize;
   els.sizeVal.textContent = shrunk ? `${state.size}px → 试写缩放 ${Math.round(size * ((state.canvasWidth || 720) / p.clientWidth))}px` : `${state.size}px`;
   const len = [...els.text.value.replace(/\s/g, '')].length;
-  const isAuto = Boolean(state.canvasAutoLen || state.canvasFormat === 'auto');
-  const scrollable = els.viewport.scrollHeight > els.viewport.clientHeight || els.viewport.scrollWidth > els.viewport.clientWidth;
-  els.caption.innerHTML = `<span>${len} 字 · ${state.dir === 'vertical' ? '竖排右起' : '横排'} · 画布 ${state.canvasWidth}×${state.canvasHeight} ${isAuto ? '(自动伸长)' : '(手动指定)'}</span><span>${shrunk ? '字数超出已微调适应' : (scrollable ? '可滚动浏览完整长卷' : '')}</span>`;
+  els.caption.innerHTML = `<span>${len} 字 · ${state.dir === 'vertical' ? '竖排右起' : '横排'} · 画布 ${state.canvasWidth}×${state.canvasHeight}</span><span>${shrunk ? '字数超出已微调适应' : ''}</span>`;
   els.canvasMeta.textContent = currentEntry()?.name || '';
 }
 
@@ -953,7 +948,7 @@ function bindUi() {
       state.canvasAutoLen = true;
       state.canvasFormat = 'auto';
       calcAutoCanvasDim();
-      toast('已开启自动伸长，画布随字数自适应', 'info', 1600);
+      toast('已开启画幅自适应', 'info', 1600);
     } else {
       state.canvasAutoLen = false;
       state.canvasFormat = cf;
