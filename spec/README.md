@@ -54,3 +54,5 @@ registered fonts and built-in contact collections. Still, SVG and video exports
 share the same styled contact frame implementation. Registered source banks remain
 unchanged; derived smoothing caches include source identity, geometry and engine
 source hash. Explicit `template` and `font_layers` modes retain legacy rendering.
+
+| Browser workbench UI | `frontend/` | Workbench UI (`workbench-ui.md`) |

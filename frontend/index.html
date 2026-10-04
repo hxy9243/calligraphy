@@ -2,242 +2,326 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>书法工坊与历代名家字库 | Calligraphy Studio & Font Database</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f4ed">
+  <title>书法工坊 | Calligraphy Workbench</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="theme-xuan">
-  <div class="app-container">
-    <header class="studio-header">
-      <div class="header-inner">
-        <div class="brand">
-          <span class="seal-mark-brand">墨</span>
-          <div class="brand-text">
-            <h1>书法工坊 <span>Calligraphy Studio</span></h1>
-            <p class="tagline">汉字笔画拓扑重构与开源书法视频工坊 · 历代名家法帖全库鉴赏</p>
-          </div>
-        </div>
-        <div class="header-right">
-          <div class="paper-theme-controls">
-            <span class="ctrl-label">宣纸意境：</span>
-            <button type="button" class="theme-btn active" data-theme="theme-xuan">澄心堂宣纸</button>
-            <button type="button" class="theme-btn" data-theme="theme-gold">洒金熟宣</button>
-            <button type="button" class="theme-btn" data-theme="theme-rubbing">汉唐碑帖拓片</button>
-          </div>
-          <div class="header-stats">
-            <span class="stat-pill highlight"><strong id="stat-total">39</strong> 款离线典藏法帖</span>
-            <span class="stat-pill"><strong id="stat-kai">26</strong> 款楷书</span>
-            <span class="stat-pill"><strong id="stat-li">2</strong> 款隶书</span>
-            <span class="stat-pill"><strong id="stat-song">3</strong> 款宋体雕版</span>
-            <span class="stat-pill"><strong id="stat-fs">1</strong> 款仿宋</span>
-            <span class="stat-pill"><strong id="stat-other">7</strong> 款行草魏碑榜书</span>
-          </div>
-        </div>
-      </div>
-    </header>
+<body class="theme-xuan" data-view="create">
 
-    <main class="studio-main">
-      <!-- Left Panel: Controls -->
-      <section class="panel control-panel">
-        <div class="panel-header">
-          <h2 class="panel-title"><span class="ink-mark">❖</span> 临摹挥毫与创作</h2>
-          <div class="script-toggle-container">
-            <span class="ctrl-label">字形转换：</span>
-            <div class="btn-toggle-group script-toggle-group">
-              <button type="button" id="btn-trad" class="toggle-btn" title="转换为繁体中文">繁體</button>
-              <button type="button" id="btn-simp" class="toggle-btn active" title="转换为简体中文">简体</button>
-              <button type="button" id="btn-convert-current" class="toggle-btn convert-btn" title="一键繁简互转">⇄ 转换繁简</button>
-            </div>
-          </div>
-        </div>
+<!-- ============ Top bar ============ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#create" aria-label="书法工坊">
+      <span class="seal">墨</span>
+      <span class="brand-text"><strong>书法工坊</strong><small>Calligraphy Workbench</small></span>
+    </a>
 
-        <div class="form-group">
-          <div class="label-row">
-            <label for="text-input">输入汉字文本 (1–256字，实时试写)</label>
-            <span id="char-counter" class="char-counter"><span id="char-count">5</span>/256</span>
-          </div>
-          <textarea id="text-input" rows="3" placeholder="在此输入中文测试，支持换行分行...">明月松間照
-清泉石上流</textarea>
-          <div id="char-limit-warning" class="char-limit-warning hidden">
-            ⚠️ 文本长度已超出 256 字符上限，请删减后再试
-          </div>
-          <div class="preset-chips">
-            <span class="chip-label">经典法帖：</span>
-            <div id="preset-buttons-container" class="preset-buttons">
-              <!-- Dynamically populated based on Trad/Simp toggle -->
-            </div>
-          </div>
-        </div>
+    <nav class="nav-tabs" aria-label="主导航">
+      <a href="#create" data-nav="create">✍ 创作</a>
+      <a href="#history" data-nav="history">🕮 历史 <span class="badge-count" data-history-count hidden></span></a>
+      <a href="#fonts" data-nav="fonts">字 字库</a>
+    </nav>
 
-        <div class="form-group">
-          <label for="style-select">选定书法字库风格</label>
-          <select id="style-select" class="custom-select">
-            <!-- Dynamically populated from /api/styles -->
-          </select>
-          <div id="style-hint" class="style-hint">💡 建议：颜体/全字库/文楷繁体推荐繁体；马善政毛笔楷书推荐简体；文鼎中楷繁简兼备。</div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group half">
-            <label>排版方式</label>
-            <div class="btn-toggle-group full-width">
-              <button type="button" id="btn-vertical" class="toggle-btn half-btn active">传统竖排右起</button>
-              <button type="button" id="btn-horizontal" class="toggle-btn half-btn">现代横排</button>
-            </div>
-          </div>
-          <div class="form-group half">
-            <div class="label-row">
-              <label for="font-size-slider">字号大小</label>
-              <span id="font-size-val" class="font-size-val">68px</span>
-            </div>
-            <input type="range" id="font-size-slider" min="28" max="140" value="68" class="range-slider">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group half">
-            <div class="label-row">
-              <label for="spacing-slider">字间距 (Character Spacing)</label>
-              <span id="spacing-val" class="spacing-val">0.18em</span>
-            </div>
-            <input type="range" id="spacing-slider" min="0" max="0.8" step="0.02" value="0.18" class="range-slider">
-          </div>
-          <div class="form-group half">
-            <label for="speed-select">书写视频速度</label>
-            <select id="speed-select">
-              <option value="0.75">0.75x 舒缓典雅</option>
-              <option value="1.0" selected>1.0x 标准挥毫</option>
-              <option value="1.5">1.5x 畅快写意</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group half">
-            <label for="fps-select">视频帧率</label>
-            <select id="fps-select">
-              <option value="24" selected>24 fps (电影感)</option>
-              <option value="30">30 fps (高流畅)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="action-buttons">
-          <button id="btn-preview" class="btn btn-secondary">
-            <span class="btn-icon">👁</span> 导出静图 (SVG/PNG)
-          </button>
-          <button id="btn-render" class="btn btn-primary">
-            <span class="btn-icon">▶</span> 生成书写视频 (MP4)
-          </button>
-        </div>
-
-        <div id="status-message" class="status-message hidden"></div>
-      </section>
-
-      <!-- Right Panel: Live Stage & Output -->
-      <section class="panel stage-panel">
-        <div class="panel-header">
-          <h2 class="panel-title"><span class="ink-mark">❖</span> 书斋临摹台 (实时字形展示)</h2>
-        </div>
-
-        <!-- Real-time Live Calligraphy Stage -->
-        <div class="calligraphy-stage-wrapper">
-          <div id="calligraphy-stage" class="calligraphy-stage vertical">
-            <div id="calligraphy-text" class="calligraphy-rendered-text">明月松间照</div>
-            <div class="stage-seal top-right">法帖真賞</div>
-            <div class="stage-seal bottom-left">妙墨天成</div>
-          </div>
-        </div>
-
-        <div class="stage-footer">
-          <div id="active-font-badge" class="font-active-info">
-            <!-- Active font info -->
-          </div>
-        </div>
-
-        <!-- Rendered Export Output Area (Appears on Preview/Render) -->
-        <div id="export-output-box" class="export-output-box hidden">
-          <div class="export-header">
-            <h4>导出成品</h4>
-            <button type="button" id="btn-close-export" class="btn-close-export" title="收起成品视图">✕ 收起</button>
-          </div>
-          <div id="preview-image-container" class="preview-box hidden">
-            <img id="preview-img" src="" alt="Calligraphy Preview" />
-          </div>
-          <div id="video-container" class="preview-box hidden video-export-wrapper">
-            <video id="result-video" controls autoplay loop playsinline></video>
-            <div class="video-actions-row">
-              <a id="btn-video-dl" class="btn btn-secondary btn-sm" href="#" download>
-                <span class="btn-icon">⬇</span> 下载完整 MP4 视频
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Session Job History -->
-        <div class="jobs-section">
-          <h3>书写任务记录 (当前会话)</h3>
-          <div id="jobs-list" class="jobs-list">
-            <p class="empty-jobs">暂无生成任务</p>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <!-- Merged Font Database Catalog Browser Section -->
-    <section class="database-browser-section">
-      <div class="section-title-bar">
-        <div class="title-with-badge">
-          <h2><span class="ink-mark">❖</span> 历代名家书法字库全库鉴赏与试写 (Calligraphy Font Database)</h2>
-          <span class="section-desc">即刻预览传世名家书法字体风骨，查阅考据溯源与开源协议，点击即可载入上方临摹台实时试写与生成视频</span>
-        </div>
-        <div class="search-box-wrapper">
-          <input type="text" id="search-input" class="search-input" placeholder="按名家 (颜真卿/马善政/齐伋/王羲之)、字库名、碑帖出处搜索...">
-        </div>
-      </div>
-
-      <!-- Filters Bar -->
-      <div class="filters-bar">
-        <div class="filter-group">
-          <span class="filter-label">字体风格：</span>
-          <button class="filter-pill active" data-filter="category" data-val="all">全部风格</button>
-          <button class="filter-pill" data-filter="category" data-val="kaishu">楷书</button>
-          <button class="filter-pill" data-filter="category" data-val="lishu">隶书</button>
-          <button class="filter-pill" data-filter="category" data-val="songti">宋体/雕版</button>
-          <button class="filter-pill" data-filter="category" data-val="fangsong">仿宋</button>
-          <button class="filter-pill" data-filter="category" data-val="other">行草/魏碑/榜书</button>
-        </div>
-
-        <div class="filter-group">
-          <span class="filter-label">字形偏好：</span>
-          <button class="filter-pill active" data-filter="char_support" data-val="all">全部繁简</button>
-          <button class="filter-pill" data-filter="char_support" data-val="trad">繁体字库 (颜体/全字库/文楷TC/王汉宗等)</button>
-          <button class="filter-pill" data-filter="char_support" data-val="simp">简体优先 (马善政/龙藏等)</button>
-          <button class="filter-pill" data-filter="char_support" data-val="both">繁简兼备 (霞鹜/文鼎)</button>
-        </div>
-
-        <div class="filter-group">
-          <span class="filter-label">书写器具：</span>
-          <button class="filter-pill active" data-filter="medium" data-val="all">全部器具</button>
-          <button class="filter-pill" data-filter="medium" data-val="brush">毛笔书法</button>
-          <button class="filter-pill" data-filter="medium" data-val="pen">硬笔/钢笔书法</button>
-        </div>
-      </div>
-
-      <!-- Font Cards Grid -->
-      <div id="font-grid" class="font-grid">
-        <!-- Rendered dynamically by app.js -->
-      </div>
-    </section>
-
-    <footer class="studio-footer">
-      <p>中华书法工坊与开源字库在线鉴赏 · 基于开源字体 (SIL OFL / GPL-2.0 / Arphic / Public Domain) · 专为书法数字化重现与生成设计</p>
-    </footer>
+    <div class="topbar-tools">
+      <a class="job-indicator" href="#history" id="job-indicator" hidden>
+        <span class="spinner" aria-hidden="true"></span><span id="job-indicator-text">渲染中</span>
+      </a>
+      <label class="theme-picker" title="宣纸意境">
+        <span class="sr-only">宣纸意境</span>
+        <select id="theme-select" aria-label="宣纸意境">
+          <option value="theme-xuan">澄心堂宣纸</option>
+          <option value="theme-gold">洒金熟宣</option>
+          <option value="theme-rubbing">碑帖拓片（深色）</option>
+        </select>
+      </label>
+    </div>
   </div>
+</header>
 
-  <script src="/app.js"></script>
+<main class="views">
+
+  <!-- ============ VIEW: Create ============ -->
+  <section id="view-create" class="view" aria-labelledby="create-title">
+    <h1 id="create-title" class="sr-only">创作</h1>
+    <div class="create-grid">
+
+      <!-- Left: compose -->
+      <div class="compose">
+
+        <section class="card" id="card-text">
+          <header class="card-head">
+            <h2><span class="step">1</span> 文字</h2>
+            <div class="seg" role="group" aria-label="字形">
+              <button type="button" id="btn-simp" class="seg-btn active" data-script="simp">简体</button>
+              <button type="button" id="btn-trad" class="seg-btn" data-script="trad">繁體</button>
+            </div>
+          </header>
+          <textarea id="text-input" rows="3" spellcheck="false" aria-label="书写文本"
+            placeholder="输入要书写的汉字，可换行分行（1–256 字）">明月松间照
+清泉石上流</textarea>
+          <div class="field-foot">
+            <span id="char-warning" class="warn" hidden></span>
+            <span id="char-counter" class="counter"><span id="char-count">0</span>/256</span>
+          </div>
+          <details class="presets">
+            <summary>经典范文</summary>
+            <div id="preset-list" class="chip-row wrap"></div>
+          </details>
+        </section>
+
+        <section class="card" id="card-font">
+          <header class="card-head">
+            <h2><span class="step">2</span> 字体</h2>
+          </header>
+          <button type="button" id="font-current" class="font-current" aria-haspopup="dialog">
+            <span class="font-current-glyph" id="font-current-glyph">永</span>
+            <span class="font-current-meta">
+              <strong id="font-current-name">载入中…</strong>
+              <small id="font-current-sub"></small>
+            </span>
+            <span class="font-current-cta">更换 ›</span>
+          </button>
+          <div id="font-recent" class="chip-row scroll" aria-label="最近使用"></div>
+          <p id="font-note" class="note"></p>
+        </section>
+
+        <section class="card" id="card-layout">
+          <header class="card-head">
+            <h2><span class="step">3</span> 版式</h2>
+          </header>
+          <div class="field">
+            <span class="field-label">排版方向</span>
+            <div class="seg full" role="group" aria-label="排版方向">
+              <button type="button" class="seg-btn active" data-dir="vertical">竖排 · 右起</button>
+              <button type="button" class="seg-btn" data-dir="horizontal">横排</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="label-row"><label for="size-slider">字号</label><output id="size-val">68px</output></div>
+            <input type="range" id="size-slider" min="24" max="140" value="68">
+          </div>
+          <div class="field">
+            <div class="label-row"><label for="spacing-slider">字距</label><output id="spacing-val">0.18em</output></div>
+            <input type="range" id="spacing-slider" min="0" max="0.8" step="0.02" value="0.18">
+          </div>
+          <label class="check">
+            <input type="checkbox" id="fit-toggle" checked>
+            <span>长文本自动缩小以适应画布</span>
+          </label>
+        </section>
+
+        <section class="card" id="card-output">
+          <header class="card-head">
+            <h2><span class="step">4</span> 输出</h2>
+          </header>
+          <div class="field-row">
+            <div class="field">
+              <span class="field-label">视频速度</span>
+              <div class="seg full" role="group" aria-label="视频速度" id="speed-seg">
+                <button type="button" class="seg-btn" data-speed="0.75">舒缓</button>
+                <button type="button" class="seg-btn active" data-speed="1">标准</button>
+                <button type="button" class="seg-btn" data-speed="1.5">畅快</button>
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-label">帧率</span>
+              <div class="seg full" role="group" aria-label="帧率" id="fps-seg">
+                <button type="button" class="seg-btn active" data-fps="24">24 fps</button>
+                <button type="button" class="seg-btn" data-fps="30">30 fps</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="action-bar">
+          <button type="button" id="btn-preview" class="btn btn-secondary">▢ 导出静图</button>
+          <button type="button" id="btn-render" class="btn btn-primary">▶ 生成书写视频</button>
+        </div>
+      </div>
+
+      <!-- Right: canvas -->
+      <div class="canvas">
+        <div class="canvas-head">
+          <div class="seg" role="tablist" aria-label="画布">
+            <button type="button" role="tab" class="seg-btn active" id="tab-live" data-canvas="live" aria-selected="true">实时试写</button>
+            <button type="button" role="tab" class="seg-btn" id="tab-result" data-canvas="result" aria-selected="false">最新成品 <i class="dot" id="result-dot" hidden></i></button>
+          </div>
+          <span class="canvas-meta" id="canvas-meta"></span>
+        </div>
+
+        <div id="job-progress" class="job-progress" hidden>
+          <div class="job-progress-bar"><i id="job-progress-fill"></i></div>
+          <span id="job-progress-text"></span>
+        </div>
+
+        <!-- live stage -->
+        <div id="pane-live" class="pane">
+          <div class="stage-viewport" id="stage-viewport">
+            <div class="stage-paper vertical" id="stage-paper">
+              <div class="stage-text" id="stage-text">明月松间照</div>
+            </div>
+          </div>
+          <p class="stage-caption" id="stage-caption"></p>
+        </div>
+
+        <!-- result viewer -->
+        <div id="pane-result" class="pane" hidden>
+          <div id="result-empty" class="empty">
+            <p>还没有成品</p>
+            <small>点击「导出静图」或「生成书写视频」，结果会出现在这里；全部记录可在「历史」中查看。</small>
+          </div>
+          <div id="result-body" hidden>
+            <div class="viewer" id="result-viewer"></div>
+            <div class="result-actions">
+              <button type="button" class="btn btn-ghost btn-sm" id="result-zoom">实际大小</button>
+              <a class="btn btn-secondary btn-sm" id="result-download" href="#" download>⬇ 下载</a>
+              <a class="btn btn-ghost btn-sm" href="#history">在历史中查看</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VIEW: History ============ -->
+  <section id="view-history" class="view" aria-labelledby="history-title" hidden>
+    <div class="page-head">
+      <div>
+        <h1 id="history-title">历史记录</h1>
+        <p class="page-desc">本浏览器会话中的静图与视频任务。点击记录查看完整成品。</p>
+      </div>
+      <div class="toolbar">
+        <div class="chip-row scroll" id="history-filters" role="group" aria-label="筛选">
+          <button type="button" class="chip active" data-hf="all">全部</button>
+          <button type="button" class="chip" data-hf="render">视频</button>
+          <button type="button" class="chip" data-hf="preview">静图</button>
+          <button type="button" class="chip" data-hf="active">进行中</button>
+          <button type="button" class="chip" data-hf="failed">失败</button>
+        </div>
+        <input type="search" id="history-search" class="search" placeholder="搜索文字或字体" aria-label="搜索历史">
+      </div>
+    </div>
+    <div id="history-grid" class="history-grid"></div>
+    <div id="history-empty" class="empty" hidden>
+      <p>暂无记录</p>
+      <small>在「创作」中生成静图或视频后，会出现在这里。</small>
+      <a class="btn btn-primary btn-sm" href="#create">去创作</a>
+    </div>
+  </section>
+
+  <!-- ============ VIEW: Fonts ============ -->
+  <section id="view-fonts" class="view" aria-labelledby="fonts-title" hidden>
+    <div class="page-head">
+      <div>
+        <h1 id="fonts-title">字库鉴赏</h1>
+        <p class="page-desc" id="fonts-summary">历代名家书法字库 · 查阅出处与协议，一键用于创作。</p>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="fonts-search" class="search" placeholder="搜索名家、字库、碑帖…" aria-label="搜索字库">
+      </div>
+    </div>
+    <details class="filters" open>
+      <summary>筛选</summary>
+      <div class="filter-block">
+        <span class="field-label">风格</span>
+        <div class="chip-row wrap" data-filter="category">
+          <button type="button" class="chip active" data-val="all">全部</button>
+          <button type="button" class="chip" data-val="kaishu">楷书</button>
+          <button type="button" class="chip" data-val="lishu">隶书</button>
+          <button type="button" class="chip" data-val="songti">宋体·雕版</button>
+          <button type="button" class="chip" data-val="fangsong">仿宋</button>
+          <button type="button" class="chip" data-val="other">行草·魏碑·其他</button>
+        </div>
+      </div>
+      <div class="filter-block">
+        <span class="field-label">字形</span>
+        <div class="chip-row wrap" data-filter="support">
+          <button type="button" class="chip active" data-val="all">不限</button>
+          <button type="button" class="chip" data-val="trad">繁体</button>
+          <button type="button" class="chip" data-val="simp">简体</button>
+          <button type="button" class="chip" data-val="both">繁简兼备</button>
+        </div>
+      </div>
+      <div class="filter-block">
+        <span class="field-label">器具</span>
+        <div class="chip-row wrap" data-filter="medium">
+          <button type="button" class="chip active" data-val="all">不限</button>
+          <button type="button" class="chip" data-val="brush">毛笔</button>
+          <button type="button" class="chip" data-val="pen">硬笔</button>
+        </div>
+      </div>
+    </details>
+    <div id="fonts-grid" class="fonts-grid"></div>
+  </section>
+</main>
+
+<!-- ============ Bottom tab bar (mobile) ============ -->
+<nav class="tabbar" aria-label="主导航">
+  <a href="#create" data-nav="create"><i>✍</i><span>创作</span></a>
+  <a href="#history" data-nav="history"><i>🕮</i><span>历史</span><b class="badge-count" data-history-count hidden></b></a>
+  <a href="#fonts" data-nav="fonts"><i>字</i><span>字库</span></a>
+</nav>
+
+<!-- ============ Font picker ============ -->
+<dialog id="font-picker" class="sheet" aria-labelledby="picker-title">
+  <div class="sheet-inner">
+    <header class="sheet-head">
+      <h2 id="picker-title">选择字体</h2>
+      <button type="button" class="icon-btn" data-close aria-label="关闭">✕</button>
+    </header>
+    <div class="sheet-tools">
+      <input type="search" id="picker-search" class="search" placeholder="搜索字体、名家…" aria-label="搜索字体">
+      <div class="chip-row scroll" id="picker-cats" role="group" aria-label="风格">
+        <button type="button" class="chip active" data-cat="all">全部</button>
+        <button type="button" class="chip" data-cat="fav">★ 收藏</button>
+        <button type="button" class="chip" data-cat="engine">笔画引擎</button>
+        <button type="button" class="chip" data-cat="kaishu">楷书</button>
+        <button type="button" class="chip" data-cat="lishu">隶书</button>
+        <button type="button" class="chip" data-cat="songti">宋体</button>
+        <button type="button" class="chip" data-cat="fangsong">仿宋</button>
+        <button type="button" class="chip" data-cat="other">行草·其他</button>
+      </div>
+      <div class="chip-row scroll" id="picker-support" role="group" aria-label="字形">
+        <button type="button" class="chip active" data-sup="all">繁简不限</button>
+        <button type="button" class="chip" data-sup="trad">繁体</button>
+        <button type="button" class="chip" data-sup="simp">简体</button>
+      </div>
+    </div>
+    <ul id="picker-list" class="picker-list"></ul>
+  </div>
+</dialog>
+
+<!-- ============ Job detail ============ -->
+<dialog id="job-detail" class="sheet sheet-wide" aria-labelledby="detail-title">
+  <div class="sheet-inner">
+    <header class="sheet-head">
+      <h2 id="detail-title">成品</h2>
+      <button type="button" class="icon-btn" data-close aria-label="关闭">✕</button>
+    </header>
+    <div class="detail-body">
+      <div class="detail-media">
+        <div class="viewer" id="detail-viewer"></div>
+        <div class="result-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="detail-zoom">实际大小</button>
+          <a class="btn btn-secondary btn-sm" id="detail-download" href="#" download>⬇ 下载</a>
+        </div>
+      </div>
+      <aside class="detail-info">
+        <dl id="detail-meta" class="meta-list"></dl>
+        <h3>全文</h3>
+        <pre id="detail-text" class="detail-text"></pre>
+        <button type="button" class="btn btn-primary" id="detail-reuse">载入创作台继续编辑</button>
+      </aside>
+    </div>
+  </div>
+</dialog>
+
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+<script type="module" src="/js/app.js"></script>
 </body>
 </html>
