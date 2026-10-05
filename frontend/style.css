@@ -390,6 +390,23 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
 
 .tabbar { display: none; }
 
+/* Desktop keeps controls and artwork in separate viewport-height scroll panes. */
+@media (min-width: 961px) {
+  body[data-view="create"] .views { padding-bottom: 16px; }
+  .create-grid {
+    height: calc(100dvh - var(--topbar-h) - 33px);
+    min-height: 0;
+    align-items: stretch;
+  }
+  .create-grid > .compose, .create-grid > .canvas {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+  }
+  .compose > * { flex-shrink: 0; }
+}
+
 /* ---------- Tablet / Narrow screen (<= 960px) ---------- */
 @media (max-width: 960px) {
   .create-grid { display: flex; flex-direction: column; gap: 14px; }

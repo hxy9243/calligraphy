@@ -5,7 +5,9 @@ The backend API is unchanged.
 
 ## Structure
 - Three hash-routed views: `#create` (working), `#history` (past jobs), `#fonts` (catalogue).
-  Desktop uses a 2-column layout (compose left, preview right).
+  Desktop (> 960px) uses a viewport-height 2-column layout (compose left,
+  preview right), with independent scrolling in each pane. Scrolling controls
+  keeps the preview in view; long artwork can be scrolled separately on the right.
   Mobile and narrow viewports (<= 960px) place text input at the very top, followed by live preview, font, layout, and output controls.
   Viewports <= 640px use a bottom tab bar, a fixed floating action bar and bottom sheets.
 - Create flow: 1 text, 2 font, 3 layout, 4 output. Fonts are chosen in a searchable picker
