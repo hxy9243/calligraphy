@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as OpenCC from 'opencc-js';
 import { createFrontend, flush, jsonResponse } from './helpers/frontend.mjs';
 
 async function setup(t) {
@@ -41,7 +42,7 @@ test('script conversion uses server results and the requested direction', async 
 });
 
 const failures = {
-  unavailable: request => request.resolve(jsonResponse({ detail: 'zhconv unavailable' }, 503)),
+  unavailable: request => request.resolve(jsonResponse({ detail: 'opencc unavailable' }, 503)),
   network: request => request.reject(new Error('Offline')),
   malformed: request => request.resolve(jsonResponse({ detail: 'Missing text' })),
 };
@@ -234,4 +235,39 @@ test('missing characters in font triggers warning and blocks preview', async t =
   assert.equal(ui.input.value, '東去浪淘盡');
   assert.ok(warning.hidden, 'warning should be cleared after converting to traditional');
 });
+
+test('offline OpenCC engine preserves 千里 as 千里 and converts contextual characters', async t => {
+  const ui = await createFrontend({
+    setup: window => {
+      window.OpenCC = OpenCC;
+    },
+    fetch: ({ url, body }) => {
+      if (url !== '/api/convert-script') return undefined;
+      return Promise.reject(new Error('Network offline'));
+    },
+  });
+  t.after(ui.close);
+  const input = ui.document.getElementById('text-input');
+  input.value = '欲穷千里目，更上一层楼';
+  input.dispatchEvent(new ui.window.Event('input', { bubbles: true }));
+  ui.document.getElementById('btn-trad').click();
+  await flush();
+  assert.equal(input.value, '欲窮千里目，更上一層樓');
+
+  input.value = '千里之行，始于足下，屋里有人';
+  input.dispatchEvent(new ui.window.Event('input', { bubbles: true }));
+  ui.document.getElementById('btn-trad').click();
+  await flush();
+  assert.equal(input.value, '千里之行，始於足下，屋裏有人');
+});
+
+test('dictionary fallback without OpenCC engine also preserves 里 as 里', async t => {
+  const ui = await setup(t);
+  ui.setText('千里');
+  ui.click('btn-trad');
+  failures.unavailable(ui.conversions[0]);
+  await flush();
+  assert.equal(ui.input.value, '千里');
+});
+
 

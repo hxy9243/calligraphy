@@ -68,14 +68,16 @@ explicitly reviewed new expectations; changing a hash alone is not validation.
 
 ## Studio script conversion
 
-`calligraphy.text.converter` uses the declared `zhconv` Python dependency for
-Traditional/Simplified conversion. `POST /api/convert-script` accepts `simp` or
-`zh-hans`, and `trad` or `zh-hant`. Unsupported targets receive HTTP 422. If the
+`calligraphy.text.converter` uses the declared `opencc` Python dependency for
+high-precision contextual Traditional/Simplified conversion. `POST /api/convert-script` accepts
+`simp` or `zh-hans`, and `trad` or `zh-hant`. Unsupported targets receive HTTP 422. If the
 conversion engine cannot be imported, nonempty conversion requests receive HTTP
 503 rather than a successful response containing unchanged text.
 
-The studio can fall back to its limited offline character dictionary when the
-API is unavailable or malformed; the UI explicitly labels that result as partial
-and asks the user to check it. Conversion responses, including fallback results,
-apply only to the initiating text revision and latest script choice. Typing,
-choosing a preset or making a newer script choice supersedes older requests.
+Contextual expressions such as `千里` (as in `千里之行` or `欲穷千里目`) preserve `里`
+rather than corrupting it to `裏`, while orientation words like `屋里` correctly convert
+to `屋裏`. The browser studio loads `opencc-js` for client-side and offline conversion,
+falling back to an offline character dictionary if unavailable. Conversion responses,
+including fallback results, apply only to the initiating text revision and latest script
+choice. Typing, choosing a preset or making a newer script choice supersedes older requests.
+

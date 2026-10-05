@@ -21,9 +21,16 @@ class ScriptConversionTests(unittest.TestCase):
         self.assertEqual(convert_text(""), "")
         self.assertEqual(convert_text("永"), "永")
 
+    def test_qianli_and_polysemic_li_preserved_appropriately(self):
+        # 「千里」依然是「千里」，不应误转为「千裏」；「万里」->「萬里」；「屋里」->「屋裏」
+        self.assertEqual(convert_text("欲穷千里目，更上一层楼", "trad"), "欲窮千里目，更上一層樓")
+        self.assertEqual(convert_text("千里之行，始于足下", "trad"), "千里之行，始於足下")
+        self.assertEqual(convert_text("万里长征人未还", "trad"), "萬里長征人未還")
+        self.assertEqual(convert_text("屋里有人", "trad"), "屋裏有人")
+
     def test_missing_dependency_is_not_a_successful_noop(self):
-        with patch("calligraphy.text.converter.zhconv", None):
-            with self.assertRaisesRegex(ConversionUnavailableError, "zhconv"):
+        with patch("calligraphy.text.converter.opencc", None):
+            with self.assertRaisesRegex(ConversionUnavailableError, "opencc"):
                 convert_text("春眠不觉晓", "trad")
 
     def test_invalid_target_is_rejected(self):
@@ -33,11 +40,11 @@ class ScriptConversionTests(unittest.TestCase):
     def test_api_returns_explicit_unavailable_error(self):
         with tempfile.TemporaryDirectory() as directory:
             database = Database(f"sqlite:///{Path(directory) / 'test.db'}")
-            with patch("backend.database._DB_INSTANCE", database), patch("calligraphy.text.converter.zhconv", None):
+            with patch("backend.database._DB_INSTANCE", database), patch("calligraphy.text.converter.opencc", None):
                 client = TestClient(app)
                 response = client.post("/api/convert-script", json={"text": "鸟", "target": "trad"})
                 self.assertEqual(response.status_code, 503)
-                self.assertIn("zhconv", response.json()["detail"])
+                self.assertIn("opencc", response.json()["detail"])
                 self.assertNotIn("text", response.json())
 
     def test_api_validates_target_and_accepts_aliases(self):
