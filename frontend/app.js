@@ -132,9 +132,72 @@ function fallbackConvert(text, target) {
 }
 
 let allFonts = [];
+
+const BUILTIN_FONT_META = {
+  "kai": {
+    id: "kai",
+    name_zh: "标准楷书",
+    name_en: "Standard Kai (Stroke IR)",
+    style_category: "kaishu",
+    style_display: "楷书（拟合笔画）",
+    artist: "经典楷法",
+    dynasty_era: "历代法帖",
+    font_author: "Calligraphy Engine",
+    license: "开源引擎",
+    char_support: "both",
+    medium: "brush",
+    is_downloaded: 1,
+    aesthetic_notes: "基于历代楷书传世碑帖笔意拟合，起承转合结构端正，笔画骨力清健。",
+    historical_reference: "欧颜柳赵传世碑帖法度",
+    sample_text: "永和九年歲在癸丑"
+  },
+  "yan": {
+    id: "yan",
+    name_zh: "颜体楷书",
+    name_en: "Yan Style (Contact Strokes)",
+    style_category: "kaishu",
+    style_display: "颜体（接触笔画）",
+    artist: "颜真卿",
+    dynasty_era: "唐代",
+    font_author: "Calligraphy Engine",
+    license: "开源引擎",
+    char_support: "trad",
+    medium: "brush",
+    is_downloaded: 1,
+    aesthetic_notes: "颜真卿多宝塔碑真迹风骨，横轻竖重，雄健端穆，气势磅礴。",
+    historical_reference: "多宝塔碑真迹",
+    sample_text: "人有悲歡離合月陰晴圓缺"
+  },
+  "aa shoujin": {
+    id: "aa shoujin",
+    name_zh: "瘦金体",
+    name_en: "Shoujin (Slender Gold)",
+    style_category: "kaishu",
+    style_display: "瘦金体",
+    artist: "宋徽宗赵佶",
+    dynasty_era: "宋代",
+    font_author: "开源造字",
+    license: "开源协议",
+    char_support: "trad",
+    medium: "brush",
+    is_downloaded: 1,
+    aesthetic_notes: "宋徽宗赵佶独创，天骨遒美，逸趣横生，横舒竖敛，骨肉兼备。",
+    historical_reference: "秾芳诗帖、千字文",
+    sample_text: "秾芳依翠萼，妄发读幽寻"
+  }
+};
+
+function getFontMeta(styleId) {
+  if (!styleId) return undefined;
+  if (styleId === 'mashanzheng') styleId = 'mashanzheng-kai';
+  if (styleId === 'lishu hanwang') styleId = 'hanwang-lisu-medium';
+  if (styleId === 'longcang') styleId = 'longcang-xingshu';
+  return allFonts.find(f => f.id === styleId) || BUILTIN_FONT_META[styleId] || undefined;
+}
+
 let activeFilters = {
   category: "all",
-  char_support: "trad",
+  char_support: "all",
   medium: "all",
   search: ""
 };
@@ -426,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Determine character support of active selected font
   function getActiveFontCharSupport(targetId) {
     const styleId = targetId || (styleSelect ? styleSelect.value : '');
-    const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
+    const fontMeta = getFontMeta(styleId);
     if (fontMeta && fontMeta.char_support) return fontMeta.char_support;
     if (LOCAL_FONTS_MAP[styleId] && LOCAL_FONTS_MAP[styleId].charSupport) return LOCAL_FONTS_MAP[styleId].charSupport;
     return "both";
@@ -434,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getActiveFontDisplayName(targetId) {
     const styleId = targetId || (styleSelect ? styleSelect.value : '');
-    const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
+    const fontMeta = getFontMeta(styleId);
     if (fontMeta && fontMeta.name_zh) return fontMeta.name_zh;
     if (styleSelect) {
       const opt = Array.from(styleSelect.options).find(o => o.value === styleId);
@@ -776,10 +839,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Find font metadata in catalog if available
-    const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
+    const fontMeta = getFontMeta(styleId);
     if (fontMeta && activeFontBadge) {
       activeFontBadge.innerHTML = `
-        <strong>當前臨摹字庫：</strong>${fontMeta.name_zh} (${fontMeta.name_en}) ·
+        <strong>當前臨摹字庫：</strong>${fontMeta.name_zh} (${fontMeta.name_en || fontMeta.id}) ·
         <strong>書法脈系：</strong>${fontMeta.style_display} ·
         <strong>名家宗師：</strong>${fontMeta.artist} (${fontMeta.dynasty_era}) ·
         <strong>經典出處：</strong>${fontMeta.historical_reference || "傳世名作"}
@@ -1290,22 +1353,18 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    document.querySelectorAll(".chip-row[data-filter] .chip, .filter-pill").forEach(pill => {
+    document.querySelectorAll("[data-filter] .chip").forEach(pill => {
       pill.addEventListener("click", () => {
-        const parentGroup = pill.closest("[data-filter]") || pill.parentElement;
-        const filterType = parentGroup ? parentGroup.getAttribute("data-filter") : pill.getAttribute("data-filter");
+        const parentGroup = pill.closest("[data-filter]");
+        const filterType = parentGroup ? parentGroup.getAttribute("data-filter") : null;
         const val = pill.getAttribute("data-val");
+        if (!filterType) return;
 
-        parentGroup.querySelectorAll(".chip, .filter-pill").forEach(p => p.classList.remove("active"));
+        parentGroup.querySelectorAll(".chip").forEach(p => p.classList.remove("active"));
         pill.classList.add("active");
 
         if (filterType === "support") {
           activeFilters.char_support = val;
-          if (val === "trad") {
-            performScriptConversion("trad");
-          } else if (val === "simp") {
-            performScriptConversion("simp");
-          }
         } else {
           activeFilters[filterType] = val;
         }
@@ -1319,12 +1378,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!grid) return;
     grid.innerHTML = "";
 
-    const filtered = allFonts.filter(f => {
+    const catalogList = [
+      ...Object.values(BUILTIN_FONT_META),
+      ...allFonts.filter(f => !BUILTIN_FONT_META[f.id])
+    ];
+
+    const summaryEl = document.getElementById("fonts-summary");
+    if (summaryEl) {
+      summaryEl.textContent = `历代名家书法字库（共收录 ${catalogList.length} 款）· 查阅出处与协议，一键用于创作。`;
+    }
+
+    const filtered = catalogList.filter(f => {
       // 1. Style Category filter
-      if (activeFilters.category !== "all" && f.style_category !== activeFilters.category) {
-        return false;
+      if (activeFilters.category !== "all") {
+        if (activeFilters.category === "kaishu") {
+          if (f.style_category !== "kaishu" && f.style_category !== "engine") return false;
+        } else if (f.style_category !== activeFilters.category) {
+          return false;
+        }
       }
-      // 3. Char Support filter
+      // 2. Char Support filter
       if (activeFilters.char_support !== "all") {
         if (activeFilters.char_support === "trad" && f.char_support !== "trad" && f.char_support !== "both") {
           return false;
@@ -1336,19 +1409,19 @@ document.addEventListener('DOMContentLoaded', () => {
           return false;
         }
       }
-      // 4. Medium filter
+      // 3. Medium filter
       if (activeFilters.medium !== "all" && f.medium !== activeFilters.medium) {
         return false;
       }
-      // 5. Search
+      // 4. Search
       if (activeFilters.search) {
         const s = activeFilters.search;
-        const match = f.name_zh.toLowerCase().includes(s) ||
-                      f.name_en.toLowerCase().includes(s) ||
-                      f.artist.toLowerCase().includes(s) ||
-                      f.style_display.toLowerCase().includes(s) ||
+        const match = (f.name_zh && f.name_zh.toLowerCase().includes(s)) ||
+                      (f.name_en && f.name_en.toLowerCase().includes(s)) ||
+                      (f.artist && f.artist.toLowerCase().includes(s)) ||
+                      (f.style_display && f.style_display.toLowerCase().includes(s)) ||
                       (f.historical_reference && f.historical_reference.toLowerCase().includes(s)) ||
-                      f.font_author.toLowerCase().includes(s);
+                      (f.font_author && f.font_author.toLowerCase().includes(s));
         if (!match) return false;
       }
       return true;
@@ -1356,120 +1429,96 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (filtered.length === 0) {
       grid.innerHTML = `
-        <div style="grid-column: 1/-1; text-align: center; padding: 48px; color: var(--text-muted);">
-          未找到符合篩選條件的書法字庫。您可點擊「全部風格」或「全部繁簡」查看歷代名家法帖。
+        <div style="grid-column: 1/-1; text-align: center; padding: 48px; color: var(--muted);">
+          未找到符合筛选条件的书法字库。您可点击「全部」或调整筛选词查看历代名家法帖。
         </div>
       `;
       return;
     }
 
     filtered.forEach(font => {
-      const card = document.createElement("div");
-      const isDl = font.is_downloaded === 1;
-      card.className = `font-card ${isDl ? 'usable' : 'unavailable'}`;
+      const card = document.createElement("article");
+      card.className = "font-card";
+      card.dataset.fontId = font.id;
 
+      const isDl = font.is_downloaded === 1;
       const local = LOCAL_FONTS_MAP[font.id];
       const previewFontFamily = (isDl && local) ? `'${local.family}', var(--font-serif)` : "var(--font-serif)";
 
-      // Sample preview text adapted for Trad vs Simp (defaults to Traditional)
-      let previewText = font.sample_text || "永和九年，歲在癸丑";
+      let previewText = font.sample_text || "永和九年歲在癸丑";
       if (font.char_support === "simp") {
-        previewText = fallbackConvert(font.sample_text, "simp");
+        previewText = fallbackConvert(previewText, "simp");
       } else {
-        previewText = fallbackConvert(font.sample_text || "永和九年，歲在癸丑", "trad");
+        previewText = fallbackConvert(previewText, "trad");
       }
 
-      const charBadgeClass = font.char_support === "trad" ? "badge-trad" : (font.char_support === "simp" ? "badge-simp" : "badge-both");
-      const charBadgeText = font.char_support === "trad" ? "繁體支持" : (font.char_support === "simp" ? "簡體優先" : "繁簡兼備");
+      const supportLabel = font.char_support === "trad" ? "繁体支持" : (font.char_support === "simp" ? "简体优先" : "繁简兼备");
 
       card.innerHTML = `
-        <div class="card-header">
-          <div class="card-title-group">
-            <h3>${font.name_zh}</h3>
-            <div class="pinyin-en">${font.name_en}</div>
-          </div>
-          <div class="badge-row">
-            <span class="badge badge-style">${font.style_display}</span>
-            <span class="badge ${charBadgeClass}">${charBadgeText}</span>
-            <span class="badge ${font.medium === 'brush' ? 'badge-brush' : 'badge-pen'}">
-              ${font.medium === 'brush' ? '毛筆' : '硬筆'}
-            </span>
-            ${isDl ? '<span class="badge badge-dl">✓ 離線可用</span>' : '<span class="badge badge-unavailable">典藏未載</span>'}
-          </div>
+        <div>
+          <h3>${font.name_zh}</h3>
+          <div class="en">${font.name_en || ''}</div>
         </div>
-
-        <div class="card-glyph-preview" style="font-family: ${previewFontFamily};">
-          ${previewText.substring(0, 5)}
+        <div class="badges">
+          <span class="badge accent">${font.style_display}</span>
+          <span class="badge">${supportLabel}</span>
+          <span class="badge">${font.medium === 'pen' ? '硬笔' : '毛笔'}</span>
+          ${isDl ? '<span class="badge accent">✓ 离线可用</span>' : '<span class="badge">典藏收录</span>'}
         </div>
-
-        <div class="card-metadata-table">
-          <div class="meta-row">
-            <span class="meta-label">宗師名家：</span>
-            <span class="meta-value"><strong>${font.artist}</strong> (${font.dynasty_era})</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">經典法帖：</span>
-            <span class="meta-value">${font.historical_reference || "歷代名家書道真跡"}</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">開源造字：</span>
-            <span class="meta-value">${font.font_author}</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">開源協議：</span>
-            <span class="meta-value">${font.license}</span>
-          </div>
-        </div>
-
-        <div class="card-aesthetic-box">
-          ${font.aesthetic_notes}
-        </div>
-
-        <div class="card-actions">
+        <div class="glyph-sample" style="font-family: ${previewFontFamily};">${previewText.substring(0, 6)}</div>
+        <div class="aesthetic">${font.aesthetic_notes || ''}</div>
+        <details>
+          <summary>出处与协议</summary>
+          <dl class="meta-list">
+            <dt>名家</dt><dd>${font.artist} · ${font.dynasty_era}</dd>
+            <dt>法帖</dt><dd>${font.historical_reference || '历代名家书道真迹'}</dd>
+            <dt>造字</dt><dd>${font.font_author}</dd>
+            <dt>协议</dt><dd>${font.license}</dd>
+          </dl>
+        </details>
+        <div class="btn-row">
           ${isDl ? `
-            <button type="button" class="card-btn btn-try" data-id="${font.id}">
-              ✍️ 選用此字體創作
+            <button type="button" class="btn btn-primary btn-sm btn-use" data-id="${font.id}">
+              ✍ 用此字体创作
             </button>
           ` : `
-            <span class="card-btn" style="background:var(--paper-bg); color:var(--text-muted); cursor:not-allowed;">
-              📜 典藏收錄
+            <span class="btn btn-secondary btn-sm" style="cursor:not-allowed; opacity:0.6;">
+              📜 典藏收录
             </span>
           `}
-          <a href="${font.source_url}" target="_blank" rel="noopener noreferrer" class="card-btn btn-source">
-            🔗 查閱源項目
+          <a href="${font.source_url || '#'}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
+            源项目
           </a>
         </div>
       `;
 
-      // Select font into studio button
-      const tryBtn = card.querySelector(".btn-try");
-      if (tryBtn) {
-        tryBtn.addEventListener("click", () => {
+      const useBtn = card.querySelector(".btn-use");
+      if (useBtn) {
+        useBtn.addEventListener("click", () => {
           const targetStyleId = font.id === 'mashanzheng-kai' ? 'mashanzheng' : (font.id === 'hanwang-lisu-medium' ? 'lishu hanwang' : (font.id === 'longcang-xingshu' ? 'longcang' : font.id));
           
-          let optionExists = Array.from(styleSelect.options).some(o => o.value === targetStyleId || o.value === font.id);
-          if (optionExists) {
-            styleSelect.value = targetStyleId;
-          } else {
-            const newOpt = document.createElement('option');
-            newOpt.value = targetStyleId;
-            newOpt.textContent = `${font.name_zh} (${font.name_en})`;
-            styleSelect.appendChild(newOpt);
+          if (styleSelect) {
+            let optionExists = Array.from(styleSelect.options).some(o => o.value === targetStyleId || o.value === font.id);
+            if (!optionExists) {
+              const newOpt = document.createElement('option');
+              newOpt.value = targetStyleId;
+              newOpt.textContent = `${font.name_zh} (${font.name_en || font.id})`;
+              styleSelect.appendChild(newOpt);
+            }
             styleSelect.value = targetStyleId;
           }
 
-          // Apply selected font to live calligraphy stage immediately
           applySelectedFont(targetStyleId);
 
-          // Auto-convert script if font prefers it
           if (font.char_support === "trad" && currentScript !== "trad") {
             performScriptConversion('trad');
           } else if (font.char_support === "simp" && currentScript !== "simp") {
             performScriptConversion('simp');
           }
 
-          calligraphyStage.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          showStatus(`已選用【${font.name_zh}】，臨摹台已實時呈現，點擊「生成視頻」即可生成書寫動畫`, 'info');
+          location.hash = '#create';
+          showStatus(`已选用【${font.name_zh}】，创作台已就绪`, 'info');
+          setTimeout(hideStatus, 2500);
         });
       }
 
@@ -1574,11 +1623,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let pickerActiveSup = 'all';
   let recentFonts = ['kai'];
 
+  let favoriteFonts = ['kai', 'i-yan-kai', 'tw-sung', 'chill-qiuhong-kai'];
+  try {
+    const savedFav = localStorage.getItem('calligraphy.favorites');
+    if (savedFav) favoriteFonts = JSON.parse(savedFav);
+  } catch (_) {}
+
   function renderRecentFonts() {
     if (!fontRecent) return;
     fontRecent.innerHTML = '';
     recentFonts.slice(0, 5).forEach(id => {
-      const f = allFonts.find(x => x.id === id || (id === 'mashanzheng' && x.id === 'mashanzheng-kai'));
+      const f = getFontMeta(id);
       const name = f ? f.name_zh : id;
       const chip = document.createElement('button');
       chip.type = 'button';
@@ -1598,45 +1653,93 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!pickerList) return;
     pickerList.innerHTML = '';
     const q = pickerSearch ? pickerSearch.value.trim().toLowerCase() : '';
-    const filtered = allFonts.filter(f => {
-      if (pickerActiveCat !== 'all' && f.style_category !== pickerActiveCat) return false;
+
+    const catalogList = [
+      ...Object.values(BUILTIN_FONT_META),
+      ...allFonts.filter(f => !BUILTIN_FONT_META[f.id])
+    ];
+
+    const filtered = catalogList.filter(f => {
+      if (pickerActiveCat === 'fav') {
+        if (!favoriteFonts.includes(f.id)) return false;
+      } else if (pickerActiveCat === 'engine') {
+        if (f.style_category !== 'engine') return false;
+      } else if (pickerActiveCat === 'kaishu') {
+        if (f.style_category !== 'kaishu' && f.style_category !== 'engine') return false;
+      } else if (pickerActiveCat !== 'all') {
+        if (f.style_category !== pickerActiveCat) return false;
+      }
+
       if (pickerActiveSup !== 'all') {
         if (pickerActiveSup === 'trad' && f.char_support !== 'trad' && f.char_support !== 'both') return false;
         if (pickerActiveSup === 'simp' && f.char_support !== 'simp' && f.char_support !== 'both') return false;
       }
       if (q) {
-        const hay = [f.name_zh, f.name_en, f.artist, f.style_display, f.historical_reference, f.font_author].join(' ').toLowerCase();
+        const hay = [f.name_zh, f.name_en, f.artist, f.style_display, f.historical_reference, f.font_author].filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
 
+    if (filtered.length === 0) {
+      const emptyLi = document.createElement('li');
+      emptyLi.className = 'picker-empty';
+      emptyLi.textContent = '未找到匹配的字体';
+      pickerList.appendChild(emptyLi);
+      return;
+    }
+
     filtered.forEach(f => {
       const li = document.createElement('li');
       li.className = 'picker-item';
       const targetStyleId = f.id === 'mashanzheng-kai' ? 'mashanzheng' : (f.id === 'hanwang-lisu-medium' ? 'lishu hanwang' : (f.id === 'longcang-xingshu' ? 'longcang' : f.id));
-      const isSelected = styleSelect && styleSelect.value === targetStyleId;
-      if (isSelected) li.classList.add('selected');
+      const isSelected = styleSelect && (styleSelect.value === targetStyleId || styleSelect.value === f.id);
+      li.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+
       const fontInfo = LOCAL_FONTS_MAP[f.id];
       const fontFam = fontInfo ? `'${fontInfo.family}', var(--font-serif)` : 'var(--font-serif)';
+      const isFav = favoriteFonts.includes(f.id);
 
       li.innerHTML = `
-        <div class="picker-item-sample" style="font-family:${fontFam}">永</div>
-        <div class="picker-item-meta">
+        <div class="picker-sample" style="font-family:${fontFam}">永</div>
+        <div class="picker-info">
           <strong>${f.name_zh}</strong>
           <small>${f.style_display} · ${f.artist} (${f.dynasty_era})</small>
         </div>
-        <span class="badge ${f.char_support === 'trad' ? 'badge-trad' : (f.char_support === 'simp' ? 'badge-simp' : 'badge-both')}">
+        <span class="badge ${f.char_support === 'trad' ? 'accent' : ''}">
           ${f.char_support === 'trad' ? '繁体' : (f.char_support === 'simp' ? '简体' : '繁简')}
         </span>
+        <button type="button" class="star ${isFav ? 'on' : ''}" title="${isFav ? '取消收藏' : '收藏字体'}" aria-label="收藏">★</button>
       `;
+
+      const starBtn = li.querySelector('.star');
+      if (starBtn) {
+        starBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = favoriteFonts.indexOf(f.id);
+          if (idx >= 0) {
+            favoriteFonts.splice(idx, 1);
+            starBtn.classList.remove('on');
+          } else {
+            favoriteFonts.push(f.id);
+            starBtn.classList.add('on');
+          }
+          try {
+            localStorage.setItem('calligraphy.favorites', JSON.stringify(favoriteFonts));
+          } catch (_) {}
+          if (pickerActiveCat === 'fav') {
+            renderPicker();
+          }
+        });
+      }
+
       li.addEventListener('click', () => {
         if (styleSelect) {
-          let opt = Array.from(styleSelect.options).find(o => o.value === targetStyleId);
+          let opt = Array.from(styleSelect.options).find(o => o.value === targetStyleId || o.value === f.id);
           if (!opt) {
             opt = document.createElement('option');
             opt.value = targetStyleId;
-            opt.textContent = `${f.name_zh} (${f.name_en})`;
+            opt.textContent = `${f.name_zh} (${f.name_en || f.id})`;
             styleSelect.appendChild(opt);
           }
           styleSelect.value = targetStyleId;
@@ -1701,12 +1804,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const origApplySelectedFont = applySelectedFont;
   applySelectedFont = function(styleId) {
     origApplySelectedFont(styleId);
-    const fontMeta = allFonts.find(f => f.id === styleId || (styleId === 'mashanzheng' && f.id === 'mashanzheng-kai'));
+    const fontMeta = getFontMeta(styleId);
     const fontInfo = LOCAL_FONTS_MAP[styleId];
-    if (fontCurrentName) fontCurrentName.textContent = fontMeta ? fontMeta.name_zh : styleId;
-    if (fontCurrentSub && fontMeta) fontCurrentSub.textContent = `${fontMeta.style_display} · ${fontMeta.artist}`;
+    if (fontCurrentName) fontCurrentName.textContent = fontMeta ? fontMeta.name_zh : (styleId || '标准楷书');
+    if (fontCurrentSub) fontCurrentSub.textContent = fontMeta ? `${fontMeta.style_display} · ${fontMeta.artist} (${fontMeta.dynasty_era})` : '';
     if (fontCurrentGlyph) fontCurrentGlyph.style.fontFamily = fontInfo ? `'${fontInfo.family}', var(--font-serif)` : 'var(--font-serif)';
-    if (fontNote && fontMeta) fontNote.textContent = fontMeta.aesthetic_notes || '';
+    if (fontNote) fontNote.textContent = fontMeta ? (fontMeta.aesthetic_notes || '') : '';
     if (!recentFonts.includes(styleId)) {
       recentFonts = [styleId, ...recentFonts].slice(0, 5);
       renderRecentFonts();
