@@ -4,11 +4,13 @@ Shared source for reproducible Chinese calligraphy images and writing animations
 The sibling **calligraphy-lab** repository contains experiments, fitting workflows,
 reference artwork, comparisons and research videos.
 
-The repository provides a complete 100% Python backend and rendering engine (`calligraphy`
-and `backend/`), an interactive web studio (`frontend/`), generic Han-text fitted Kai
-rendering, extensible font-derived style fitting, and reproducible still/video exporters.
-JavaScript is used solely for the browser client interface (`frontend/`) and interactive
-browser demos (`examples/`), with no Node server required at runtime.
+The default rendering engine (`calligraphy/`) and studio backend (`backend/`) are
+implemented in Python. The repository includes an interactive web studio
+(`frontend/`), generic Han-text fitted Kai rendering, extensible font-derived style
+fitting, and reproducible still/video exporters.
+JavaScript powers the browser interface and interactive demos. Legacy JavaScript
+scene, export and Python bridge APIs remain in `src/`; the default CLI and studio
+do not require a Node server.
 
 ## Quickstart and Installation
 
@@ -23,7 +25,8 @@ pip install -e .
 The package is distributed as `calligraphy-engine` and provides the `calligraphy` CLI
 command (as well as `python -m calligraphy.cli`). FFmpeg must be on PATH for video export.
 
-Node.js is optional—only needed if you want to develop browser demos or run JavaScript regression tests:
+Node.js is optional for the Python CLI and studio. Install Node dependencies to
+use legacy JavaScript export APIs or develop and test the browser code:
 
 ```sh
 npm ci
@@ -113,9 +116,15 @@ Its 95% shape results are measured at 480px, not guaranteed at every output size
 
 ## Run the Web Studio and API
 
-The studio backend is a FastAPI service with asynchronous worker rendering and SQLite storage:
+The studio backend is a FastAPI service with asynchronous worker rendering and
+SQLite storage. The engine installation above does not install the studio's
+server dependencies.
+From the repository root, with the virtual environment activated:
 
 ```sh
+# Install the additional studio dependencies
+pip install fastapi 'uvicorn[standard]' 'pydantic>=2,<3'
+
 # Start the studio API and static web UI
 uvicorn backend.app:app --reload --port 8000
 # or via npm alias:
@@ -123,6 +132,9 @@ npm run serve:api
 ```
 
 Open <http://localhost:8000> to interact with the studio in the browser.
+Still previews execute synchronously; video requests enter the SQLite-backed
+background queue. See [studio jobs](spec/studio-jobs.md) for job ownership,
+deduplication and browser status behavior.
 
 For the static legacy browser examples (永 and poem couplet):
 
@@ -150,6 +162,44 @@ calligraphy --text "明月松间照，清泉石上流" --per-line 5 --style yan 
 ```
 
 Video dimensions must be even numbers. FFmpeg must be installed and on PATH.
+
+## Animation pipeline and OpenCV
+
+The default Python pipeline is:
+
+```text
+Text + style + settings → character geometry → layout and writing schedule
+                       → contact-brush frames → PNG/SVG or FFmpeg MP4
+```
+
+`SceneSpec` in `calligraphy/spec.py` describes the request. `create_scene()` in
+`calligraphy/renderer.py` resolves the style and prepares or loads ordered strokes.
+`calligraphy/text/layout.py` places characters; `calligraphy/text/plan.py` assigns
+writing times. Generic Kai/Yan uses fitted Stroke IR; built-in contact styles use
+prepared collections; registered fonts combine font silhouettes with canonical
+stroke guides. Font-derived motion is inferred, not recovered historical brushwork.
+
+`calligraphy/styled_contact_scene.py` assembles each frame through the shared
+contact brush. Completed characters reuse cached masks; the active character
+deposits ink progressively. Backward seeks reset and replay the active painters.
+Still and video exporters use the same frame implementation.
+
+OpenCV (`opencv-python-headless`, imported as `cv2`) supplies shape analysis and
+raster drawing operations:
+
+| Functionality | Main module | OpenCV operations |
+| --- | --- | --- |
+| Extract stroke boundaries and check connected ink/holes | `calligraphy/stroke_fitting.py` | `findContours`, `contourArea`, `connectedComponents` |
+| Preserve disconnected pieces of a font-derived stroke | `calligraphy/font_pipeline.py` | `connectedComponentsWithStats`, `dilate` |
+| Locate crossing regions and check repair connectivity | `calligraphy/stroke_crossings.py` | `dilate`, `connectedComponents` |
+| Paint contact strips and downsample supersampled coverage | `calligraphy/brush_grammar.py` | `fillPoly`, `resize` |
+| Alternative elliptical brush and experimental contour cleanup | `calligraphy/paint_brush.py`, `calligraphy/stroke_cleanup.py` | `fillConvexPoly`, `approxPolyDP`, `morphologyEx` |
+
+The default `ContactBrush` paints successive quadrilaterals on a 3× canvas, then
+downsamples the accumulated ink mask for smooth edges. Pillow handles page
+composition and font rasterization; scikit-image supplies optical-flow alignment
+and skeleton extraction; SciPy handles interpolation and optimization; FFmpeg
+encodes video. Stroke order comes from the supplied guides.
 
 ## Source layout
 
