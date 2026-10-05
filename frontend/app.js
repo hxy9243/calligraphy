@@ -1195,6 +1195,264 @@ document.addEventListener('DOMContentLoaded', () => {
   let jobsLoadVersion = 0;
   let hasActiveJobs = false;
   const activeJobStatuses = new Set(['queued', 'rendering', 'running']);
+  let cachedJobs = [];
+  let historyActiveFilter = 'all';
+  let historySearchQuery = '';
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Job detail dialog controls
+  const jobDetail = document.getElementById('job-detail');
+  const detailViewer = document.getElementById('detail-viewer');
+  const detailZoom = document.getElementById('detail-zoom');
+  const detailDownload = document.getElementById('detail-download');
+  const detailMeta = document.getElementById('detail-meta');
+  const detailText = document.getElementById('detail-text');
+  const detailReuse = document.getElementById('detail-reuse');
+
+  if (detailZoom) {
+    detailZoom.addEventListener('click', () => {
+      if (detailViewer) {
+        const isActual = detailViewer.classList.toggle('actual');
+        detailZoom.textContent = isActual ? '适应窗口' : '实际大小';
+      }
+    });
+  }
+
+  function openJobDetail(j) {
+    if (!jobDetail) return;
+    const isVideo = j.job_type === 'render';
+    const videoSrc = j.video_url || `/api/jobs/${j.job_id}/video`;
+    const imageSrc = j.download_url || `/api/jobs/${j.job_id}/image`;
+    const dlSrc = j.download_url || (isVideo ? `/api/jobs/${j.job_id}/download` : imageSrc);
+
+    if (detailViewer) {
+      detailViewer.innerHTML = '';
+      if (j.status === 'succeeded') {
+        if (isVideo) {
+          const vid = document.createElement('video');
+          vid.src = videoSrc;
+          vid.controls = true;
+          vid.autoplay = true;
+          vid.loop = true;
+          vid.playsInline = true;
+          detailViewer.appendChild(vid);
+        } else {
+          const img = document.createElement('img');
+          img.src = imageSrc;
+          img.alt = '成品预览';
+          detailViewer.appendChild(img);
+        }
+      } else {
+        const ph = document.createElement('div');
+        ph.className = 'placeholder';
+        ph.textContent = j.status === 'failed' ? (j.error_message || '任务失败') : '任务正在渲染中…';
+        detailViewer.appendChild(ph);
+      }
+    }
+
+    if (detailDownload) {
+      if (j.status === 'succeeded') {
+        detailDownload.href = dlSrc;
+        detailDownload.setAttribute('download', isVideo ? `calligraphy_${j.job_id}.mp4` : `calligraphy_${j.job_id}.svg`);
+        detailDownload.hidden = false;
+      } else {
+        detailDownload.hidden = true;
+      }
+    }
+
+    const fontMeta = getFontMeta(j.style);
+    const fontName = fontMeta ? fontMeta.name_zh : j.style;
+    const timeStr = j.created_at ? j.created_at.replace('T', ' ').substring(0, 16) : '';
+    const statusLabel = j.status === 'succeeded' ? '已完成' : (j.status === 'failed' ? '失败' : '进行中');
+
+    if (detailMeta) {
+      detailMeta.innerHTML = `
+        <dt>任务类型</dt><dd>${isVideo ? '书写视频' : '矢量静图'}</dd>
+        <dt>所用字库</dt><dd>${escapeHtml(fontName)} (${escapeHtml(j.style)})</dd>
+        <dt>任务状态</dt><dd>${statusLabel}</dd>
+        <dt>创建时间</dt><dd>${timeStr}</dd>
+        <dt>任务编号</dt><dd>${escapeHtml(j.job_id)}</dd>
+      `;
+    }
+
+    if (detailText) {
+      detailText.textContent = j.text || '';
+    }
+
+    if (detailReuse) {
+      detailReuse.onclick = () => {
+        if (textInput) {
+          textInput.value = j.text || '';
+          updateText();
+        }
+        if (styleSelect) {
+          let opt = Array.from(styleSelect.options).find(o => o.value === j.style);
+          if (!opt && fontMeta) {
+            opt = document.createElement('option');
+            opt.value = j.style;
+            opt.textContent = `${fontMeta.name_zh} (${fontMeta.name_en || j.style})`;
+            styleSelect.appendChild(opt);
+          }
+          if (opt) styleSelect.value = j.style;
+        }
+        applySelectedFont(j.style);
+        jobDetail.close();
+        location.hash = '#create';
+        showStatus('已将历史任务参数与文本载入创作台', 'info');
+        setTimeout(hideStatus, 2500);
+      };
+    }
+
+    jobDetail.showModal();
+  }
+
+  // History filters & search
+  const historyFilters = document.getElementById('history-filters');
+  if (historyFilters) {
+    historyFilters.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      historyFilters.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      historyActiveFilter = chip.dataset.hf || 'all';
+      renderJobList();
+    });
+  }
+
+  const historySearch = document.getElementById('history-search');
+  if (historySearch) {
+    historySearch.addEventListener('input', (e) => {
+      historySearchQuery = e.target.value.trim().toLowerCase();
+      renderJobList();
+    });
+  }
+
+  function renderJobList() {
+    if (!jobsList) return;
+    const historyEmpty = document.getElementById('history-empty');
+
+    const filtered = cachedJobs.filter(j => {
+      if (historyActiveFilter === 'render' && j.job_type !== 'render') return false;
+      if (historyActiveFilter === 'preview' && j.job_type !== 'preview') return false;
+      if (historyActiveFilter === 'active' && !activeJobStatuses.has(j.status)) return false;
+      if (historyActiveFilter === 'failed' && j.status !== 'failed') return false;
+
+      if (historySearchQuery) {
+        const q = historySearchQuery;
+        const fontMeta = getFontMeta(j.style);
+        const fontName = fontMeta ? fontMeta.name_zh : j.style;
+        const hay = [j.text, j.style, fontName].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    if (historyEmpty) {
+      historyEmpty.hidden = filtered.length > 0;
+    }
+
+    if (filtered.length === 0) {
+      jobsList.innerHTML = cachedJobs.length === 0
+        ? '<p class="empty-jobs">暫無生成任務</p>'
+        : '<p class="empty-jobs">未找到符合条件的任务记录</p>';
+      return;
+    }
+
+    jobsList.innerHTML = '';
+    filtered.forEach(j => {
+      const item = document.createElement('div');
+      item.className = 'job-card job-item';
+      item.dataset.jobId = j.job_id;
+
+      const isVideo = j.job_type === 'render';
+      const videoSrc = j.video_url || `/api/jobs/${j.job_id}/video`;
+      const imageSrc = j.download_url || `/api/jobs/${j.job_id}/image`;
+      const dlSrc = j.download_url || (isVideo ? `/api/jobs/${j.job_id}/download` : imageSrc);
+
+      const pct = Math.round(Math.max(0, Math.min(1, j.progress || 0)) * 100);
+      const statusLabels = {
+        queued: '排队中',
+        rendering: `渲染中 (${pct}%)`,
+        running: `渲染中 (${pct}%)`,
+        succeeded: '完成',
+        failed: '失败',
+      };
+      const statusLabel = statusLabels[j.status] || j.status;
+      const fontMeta = getFontMeta(j.style);
+      const fontName = fontMeta ? fontMeta.name_zh : j.style;
+      const timeStr = j.created_at ? (j.created_at.split('T')[1]?.substring(0, 5) || '') : '';
+
+      let thumbHtml = '';
+      if (j.status === 'succeeded') {
+        if (isVideo) {
+          thumbHtml = `<video src="${videoSrc}" muted preload="metadata"></video>`;
+        } else {
+          thumbHtml = `<img src="${imageSrc}" alt="预览" loading="lazy" />`;
+        }
+      } else if (j.status === 'failed') {
+        thumbHtml = `<div class="placeholder">渲染失败</div>`;
+      } else {
+        thumbHtml = `<div class="placeholder">生成中 (${pct}%)</div>`;
+      }
+
+      item.innerHTML = `
+        <div class="job-thumb">
+          <span class="job-kind">${isVideo ? '视频' : '静图'}</span>
+          ${thumbHtml}
+        </div>
+        <div class="job-body">
+          <div class="job-text">${escapeHtml(j.text || '')}</div>
+          <div class="job-meta">
+            <span class="job-details">${escapeHtml(fontName)} · ${timeStr}</span>
+            <span class="status ${j.status} job-status-badge">${statusLabel}</span>
+          </div>
+          ${activeJobStatuses.has(j.status) ? `<div class="mini-bar"><i style="width:${pct}%"></i></div>` : ''}
+          ${j.status === 'failed' && j.error_message ? `<span class="job-details job-error">${escapeHtml(j.error_message)}</span>` : ''}
+          ${j.status === 'succeeded' ? `
+            <div class="job-action">
+              <button type="button" class="btn btn-secondary btn-sm btn-play-mini">${isVideo ? '▶ 播放' : '👁 查看'}</button>
+              <a href="${dlSrc}" download="calligraphy_${j.job_id}.${isVideo ? 'mp4' : 'svg'}" class="btn btn-secondary btn-sm btn-download">下载 MP4</a>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('a')) return;
+        openJobDetail(j);
+      });
+
+      const playBtn = item.querySelector('.btn-play-mini');
+      if (playBtn) {
+        playBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (isVideo) {
+            showVideo(videoSrc, dlSrc);
+          } else {
+            showPreviewImage(imageSrc);
+          }
+        });
+      }
+
+      const dlBtn = item.querySelector('.btn-download');
+      if (dlBtn) {
+        dlBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+      }
+
+      jobsList.appendChild(item);
+    });
+  }
 
   // Load session job history
   async function loadJobs() {
@@ -1206,92 +1464,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       // Ignore an older refresh that finishes after a new submission/refresh.
       if (version !== jobsLoadVersion) return;
-      {
-        hasActiveJobs = (data.jobs || []).some(j => activeJobStatuses.has(j.status));
-        if (!data.jobs || data.jobs.length === 0) {
-          jobsList.innerHTML = '<p class="empty-jobs">暫無生成任務</p>';
-          return;
+
+      cachedJobs = data.jobs || [];
+      hasActiveJobs = cachedJobs.some(j => activeJobStatuses.has(j.status));
+
+      const historyCountBadge = document.querySelector('[data-history-count]');
+      if (historyCountBadge) {
+        const activeCount = cachedJobs.filter(j => activeJobStatuses.has(j.status)).length;
+        if (activeCount > 0) {
+          historyCountBadge.textContent = activeCount;
+          historyCountBadge.hidden = false;
+        } else if (cachedJobs.length > 0) {
+          historyCountBadge.textContent = cachedJobs.length;
+          historyCountBadge.hidden = false;
+        } else {
+          historyCountBadge.hidden = true;
         }
-
-        jobsList.innerHTML = '';
-        data.jobs.forEach(j => {
-          const item = document.createElement('div');
-          item.className = 'job-item';
-          item.dataset.jobId = j.job_id;
-
-          const meta = document.createElement('div');
-          meta.className = 'job-meta';
-
-          const textEl = document.createElement('span');
-          textEl.className = 'job-text';
-          textEl.textContent = j.text.length > 15 ? j.text.substring(0, 15) + '...' : j.text;
-
-          const details = document.createElement('span');
-          details.className = 'job-details';
-          details.textContent = `${j.style} · ${j.created_at.split('T')[1].substring(0, 5)}`;
-
-          meta.appendChild(textEl);
-          meta.appendChild(details);
-          if (j.status === 'failed' && j.error_message) {
-            const error = document.createElement('span');
-            error.className = 'job-details job-error';
-            error.textContent = j.error_message;
-            meta.appendChild(error);
-          }
-
-          const action = document.createElement('div');
-          action.className = 'job-action';
-          const badge = document.createElement('span');
-          badge.className = `job-status-badge ${j.status}`;
-          const pct = Math.round(Math.max(0, Math.min(1, j.progress || 0)) * 100);
-          const statusLabels = {
-            queued: '排队中',
-            rendering: `渲染中 (${pct}%)`,
-            running: `渲染中 (${pct}%)`,
-            succeeded: '完成',
-            failed: '失败',
-          };
-          badge.textContent = statusLabels[j.status] || j.status;
-          action.appendChild(badge);
-
-          if (j.status === 'succeeded' && j.job_type === 'render') {
-            const videoSrc = j.video_url || `/api/jobs/${j.job_id}/video`;
-            const dlSrc = j.download_url || `/api/jobs/${j.job_id}/download`;
-
-            const playBtn = document.createElement('button');
-            playBtn.type = 'button';
-            playBtn.className = 'btn-play-mini';
-            playBtn.textContent = '▶ 播放';
-            playBtn.title = '在上方視窗播放視頻';
-            playBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              showVideo(videoSrc, dlSrc);
-            });
-            action.appendChild(playBtn);
-
-            const dl = document.createElement('a');
-            dl.href = dlSrc;
-            dl.className = 'btn-download';
-            dl.textContent = '下載 MP4';
-            dl.setAttribute('download', `calligraphy_${j.job_id}.mp4`);
-            action.appendChild(dl);
-          } else if (j.status === 'succeeded' && j.job_type === 'preview') {
-            const viewBtn = document.createElement('button');
-            viewBtn.type = 'button';
-            viewBtn.className = 'btn-play-mini';
-            viewBtn.textContent = '👁 查看';
-            viewBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              showPreviewImage(j.download_url || `/api/jobs/${j.job_id}/image`);
-            });
-            action.appendChild(viewBtn);
-          }
-
-          item.appendChild(meta);
-          item.appendChild(action);
-          jobsList.appendChild(item);
-        });
       }
+
+      renderJobList();
     } catch (e) {
       console.warn('Failed to load session jobs:', e);
     } finally {

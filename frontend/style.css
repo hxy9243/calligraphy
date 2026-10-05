@@ -308,22 +308,32 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 
 /* ---------- History ---------- */
 .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
-.job-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; text-align: left; padding: 0; box-shadow: var(--shadow); transition: transform .12s, border-color .12s; }
+.job-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; text-align: left; padding: 0; box-shadow: var(--shadow); transition: transform .12s, border-color .12s; cursor: pointer; }
 .job-card:hover { transform: translateY(-2px); border-color: var(--accent); }
 .job-thumb { aspect-ratio: 4 / 3; background: var(--paper); display: grid; place-items: center; overflow: hidden; border-bottom: 1px solid var(--line); position: relative; }
 .job-thumb img, .job-thumb video { width: 100%; height: 100%; object-fit: contain; }
 .job-thumb .placeholder { color: var(--muted); font-size: 13px; text-align: center; padding: 8px; }
-.job-kind { position: absolute; top: 8px; left: 8px; font-size: 11px; background: rgba(0,0,0,.55); color: #fff; border-radius: 6px; padding: 1px 7px; }
-.job-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+.job-kind { position: absolute; top: 8px; left: 8px; font-size: 11px; background: rgba(0,0,0,.55); color: #fff; border-radius: 6px; padding: 1px 7px; z-index: 1; }
+.job-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .job-text { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; min-height: 3em; word-break: break-all; }
-.job-meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+.job-meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
 .job-meta span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.status { font-weight: 600; flex: none; }
+.status { font-weight: 600; flex: none; font-size: 12px; }
 .status.succeeded { color: var(--ok); }
 .status.failed { color: var(--seal); }
 .status.running, .status.queued { color: var(--accent); }
 .mini-bar { height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-top: 4px; }
 .mini-bar i { display: block; height: 100%; background: var(--accent); }
+.job-error { color: var(--seal); font-size: 12px; margin-top: 2px; word-break: break-all; }
+.job-action { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
+.job-action .btn, .job-action .btn-play-mini, .job-action .btn-download { flex: 1; font-size: 12px; padding: 4px 8px; border-radius: 6px; text-align: center; text-decoration: none; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.job-action .btn-play-mini { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
+.job-action .btn-play-mini:hover { background: var(--accent); color: #fff; }
+.job-action .btn-download:hover { border-color: var(--accent); color: var(--accent); }
+.empty-jobs { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 48px; }
+#detail-viewer { display: flex; align-items: center; justify-content: center; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); min-height: 260px; overflow: hidden; }
+#detail-viewer img, #detail-viewer video { max-width: 100%; max-height: 360px; object-fit: contain; }
+#detail-viewer.actual img, #detail-viewer.actual video { max-width: none; max-height: none; }
 
 /* ---------- Fonts view ---------- */
 .filters { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 14px 10px; margin-bottom: 14px; }
