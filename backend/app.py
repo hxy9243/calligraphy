@@ -172,6 +172,7 @@ def list_styles():
         "genwan-min": "源雲明體 (GenWanMin)",
         "cwtex-fangsong": "cwTeX 仿宋體 (cwTeX FangSong)",
         "hanwang-shinsu": "王漢宗中新書繁 (HanWang ShinSu)",
+        "shutifang-liugongquan-kai": "書體坊柳公權楷 (ShuTiFang Liu GongQuan)",
     }
     for entry in registered_styles():
         display_name = font_names.get(entry["style"], entry["style"])

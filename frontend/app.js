@@ -36,6 +36,7 @@ const LOCAL_FONTS_MAP = {
   "hanwang-simplified-kai": { family: "HanWangSimplifiedKai", file: "fonts/HanWangSimplifiedKai.ttf", charSupport: "simp" },
   "hanwang-phonetic-kai": { family: "HanWangPhoneticKai", file: "fonts/HanWangPhoneticKai.ttf", charSupport: "trad" },
   "hanwang-hollow-kai": { family: "HanWangHollowKai", file: "fonts/HanWangHollowKai.ttf", charSupport: "trad" },
+  "shutifang-liugongquan-kai": { family: "ShuTiFangLiuGongQuanKai", file: "fonts/ShuTiFangLiuGongQuanKai.ttf", charSupport: "both" },
 
   // Li Shu (隶书)
   "hanwang-lisu-medium": { family: "HanWangLiSuMedium", file: "fonts/HanWangLiSuMedium.ttf", charSupport: "trad" },
@@ -188,6 +189,37 @@ document.addEventListener('DOMContentLoaded', () => {
   const videoContainer = document.getElementById('video-container');
   const resultVideo = document.getElementById('result-video');
   const jobsList = document.getElementById('jobs-list');
+
+  const tabLive = document.getElementById('tab-live');
+  const tabResult = document.getElementById('tab-result');
+  const paneLive = document.getElementById('pane-live');
+  const paneResult = document.getElementById('pane-result');
+  const resultEmpty = document.getElementById('result-empty');
+  const resultBody = document.getElementById('result-body');
+
+  function setCanvasTab(tab) {
+    const live = tab === 'live';
+    if (paneLive) paneLive.hidden = !live;
+    if (paneResult) paneResult.hidden = live;
+    if (tabLive) {
+      tabLive.classList.toggle('active', live);
+      tabLive.setAttribute('aria-selected', String(live));
+    }
+    if (tabResult) {
+      tabResult.classList.toggle('active', !live);
+      tabResult.setAttribute('aria-selected', String(!live));
+    }
+  }
+
+  function revealResult() {
+    setCanvasTab('result');
+    if (resultEmpty) resultEmpty.hidden = true;
+    if (resultBody) resultBody.hidden = false;
+    if (exportOutputBox) exportOutputBox.classList.remove('hidden');
+  }
+
+  if (tabLive) tabLive.addEventListener('click', () => setCanvasTab('live'));
+  if (tabResult) tabResult.addEventListener('click', () => setCanvasTab('result'));
 
   const charCountEl = document.getElementById('char-count');
   const charCounterEl = document.getElementById('char-counter');
@@ -625,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showPreviewImage(url) {
-    if (exportOutputBox) exportOutputBox.classList.remove('hidden');
+    revealResult();
     videoContainer.classList.add('hidden');
     resultVideo.pause();
     previewImg.classList.remove('hidden');
@@ -637,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showPreviewSvg(svgContent) {
-    if (exportOutputBox) exportOutputBox.classList.remove('hidden');
+    revealResult();
     videoContainer.classList.add('hidden');
     resultVideo.pause();
     previewImg.classList.add('hidden');
@@ -655,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showVideo(videoUrl, downloadUrl) {
-    if (exportOutputBox) exportOutputBox.classList.remove('hidden');
+    revealResult();
     previewImageContainer.classList.add('hidden');
     const dlBtn = document.getElementById('btn-video-dl');
     if (dlBtn && (downloadUrl || videoUrl)) {
@@ -1324,28 +1356,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   window.addEventListener('hashchange', updateRoute);
   updateRoute();
-
-  // Canvas result tab switching
-  const tabLive = document.getElementById('tab-live');
-  const tabResult = document.getElementById('tab-result');
-  const paneLive = document.getElementById('pane-live');
-  const paneResult = document.getElementById('pane-result');
-
-  function setCanvasTab(tab) {
-    const live = tab === 'live';
-    if (paneLive) paneLive.hidden = !live;
-    if (paneResult) paneResult.hidden = live;
-    if (tabLive) {
-      tabLive.classList.toggle('active', live);
-      tabLive.setAttribute('aria-selected', String(live));
-    }
-    if (tabResult) {
-      tabResult.classList.toggle('active', !live);
-      tabResult.setAttribute('aria-selected', String(!live));
-    }
-  }
-  if (tabLive) tabLive.addEventListener('click', () => setCanvasTab('live'));
-  if (tabResult) tabResult.addEventListener('click', () => setCanvasTab('result'));
 
   // Theme selector
   const themeSelect = document.getElementById('theme-select');
