@@ -1208,5 +1208,27 @@
     "aesthetic_notes": "线条圆转回旋，字形圆融丰满，无角不圆，极富祥和欢腾的东方传统民俗意趣。",
     "sample_text": "紫氣東來\n萬象更新",
     "char_support": "trad"
+  },
+  {
+    "id": "shutifang-liugongquan-kai",
+    "name_zh": "书体坊柳公权楷 简繁",
+    "name_en": "ShuTiFang Liu Gongquan Kai",
+    "style_category": "kaishu",
+    "style_display": "柳体楷书 (Liu Gongquan Kai)",
+    "medium": "brush",
+    "artist": "柳公权 (Liu Gongquan, 778–865)",
+    "dynasty_era": "唐代 (Tang Dynasty)",
+    "historical_reference": "《玄秘塔碑》《金刚经碑》《神策军碑》",
+    "font_author": "禚效锋 (书体坊) / 方正字库",
+    "license": "商用须授权 / Commercial License Required (Founder Type)",
+    "license_type": "Commercial / Authorized",
+    "source_url": "https://www.fontowns.com/font/1226352/",
+    "is_downloaded": 1,
+    "file_path": "data/fonts/ShuTiFangLiuGongQuanKai.ttf",
+    "file_format": "ttf",
+    "file_size_bytes": 5902040,
+    "aesthetic_notes": "骨力遒劲，结体严谨，中宫紧敛，四肢舒展，兼具颜真卿之端庄与欧阳询之挺劲，深得柳体'颜筋柳骨'之绝妙精髓。",
+    "sample_text": "用筆在心\n心正則筆正",
+    "char_support": "both"
   }
 ]

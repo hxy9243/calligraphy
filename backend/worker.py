@@ -59,6 +59,8 @@ def _auto_prepare_font(style: str, text: str) -> None:
         license_path = licenses_dir / "WangFonts-GPL.txt"
     elif "arphic" in clean_style:
         license_path = licenses_dir / "Arphic-License.txt"
+    elif "shutifang" in clean_style or "liugongquan" in clean_style:
+        license_path = licenses_dir / "ShuTiFang-License.txt"
     else:
         license_path = licenses_dir / "MaShanZheng.ttf.OFL.txt"
 

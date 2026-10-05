@@ -10,6 +10,7 @@ STYLE_ALIASES = {
     "genwan-min": "genwan-min",
     "cwtex-fangsong": "cwtex-fangsong",
     "hanwang-shinsu": "hanwang-shinsu",
+    "shutifang-liugongquan-kai": "liugongquan",
 }
 
 
