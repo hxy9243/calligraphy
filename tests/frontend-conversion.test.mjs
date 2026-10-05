@@ -281,6 +281,34 @@ test('preset buttons display traditional names when traditional script is active
   assert.equal(ui.document.querySelector('.preset-btn').textContent, '王维联句');
 });
 
+test('traditional font does not warn on heritage characters like 丑 or 歲在癸丑', async t => {
+  const ui = await createFrontend({
+    setup: window => {
+      window.OpenCC = OpenCC;
+    }
+  });
+  t.after(ui.close);
+  const style = ui.document.getElementById('style-select');
+  style.appendChild(new ui.window.Option('hanwang-shinsu', 'hanwang-shinsu'));
+  style.value = 'hanwang-shinsu';
+  style.dispatchEvent(new ui.window.Event('change'));
+  await flush();
+
+  const input = ui.document.getElementById('text-input');
+  input.value = '永和九年\n歲在癸丑\n暮春之初';
+  input.dispatchEvent(new ui.window.Event('input', { bubbles: true }));
+  await flush();
+
+  const warning = ui.document.getElementById('char-warning');
+  assert.ok(warning.hidden, 'warning should be hidden for traditional text with 丑');
+
+  input.value = '丑';
+  input.dispatchEvent(new ui.window.Event('input', { bubbles: true }));
+  await flush();
+  assert.ok(warning.hidden, 'warning should be hidden for isolated 丑');
+});
+
+
 
 
 

@@ -534,6 +534,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return styleId || '当前字体';
   }
 
+  // Characters that exist in traditional Chinese (Big5 / ancient heritage characters)
+  // but may be converted by 1-to-1 default dictionaries (e.g. 丑 -> 醜, 里 -> 裏, 后 -> 後).
+  const TRAD_COMPAT_CHARS = new Set([
+    '丑', '里', '云', '余', '准', '几', '凶', '后', '复', '干', '庄', '征', '斗',
+    '杰', '极', '朴', '洒', '游', '群', '范', '触', '辟', '采', '谷', '面', '松',
+    '借', '只', '卜', '板', '卷', '折', '咸', '升', '台', '叶', '愿', '据', '晒',
+    '确', '秘', '筑', '雇', '适', '郁', '沈', '布', '帘', '系', '累', '克', '致',
+    '历', '舍', '姜', '回', '困', '蔑', '钟', '党'
+  ]);
+
   function getMissingCharacters(text, targetId) {
     if (!text) return [];
     const styleId = targetId || (styleSelect ? styleSelect.value : '');
@@ -551,11 +561,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (support === 'trad') {
+      const convertedFull = fallbackConvert(text, 'trad');
+      if (convertedFull === text) {
+        return [];
+      }
+      const textArr = [...text];
+      const convArr = [...convertedFull];
+      const changed = new Set();
+      if (textArr.length === convArr.length) {
+        for (let i = 0; i < textArr.length; i++) {
+          if (textArr[i] !== convArr[i] && /\p{Script=Han}/u.test(textArr[i]) && !TRAD_COMPAT_CHARS.has(textArr[i])) {
+            changed.add(textArr[i]);
+          }
+        }
+        return Array.from(changed);
+      }
       return hanChars.filter(c => {
+        if (TRAD_COMPAT_CHARS.has(c)) return false;
         const converted = fallbackConvert(c, 'trad');
         return converted !== c;
       });
     } else if (support === 'simp') {
+      const convertedFull = fallbackConvert(text, 'simp');
+      if (convertedFull === text) {
+        return [];
+      }
+      const textArr = [...text];
+      const convArr = [...convertedFull];
+      const changed = new Set();
+      if (textArr.length === convArr.length) {
+        for (let i = 0; i < textArr.length; i++) {
+          if (textArr[i] !== convArr[i] && /\p{Script=Han}/u.test(textArr[i])) {
+            changed.add(textArr[i]);
+          }
+        }
+        return Array.from(changed);
+      }
       return hanChars.filter(c => {
         const converted = fallbackConvert(c, 'simp');
         return converted !== c;
