@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 
 from .font_fitting import registered_fields, smooth_decomposition
-from .font_pipeline import target_masks
+from .font_pipeline import target_masks, TIGHTNESS_CANDIDATES
 from .spec import RenderPlan, Appearance, Transforms
 
 SIZE = 480
@@ -22,7 +22,7 @@ def prepare_character_layers(
       (layers, phases, max_reconstruction_error)
     """
     gray = np.uint8(np.clip(255 * (1 - cv2.resize(target, (160, 160))), 0, 255))
-    tightness_candidates = [.3, .5]
+    tightness_candidates = TIGHTNESS_CANDIDATES
     for attempt, tightness in enumerate(tightness_candidates):
         try:
             warped, phase = registered_fields(gray, glyph_template, tightness=tightness)

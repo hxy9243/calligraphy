@@ -85,6 +85,33 @@ class ContactSimplificationTests(unittest.TestCase):
         self.assertEqual(previous[:140].sum(), 0)
         self.assertEqual(previous[160:].sum(), 0)
 
+    def test_weng_fits_with_tightness_fallback(self):
+        from pathlib import Path
+        from calligraphy.text.glyphs import resolve_glyphs
+        from calligraphy.font_pipeline import target_masks, fit_glyph
+        font_path = Path(__file__).resolve().parents[2] / 'data/fonts/HanWangShinSuMedium.ttf'
+        if not font_path.exists():
+            return
+        template = resolve_glyphs('翁', fetch_missing=True)['翁']
+        for char, target in target_masks(font_path, ['翁']):
+            strokes, metrics = fit_glyph(char, target, template)
+            self.assertEqual(len(strokes), 10)
+            self.assertGreater(metrics['silhouette_iou'], 0.90)
+
+    def test_xue_fits_absorbed_stroke_fallback(self):
+        from pathlib import Path
+        from calligraphy.text.glyphs import resolve_glyphs
+        from calligraphy.font_pipeline import target_masks, fit_glyph
+        font_path = Path(__file__).resolve().parents[2] / 'data/fonts/HanWangShinSuMedium.ttf'
+        if not font_path.exists():
+            return
+        template = resolve_glyphs('雪', fetch_missing=True)['雪']
+        for char, target in target_masks(font_path, ['雪']):
+            strokes, metrics = fit_glyph(char, target, template)
+            self.assertEqual(len(strokes), 11)
+            self.assertGreater(metrics['silhouette_iou'], 0.90)
+
 
 if __name__ == '__main__':
     unittest.main()
+

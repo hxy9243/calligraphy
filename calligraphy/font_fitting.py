@@ -201,6 +201,9 @@ def simplify_pairs(p,tol=.7):
 
 def contacts_from_layer(layer,guide,name):
  mask=np.uint8(gaussian_filter(layer,.65)>.45)
+ count,labels,stats,_=cv2.connectedComponentsWithStats(mask,8)
+ if count<=1 or not np.any(stats[1:,cv2.CC_STAT_AREA]>=3):
+  mask=np.uint8(gaussian_filter(layer,.65)>.20)
  contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
  if not contours:raise ValueError('Empty stroke '+name)
  contour=max(contours,key=cv2.contourArea)[:,0].astype(float)
@@ -234,7 +237,10 @@ def contacts_from_layer(layer,guide,name):
   features=[dict(station=1,kind='entry-press')]+[dict(station=k,kind='square-fold') for k in corners]+[dict(station=len(pairs)-2,kind='lift')])
 
 def ordered_guide(layer,phase):
- yy,xx=np.where(layer>.25);weights=layer[yy,xx];p=phase[yy,xx]
+ yy,xx=np.where(layer>.25)
+ if not len(yy):
+  yy,xx=np.where(layer>.10)
+ weights=layer[yy,xx];p=phase[yy,xx]
  lo,hi=np.quantile(p,[.005,.995]);points=[]
  for a,b in zip(np.linspace(lo,hi+1e-5,25)[:-1],np.linspace(lo,hi+1e-5,25)[1:]):
   sel=(p>=a)&(p<b)

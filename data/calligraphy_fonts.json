@@ -550,28 +550,6 @@
     "char_support": "simp"
   },
   {
-    "id": "liujian-maocao",
-    "name_zh": "钟齐流江毛草",
-    "name_en": "Liu Jian Mao Cao Wild Cursive",
-    "style_category": "other",
-    "style_display": "狂草/大草 (Wild Cursive / Cao Shu)",
-    "medium": "brush",
-    "artist": "刘流江 (Liu Jian, Calligrapher)",
-    "dynasty_era": "当代 (Contemporary)",
-    "historical_reference": "唐代怀素《自叙帖》与张旭狂草气魄",
-    "font_author": "钟齐字库 (ZhongQi) / Google Fonts",
-    "license": "SIL Open Font License 1.1",
-    "license_type": "Open Source",
-    "source_url": "https://github.com/google/fonts/tree/main/ofl/liujianmaocao",
-    "is_downloaded": 1,
-    "file_path": "data/fonts/LiuJianMaoCao.ttf",
-    "file_format": "ttf",
-    "file_size_bytes": 4951804,
-    "aesthetic_notes": "笔走龙蛇，纵逸飞动，回环缠绕一气呵成。连绵笔势如惊蛇入草、疾风骤雨，墨气淋漓畅快。",
-    "sample_text": "醉里挑灯看剑，梦回吹角连营；八百里分麾下炙，五十弦翻塞外声。",
-    "char_support": "simp"
-  },
-  {
     "id": "longcang-xingshu",
     "name_zh": "有字库龙藏体",
     "name_en": "Long Cang Cursive Script",

@@ -25,6 +25,7 @@ from .font_fitting import registered_fields, smooth_decomposition, ordered_guide
 
 PIPELINE_VERSION = 'font-contact-v1'
 RESERVED = {'kai', 'yan', 'lishu', 'liu', 'yan-contact'}
+TIGHTNESS_CANDIDATES = (0.3, 0.5, 0.15, 0.08)
 
 
 def style_path(style):
@@ -129,12 +130,18 @@ def fit_layer(layer, progress, name):
     count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
     components = [i for i in range(1, count) if stats[i, cv2.CC_STAT_AREA] >= 3]
     if not components:
+        mask = np.uint8(gaussian_filter(layer, .65) > .20)
+        count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
+        components = [i for i in range(1, count) if stats[i, cv2.CC_STAT_AREA] >= 2]
+    if not components:
         raise ValueError(f'Empty inferred stroke: {name}')
     guide = ordered_guide(layer, progress)
     if len(components) == 1:
         return contacts_from_layer(layer, guide, name)
     segments = []
     support = layer > .25
+    if not support.any():
+        support = layer > .10
     lo, hi = np.quantile(progress[support], [.005, .995])
     for i in components:
         component = labels == i
@@ -164,7 +171,7 @@ def fit_layer(layer, progress, name):
 def fit_glyph(character, target, glyph):
     validate_template(glyph)
     gray = np.uint8(np.clip(255 * (1 - cv2.resize(target, (160, 160))), 0, 255))
-    tightness_candidates = [.3, .5]
+    tightness_candidates = TIGHTNESS_CANDIDATES
     for attempt, tightness in enumerate(tightness_candidates):
         try:
             warped, phase = registered_fields(gray, glyph, tightness=tightness)
@@ -177,9 +184,26 @@ def fit_glyph(character, target, glyph):
             for index, (layer, progress) in enumerate(zip(layers, phases)):
                 try:
                     stroke = fit_layer(layer, progress, f'{character} stroke {index + 1}')
-                    mask = complete_stroke(stroke)
                 except ValueError as error:
-                    raise ValueError(f'Cannot fit {character} stroke {index + 1}: {error}') from error
+                    if attempt == len(tightness_candidates) - 1 and 'Empty inferred stroke' in str(error):
+                        try:
+                            from .font_fitting import ribbon_envelope, ordered_guide
+                            rmask, rphase = ribbon_envelope(warped[index], phase[index], target.shape)
+                            guide = ordered_guide(rmask.astype(np.float32), rphase)
+                            pairs = np.stack([guide, guide], axis=1)
+                            stroke = {
+                                'name': f'{character} stroke {index + 1}',
+                                'contacts': pairs.tolist(),
+                                'corners': [],
+                                'tension': 0.5,
+                                'features': [{'station': 1, 'kind': 'entry-press'}, {'station': len(pairs)-2, 'kind': 'lift'}]
+                            }
+                            validate(stroke)
+                        except Exception:
+                            raise ValueError(f'Cannot fit {character} stroke {index + 1}: {error}') from error
+                    else:
+                        raise ValueError(f'Cannot fit {character} stroke {index + 1}: {error}') from error
+                mask = complete_stroke(stroke)
                 after = np.maximum(ink, mask)
                 contributions.append(float((after - ink).sum()))
                 scores.append(iou(mask, layer))
