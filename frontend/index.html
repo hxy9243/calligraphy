@@ -371,6 +371,24 @@
   </div>
 </dialog>
 
+<dialog id="delete-history" class="sheet sheet-confirm" aria-labelledby="delete-history-title" aria-describedby="delete-history-description">
+  <div class="sheet-inner">
+    <header class="sheet-head">
+      <h2 id="delete-history-title">删除历史记录？</h2>
+      <button type="button" class="icon-btn" data-close aria-label="关闭">✕</button>
+    </header>
+    <div class="delete-history-body">
+      <p id="delete-history-description">删除后，这条记录将从历史中移除，无法恢复。请先下载需要保留的作品。</p>
+      <p id="delete-history-text" class="job-text"></p>
+      <p id="delete-history-error" role="alert" hidden></p>
+      <div class="job-action">
+        <button type="button" class="btn btn-secondary" data-close>取消</button>
+        <button type="button" class="btn btn-primary" id="confirm-delete-history">确认删除</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
 <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
 <script src="/vendor/opencc.js"></script>

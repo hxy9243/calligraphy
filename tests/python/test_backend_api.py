@@ -99,6 +99,30 @@ class BackendApiTests(unittest.TestCase):
         res_fangsong = self.client.get("/fonts/cwTeXFangSong.ttf")
         self.assertEqual(res_fangsong.status_code, 200)
 
+    def test_delete_history_is_session_scoped_and_only_allows_terminal_jobs(self):
+        self.client.get("/api/styles")
+        session = self.client.cookies.get("calligraphy_session")
+        output = Path(self.temp_dir.name) / "preview.svg"
+        output.write_text("<svg/>")
+        for state in ("succeeded", "failed", "queued", "rendering", "running"):
+            self.db.create_job(state, session, "preview", "永", "kai", {},
+                               output_path=str(output), status=state)
+        other = TestClient(app)
+        self.assertEqual(other.delete("/api/jobs/succeeded").status_code, 404)
+        self.assertIsNotNone(self.db.get_job("succeeded"))
+        for state in ("queued", "rendering", "running"):
+            self.assertEqual(self.client.delete(f"/api/jobs/{state}").status_code, 409)
+            self.assertIsNotNone(self.db.get_job(state))
+        for state in ("succeeded", "failed"):
+            self.assertEqual(self.client.delete(f"/api/jobs/{state}").status_code, 204)
+            self.assertIsNone(self.db.get_job(state))
+            self.assertEqual(self.client.get(f"/api/jobs/{state}").status_code, 404)
+            self.assertEqual(self.client.get(f"/api/jobs/{state}/image").status_code, 404)
+            self.assertEqual(self.client.delete(f"/api/jobs/{state}").status_code, 404)
+        self.assertEqual({j["job_id"] for j in self.client.get("/api/jobs").json()["jobs"]},
+                         {"queued", "rendering", "running"})
+        self.assertTrue(output.exists())
+
     def test_session_cookie_created(self):
         res = self.client.get("/api/styles")
         self.assertEqual(res.status_code, 200)

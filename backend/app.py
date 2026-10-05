@@ -335,6 +335,16 @@ def list_session_jobs(request: Request, response: Response):
     return {"jobs": jobs}
 
 
+@app.delete("/api/jobs/{job_id}", status_code=204)
+def delete_history_job(job_id: str, request: Request):
+    result = get_db().delete_history_job(job_id, request.state.session_id)
+    if result == "missing":
+        raise HTTPException(status_code=404, detail="Job not found")
+    if result == "active":
+        raise HTTPException(status_code=409, detail="任务正在生成，请完成后再删除")
+    return Response(status_code=204)
+
+
 @app.get("/api/jobs/{job_id}")
 def get_job_status(job_id: str, request: Request, response: Response):
     """Get status and details of a job."""

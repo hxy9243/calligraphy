@@ -82,3 +82,15 @@ not create extra poll loops or duplicate cards for the same server job ID.
 - `tests/frontend-queue.test.mjs`: repeated submissions, restored-job polling,
   queued/running/completed/failed cards, network recovery, stale list responses,
   form usability, and completion without editor/media interruption
+
+## History deletion
+
+Each history card offers Delete and a confirmation dialog with Cancel. Active
+jobs cannot be deleted; the button becomes available after success or failure.
+`DELETE /api/jobs/{job_id}` atomically verifies session ownership and terminal
+status before deleting the SQLite history row. It returns 204 on success, 404
+for missing or other-session jobs, and 409 for active jobs. Deleted jobs no longer
+appear in history or provide status/download access. Output files remain on disk;
+this action deletes history, without changing file retention. The browser reports
+errors in the confirmation dialog and permits retry, refreshes counts after
+success, and rejects list responses captured before deletion.

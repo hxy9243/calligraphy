@@ -270,6 +270,31 @@ class Database:
                 return result
         return []
 
+    def delete_history_job(self, job_id: str, session_id: str) -> str:
+        """Remove a terminal history row, atomically checking session and status.
+
+        Output files are retained for the existing output-retention lifecycle.
+        """
+        if not self._is_sqlite:
+            raise NotImplementedError("Job history requires SQLite")
+        conn = self._get_sqlite_conn()
+        with self._lock:
+            with conn:
+                conn.execute("BEGIN IMMEDIATE;")
+                row = conn.execute(
+                    "SELECT status FROM jobs WHERE job_id = ? AND session_id = ?;",
+                    (job_id, session_id),
+                ).fetchone()
+                if row is None:
+                    return "missing"
+                if row["status"] not in ("succeeded", "failed"):
+                    return "active"
+                conn.execute(
+                    "DELETE FROM jobs WHERE job_id = ? AND session_id = ?;",
+                    (job_id, session_id),
+                )
+                return "deleted"
+
     def claim_next_job(self) -> Optional[Dict[str, Any]]:
         """Atomically claim the oldest queued render across worker processes."""
         if self._is_sqlite:

@@ -1405,6 +1405,52 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const deleteHistory = document.getElementById('delete-history');
+  const confirmDeleteHistory = document.getElementById('confirm-delete-history');
+  const deleteHistoryError = document.getElementById('delete-history-error');
+  let pendingDeleteJob = null;
+  let deletingHistory = false;
+
+  function confirmHistoryDeletion(job) {
+    if (!deleteHistory || deletingHistory) return;
+    pendingDeleteJob = job;
+    document.getElementById('delete-history-text').textContent = job.text || '';
+    deleteHistoryError.hidden = true;
+    deleteHistory.showModal();
+  }
+
+  if (deleteHistory) {
+    deleteHistory.addEventListener('close', () => { pendingDeleteJob = null; });
+  }
+  if (confirmDeleteHistory) {
+    confirmDeleteHistory.addEventListener('click', async () => {
+      if (!pendingDeleteJob || deletingHistory) return;
+      const job = pendingDeleteJob;
+      deletingHistory = true;
+      confirmDeleteHistory.disabled = true;
+      deleteHistoryError.hidden = true;
+      try {
+        const res = await fetch(`/api/jobs/${encodeURIComponent(job.job_id)}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || '删除失败，请重试');
+        }
+        // Invalidate any list response captured before the deletion.
+        ++jobsLoadVersion;
+        cachedJobs = cachedJobs.filter(j => j.job_id !== job.job_id);
+        renderJobList();
+        deleteHistory.close();
+        await loadJobs();
+      } catch (e) {
+        deleteHistoryError.textContent = e.message || '删除失败，请重试';
+        deleteHistoryError.hidden = false;
+      } finally {
+        deletingHistory = false;
+        confirmDeleteHistory.disabled = false;
+      }
+    });
+  }
+
   // History filters & search
   const historyFilters = document.getElementById('history-filters');
   if (historyFilters) {
@@ -1513,6 +1559,9 @@ document.addEventListener('DOMContentLoaded', () => {
               <a href="${dlSrc}" download="calligraphy_${j.job_id}.${isVideo ? 'mp4' : 'svg'}" class="btn btn-secondary btn-sm btn-download">${isVideo ? '下载 MP4' : '下载 SVG'}</a>
             </div>
           ` : ''}
+          <div class="job-action">
+            <button type="button" class="btn btn-ghost btn-sm btn-delete-history" ${activeJobStatuses.has(j.status) ? 'disabled title="任务完成后可删除"' : ''}>删除</button>
+          </div>
         </div>
       `;
 
@@ -1531,6 +1580,11 @@ document.addEventListener('DOMContentLoaded', () => {
           thumbVid.currentTime = 0;
         });
       }
+
+      item.querySelector('.btn-delete-history').addEventListener('click', e => {
+        e.stopPropagation();
+        confirmHistoryDeletion(j);
+      });
 
       const playBtn = item.querySelector('.btn-play-mini');
       if (playBtn) {

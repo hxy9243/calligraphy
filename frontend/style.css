@@ -442,3 +442,7 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .create-grid > *, .compose > * { min-width: 0; }
+
+.sheet-confirm .sheet-inner { inset: 0; margin: auto; width: min(440px, calc(100% - 32px)); height: fit-content; max-height: calc(100% - 32px); overflow-y: auto; border-radius: var(--radius); }
+.delete-history-body { padding: 18px; display: grid; gap: 16px; }
+#delete-history-error { color: var(--accent); }
