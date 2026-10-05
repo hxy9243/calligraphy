@@ -1758,8 +1758,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Views & Routing
-  function updateRoute() {
-    const hash = (location.hash || '').replace('#', '') || 'create';
+  function updateRoute(targetHash) {
+    const rawHash = (typeof targetHash === 'string' ? targetHash : location.hash) || '';
+    const hash = rawHash.replace('#', '') || 'create';
     const view = ['create', 'history', 'fonts'].includes(hash) ? hash : 'create';
     document.body.dataset.view = view;
     document.querySelectorAll('.view').forEach(v => {
@@ -1768,6 +1769,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-nav]').forEach(a => {
       if (a.getAttribute('data-nav') === view) {
         a.setAttribute('aria-current', 'page');
+        a.classList.add('active');
+      } else {
+        a.removeAttribute('aria-current');
+        a.classList.remove('active');
       }
     });
     try { if (window.scrollTo && !navigator?.userAgent?.includes('jsdom')) window.scrollTo(0, 0); } catch (_) {}
@@ -1778,7 +1783,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (view === 'history') loadJobs();
     if (view === 'fonts') renderFontGrid();
   }
-  window.addEventListener('hashchange', updateRoute);
+
+  // Bind click navigation for all data-nav and local hash links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const href = a.getAttribute('href');
+      if (href && href.startsWith('#')) {
+        const targetView = href.slice(1);
+        if (['create', 'history', 'fonts'].includes(targetView)) {
+          e.preventDefault();
+          if (location.hash !== href) {
+            location.hash = href;
+          }
+          updateRoute(targetView);
+        }
+      }
+    });
+  });
+
+  window.addEventListener('hashchange', () => updateRoute());
   updateRoute();
 
   let resizeTimer;

@@ -75,7 +75,7 @@ body[data-view="fonts"] [data-nav="fonts"] { color: var(--accent); }
 
 /* ---------- Views ---------- */
 .views { max-width: 1280px; margin: 0 auto; padding: 16px 16px 40px; }
-.view[hidden] { display: none; }
+.view[hidden] { display: none !important; }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
