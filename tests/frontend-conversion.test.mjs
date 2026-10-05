@@ -308,7 +308,49 @@ test('traditional font does not warn on heritage characters like 丑 or 歲在�
   assert.ok(warning.hidden, 'warning should be hidden for isolated 丑');
 });
 
+for (const engine of ['OpenCC', 'dictionary']) {
+  test(`HanWang KanTan accepts 床 for preview and video with ${engine} conversion`, async t => {
+    const ui = await createFrontend({
+      setup: window => { if (engine === 'OpenCC') window.OpenCC = OpenCC; },
+      fetch: ({ url }) => {
+        if (url === '/api/font-catalog') return jsonResponse([
+          { id: 'hanwang-kantan', name_zh: '王漢宗勘亭流繁', char_support: 'trad', is_downloaded: 1 },
+        ]);
+        if (url === '/api/previews') return jsonResponse({ preview_url: '/preview.png' });
+        if (url === '/api/renders') return jsonResponse({ job_id: 'bed-video' });
+      },
+    });
+    t.after(ui.close);
+    const style = ui.document.getElementById('style-select');
+    style.appendChild(new ui.window.Option('王漢宗勘亭流繁', 'hanwang-kantan'));
+    style.value = 'hanwang-kantan';
+    style.dispatchEvent(new ui.window.Event('change'));
+    await flush();
 
+    const input = ui.document.getElementById('text-input');
+    const warning = ui.document.getElementById('char-warning');
+    for (const text of ['床', '床前明月光\n疑是地上霜\n舉頭望明月\n低頭思故鄉']) {
+      input.value = text;
+      input.dispatchEvent(new ui.window.Event('input', { bubbles: true }));
+      assert.ok(warning.hidden, `床 must be accepted in ${text}`);
+      for (const [button, url] of [['btn-preview', '/api/previews'], ['btn-render', '/api/renders']]) {
+        const count = ui.requests.filter(request => request.url === url).length;
+        ui.document.getElementById(button).click();
+        await flush();
+        const requests = ui.requests.filter(request => request.url === url);
+        assert.equal(requests.length, count + 1);
+        assert.equal(requests.at(-1).body.text, text);
+        assert.equal(requests.at(-1).body.style, 'hanwang-kantan');
+      }
+      assert.equal(input.value, text, 'validation must preserve 床');
+    }
+
+    input.value = '床东';
+    input.dispatchEvent(new ui.window.Event('input', { bubbles: true }));
+    assert.ok(!warning.hidden, 'simplified-only characters must still be rejected');
+    assert.match(warning.textContent, /【东】/);
+  });
+}
 
 
 
