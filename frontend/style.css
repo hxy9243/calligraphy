@@ -4,7 +4,8 @@
    ========================================================================= */
 
 :root {
-  --font-ui: "Noto Serif SC", "Songti SC", "SimSun", "STSong", serif;
+  --font-serif: "Noto Serif SC", "Songti SC", "SimSun", "STSong", serif;
+  --font-ui: var(--font-serif);
   --bg: #f7f4ed;
   --surface: #ffffff;
   --surface-2: #f3eee3;
@@ -162,8 +163,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
   width: 100%;
   min-height: 320px;
   height: auto;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: hidden;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -187,6 +187,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
   justify-content: center;
   margin: auto;
   flex-shrink: 0;
+  max-width: 100%;
   transition: width 0.15s ease, height 0.15s ease;
 }
 .stage-paper.vertical {
@@ -203,52 +204,88 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
   overflow-wrap: normal;
   line-height: 1.45;
   color: var(--ink);
+  user-select: none;
+  font-family: var(--font-serif);
 }
 .stage-paper.vertical .stage-text {
   writing-mode: vertical-rl;
   text-orientation: upright;
   height: max-content;
+  max-height: 100%;
 }
 .stage-paper.horizontal .stage-text {
   writing-mode: horizontal-tb;
   width: max-content;
+  max-width: 100%;
 }
 .stage-caption { margin-top: 8px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 
 /* result viewer: fits by default and zoomed out slightly for comfortable viewing, scroll when actual size */
-.viewer {
+.viewer, .export-output-box {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 10px;
-  height: clamp(260px, 48vh, 520px);
+  min-height: 260px;
+  max-height: 520px;
   overflow: auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 16px;
   box-sizing: border-box;
+  position: relative;
 }
-.viewer > svg, .viewer > img {
+.export-output-box.hidden { display: none !important; }
+.preview-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.preview-box.hidden { display: none !important; }
+.viewer > svg, .viewer > img, #preview-img, #preview-svg-container svg {
   max-width: 88%;
-  max-height: 88%;
+  max-height: 440px;
   width: auto;
   height: auto;
   display: block;
   border-radius: 6px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
 }
-.viewer > video {
+#preview-img.hidden { display: none !important; }
+#video-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.viewer > video, #result-video {
   background: #000;
   max-width: 88%;
-  max-height: 88%;
+  max-height: 420px;
   width: auto;
   height: auto;
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
 }
-.viewer.actual { display: block; padding: 0; }
-.viewer.actual > svg, .viewer.actual > img, .viewer.actual > video {
+.video-actions-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+}
+.viewer.actual, .export-output-box.actual {
+  display: block;
+  padding: 0;
+  max-height: none;
+}
+.viewer.actual > svg, .viewer.actual > img, .viewer.actual > video,
+.export-output-box.actual #preview-img,
+.export-output-box.actual #preview-svg-container svg,
+.export-output-box.actual #result-video {
   max-width: none;
   max-height: none;
   width: auto;

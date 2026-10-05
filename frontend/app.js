@@ -6,6 +6,11 @@
 
 // Downloaded font mappings to @font-face families
 const LOCAL_FONTS_MAP = {
+  // Built-in stroke writing & standard mappings
+  "kai": { family: "MaShanZheng", file: "fonts/MaShanZheng.ttf", charSupport: "both" },
+  "yan": { family: "IYanKai", file: "fonts/IYanKai.ttf", charSupport: "trad" },
+  "aa shoujin": { family: "HanWangStandardKai", file: "fonts/HanWangStandardKai.ttf", charSupport: "trad" },
+
   // Key Fonts & Kai Shu (楷书)
   "mashanzheng-kai": { family: "MaShanZheng", file: "fonts/MaShanZheng.ttf", charSupport: "simp" },
   "mashanzheng": { family: "MaShanZheng", file: "fonts/MaShanZheng.ttf", charSupport: "simp" },
@@ -175,10 +180,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const activeFontBadge = document.getElementById('active-font-badge');
   const btnVertical = document.getElementById('btn-vertical');
   const btnHorizontal = document.getElementById('btn-horizontal');
-  const fontSizeSlider = document.getElementById('font-size-slider');
-  const fontSizeVal = document.getElementById('font-size-val');
+  const fontSizeSlider = document.getElementById('size-slider') || document.getElementById('font-size-slider');
+  const fontSizeVal = document.getElementById('size-val') || document.getElementById('font-size-val');
   const spacingSlider = document.getElementById('spacing-slider');
   const spacingVal = document.getElementById('spacing-val');
+  const fitToggle = document.getElementById('fit-toggle');
+  const stageViewport = document.getElementById('stage-viewport');
+  const stageCaption = document.getElementById('stage-caption');
+  const canvasMeta = document.getElementById('canvas-meta');
+
+  // Canvas elements and state
+  const canvasFormats = document.getElementById('canvas-formats');
+  const canvasLenSlider = document.getElementById('canvas-len-slider');
+  const canvasLenVal = document.getElementById('canvas-len-val');
+  const canvasLenAxis = document.getElementById('canvas-len-axis');
+  const canvasDimVal = document.getElementById('canvas-dim-val');
+
+  let canvasAutoLen = true;
+  let canvasFormat = 'auto';
+  let canvasWidth = 720;
+  let canvasHeight = 960;
 
   // Export elements
   const exportOutputBox = document.getElementById('export-output-box');
@@ -188,6 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const previewSvgContainer = document.getElementById('preview-svg-container');
   const videoContainer = document.getElementById('video-container');
   const resultVideo = document.getElementById('result-video');
+  const resultZoom = document.getElementById('result-zoom');
+  const resultDownload = document.getElementById('result-download');
   const jobsList = document.getElementById('jobs-list');
 
   const tabLive = document.getElementById('tab-live');
@@ -490,6 +513,160 @@ document.addEventListener('DOMContentLoaded', () => {
     // Storage can be unavailable in private or restricted browser contexts.
   }
 
+  function layoutStagePaper() {
+    if (!calligraphyStage) return;
+    const vw = Math.max(260, (stageViewport ? stageViewport.clientWidth : 0) || (600 - 48));
+    const cw = canvasWidth || 720;
+    const ch = canvasHeight || 960;
+    const aspect = cw / ch;
+    const isVert = currentDirection === 'vertical-rl';
+    const baseSizeSetting = fontSizeSlider ? parseInt(fontSizeSlider.value, 10) : 68;
+
+    if (isVert) {
+      const pw = Math.min(vw, Math.max(220, Math.min(440, Math.round((cw / 720) * 340))));
+      const ph = Math.round(pw / aspect);
+
+      calligraphyStage.style.width = `${pw}px`;
+      calligraphyStage.style.height = `${ph}px`;
+      calligraphyStage.style.minWidth = `${pw}px`;
+      calligraphyStage.style.minHeight = `${ph}px`;
+
+      const scale = pw / cw;
+      const baseFontSize = Math.max(16, Math.round(baseSizeSetting * scale));
+      if (calligraphyText) {
+        calligraphyText.style.fontSize = `${baseFontSize}px`;
+      }
+      calligraphyStage.dataset.baseFontSize = String(baseFontSize);
+    } else {
+      const ph = Math.max(180, Math.min(380, Math.round((ch / 640) * 260)));
+      const pw = Math.round(ph * aspect);
+
+      calligraphyStage.style.width = `${pw}px`;
+      calligraphyStage.style.height = `${ph}px`;
+      calligraphyStage.style.minWidth = `${pw}px`;
+      calligraphyStage.style.minHeight = `${ph}px`;
+
+      const scale = ph / ch;
+      const baseFontSize = Math.max(16, Math.round(baseSizeSetting * scale));
+      if (calligraphyText) {
+        calligraphyText.style.fontSize = `${baseFontSize}px`;
+      }
+      calligraphyStage.dataset.baseFontSize = String(baseFontSize);
+    }
+  }
+
+  function isStageOverflowing() {
+    if (!calligraphyStage || !calligraphyText) return false;
+    const r = calligraphyText.getBoundingClientRect ? calligraphyText.getBoundingClientRect() : { width: 0, height: 0 };
+    const cs = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(calligraphyStage) : null;
+    const padW = cs ? (parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) : 56;
+    const padH = cs ? (parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) : 48;
+    const stageW = calligraphyStage.clientWidth || parseInt(calligraphyStage.style.width, 10) || 340;
+    const stageH = calligraphyStage.clientHeight || parseInt(calligraphyStage.style.height, 10) || 450;
+
+    return (r.width + padW > stageW + 2) || (r.height + padH > stageH + 2);
+  }
+
+  function fitStage() {
+    if (!calligraphyStage || !calligraphyText) return;
+    const baseSizeSetting = fontSizeSlider ? parseInt(fontSizeSlider.value, 10) : 68;
+    const stageW = calligraphyStage.clientWidth || parseInt(calligraphyStage.style.width, 10) || 340;
+    const baseFontSize = parseFloat(calligraphyStage.dataset.baseFontSize) ||
+      Math.max(16, Math.round(baseSizeSetting * (stageW / (canvasWidth || 720))));
+    let size = baseFontSize;
+    calligraphyText.style.fontSize = `${size}px`;
+
+    const shouldFit = fitToggle ? fitToggle.checked : true;
+    if (shouldFit && isStageOverflowing()) {
+      let lo = 12, hi = size;
+      while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2);
+        calligraphyText.style.fontSize = `${mid}px`;
+        if (isStageOverflowing()) hi = mid; else lo = mid;
+      }
+      size = lo;
+      calligraphyText.style.fontSize = `${size}px`;
+    }
+
+    const shrunk = size < baseFontSize;
+    if (fontSizeVal) {
+      fontSizeVal.textContent = shrunk
+        ? `${baseSizeSetting}px (自动缩小适应)`
+        : `${baseSizeSetting}px`;
+    }
+    const len = [...((textInput ? textInput.value : '') || '').replace(/\s/g, '')].length;
+    if (stageCaption) {
+      stageCaption.innerHTML = `<span>${len} 字 · ${currentDirection === 'vertical-rl' ? '竖排右起' : '横排'} · 画布 ${canvasWidth}×${canvasHeight}</span><span>${shrunk ? '字数超出已微调适应' : ''}</span>`;
+    }
+    if (canvasMeta) {
+      canvasMeta.textContent = typeof getActiveFontDisplayName === 'function' ? getActiveFontDisplayName() : '';
+    }
+  }
+
+  function calcAutoCanvasDim() {
+    const val = (textInput ? textInput.value : '永').trim() || '永';
+    const lines = val.split('\n');
+    const lineLens = lines.map(l => [...l].length);
+    const maxLine = Math.max(...lineLens, 1);
+    const numLines = Math.max(lines.length, 1);
+
+    const isVert = currentDirection === 'vertical-rl';
+    const targetCell = 68;
+    const spacingValNum = spacingSlider ? parseFloat(spacingSlider.value) : 0.18;
+
+    if (isVert) {
+      const contentH = maxLine * (targetCell * 1.15) + (maxLine - 1) * (targetCell * spacingValNum);
+      const marginY = Math.max(160, contentH * 0.16);
+      let autoH = Math.round((contentH + marginY * 2) / 40) * 40;
+      autoH = Math.max(720, Math.min(2200, autoH));
+
+      let autoW = 720;
+      if (numLines === 1) autoW = 640;
+      else if (numLines === 2) autoW = 720;
+      else if (numLines <= 4) autoW = 800;
+      else autoW = Math.min(1280, Math.round((numLines * targetCell * 1.5 + 240) / 40) * 40);
+
+      canvasWidth = autoW;
+      canvasHeight = autoH;
+    } else {
+      const contentW = maxLine * (targetCell * 1.15) + (maxLine - 1) * (targetCell * spacingValNum);
+      const marginX = Math.max(160, contentW * 0.16);
+      let autoW = Math.round((contentW + marginX * 2) / 40) * 40;
+      autoW = Math.max(880, Math.min(2400, autoW));
+      let autoH = Math.min(1200, Math.max(540, Math.round((numLines * targetCell * 1.5 + 200) / 40) * 40));
+
+      canvasWidth = autoW;
+      canvasHeight = autoH;
+    }
+  }
+
+  function updateCanvasDimDisplay() {
+    if (canvasAutoLen || canvasFormat === 'auto') {
+      calcAutoCanvasDim();
+    }
+    const isAuto = canvasAutoLen || canvasFormat === 'auto';
+    const isVert = currentDirection === 'vertical-rl';
+    const axis = isVert ? '高度' : '宽度';
+    const len = isVert ? canvasHeight : canvasWidth;
+
+    if (canvasLenAxis) canvasLenAxis.textContent = axis;
+    if (canvasLenSlider) canvasLenSlider.value = len;
+    if (canvasDimVal) canvasDimVal.textContent = `${canvasWidth} × ${canvasHeight}`;
+    if (canvasLenVal) canvasLenVal.textContent = `${len}px`;
+
+    if (canvasFormats) {
+      canvasFormats.querySelectorAll('.chip').forEach(c => {
+        if (isAuto) {
+          c.classList.toggle('active', c.dataset.cf === 'auto');
+        } else {
+          c.classList.toggle('active', c.dataset.cf === canvasFormat);
+        }
+      });
+    }
+    layoutStagePaper();
+    fitStage();
+  }
+
   function updateDirectionControls() {
     const vertical = currentDirection === 'vertical-rl';
     if (calligraphyStage) {
@@ -507,6 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function selectDirection(direction) {
     currentDirection = direction;
     updateDirectionControls();
+    updateCanvasDimDisplay();
     try {
       localStorage.setItem(directionStorageKey, direction);
     } catch (_) {
@@ -521,20 +699,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Font size slider
-  if (fontSizeSlider && fontSizeVal && calligraphyText) {
+  if (fontSizeSlider) {
+    if (fontSizeVal) fontSizeVal.textContent = `${fontSizeSlider.value}px`;
     fontSizeSlider.addEventListener('input', (e) => {
       const px = e.target.value + 'px';
-      fontSizeVal.textContent = px;
-      calligraphyText.style.fontSize = px;
+      if (fontSizeVal) fontSizeVal.textContent = px;
+      layoutStagePaper();
+      fitStage();
     });
   }
 
   // Character spacing slider
-  if (spacingSlider && spacingVal && calligraphyText) {
+  if (spacingSlider) {
+    const initialSpacing = `${spacingSlider.value}em`;
+    if (spacingVal) spacingVal.textContent = initialSpacing;
+    if (calligraphyText) calligraphyText.style.letterSpacing = initialSpacing;
     spacingSlider.addEventListener('input', (e) => {
       const em = e.target.value + 'em';
-      spacingVal.textContent = em;
-      calligraphyText.style.letterSpacing = em;
+      if (spacingVal) spacingVal.textContent = em;
+      if (calligraphyText) calligraphyText.style.letterSpacing = em;
+      fitStage();
+    });
+  }
+
+  if (fitToggle) {
+    fitToggle.addEventListener('change', fitStage);
+  }
+
+  // Video speed and FPS segmented buttons
+  const speedSeg = document.getElementById('speed-seg');
+  if (speedSeg) {
+    speedSeg.querySelectorAll('.seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        speedSeg.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (speedSelect) {
+          speedSelect.value = btn.dataset.speed;
+        }
+      });
+    });
+  }
+
+  const fpsSeg = document.getElementById('fps-seg');
+  if (fpsSeg) {
+    fpsSeg.querySelectorAll('.seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        fpsSeg.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (fpsSelect) {
+          fpsSelect.value = btn.dataset.fps;
+        }
+      });
     });
   }
 
@@ -665,6 +880,15 @@ document.addEventListener('DOMContentLoaded', () => {
     previewSvgContainer.replaceChildren();
     previewSvgContainer.classList.add('hidden');
     previewImageContainer.classList.remove('hidden');
+    if (resultDownload) {
+      resultDownload.href = url;
+      resultDownload.setAttribute('download', 'calligraphy_preview.png');
+      resultDownload.hidden = false;
+    }
+    if (resultZoom) {
+      resultZoom.hidden = false;
+      resultZoom.textContent = '实际大小';
+    }
     exportOutputBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
@@ -678,11 +902,25 @@ document.addEventListener('DOMContentLoaded', () => {
     previewSvgContainer.classList.remove('hidden');
     const svgEl = previewSvgContainer.querySelector('svg');
     if (svgEl) {
-      svgEl.style.maxWidth = '100%';
+      svgEl.style.maxWidth = '88%';
       svgEl.style.maxHeight = '420px';
       svgEl.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08)';
     }
     previewImageContainer.classList.remove('hidden');
+    if (resultDownload) {
+      try {
+        const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+        resultDownload.href = URL.createObjectURL(blob);
+      } catch (_) {
+        resultDownload.href = '#';
+      }
+      resultDownload.setAttribute('download', 'calligraphy_preview.svg');
+      resultDownload.hidden = false;
+    }
+    if (resultZoom) {
+      resultZoom.hidden = false;
+      resultZoom.textContent = '实际大小';
+    }
     exportOutputBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
@@ -693,6 +931,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dlBtn && (downloadUrl || videoUrl)) {
       dlBtn.href = downloadUrl || videoUrl;
     }
+    if (resultDownload) {
+      resultDownload.href = downloadUrl || videoUrl;
+      resultDownload.setAttribute('download', 'calligraphy_video.mp4');
+      resultDownload.hidden = false;
+    }
+    if (resultZoom) {
+      resultZoom.hidden = true;
+    }
     if (resultVideo && videoUrl) {
       resultVideo.src = videoUrl;
       resultVideo.load();
@@ -700,6 +946,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     videoContainer.classList.remove('hidden');
     exportOutputBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  if (resultZoom) {
+    resultZoom.addEventListener('click', () => {
+      if (exportOutputBox) {
+        const actual = exportOutputBox.classList.toggle('actual');
+        resultZoom.textContent = actual ? '适应窗口' : '实际大小';
+      }
+    });
   }
 
   if (btnCloseExport) {
@@ -1227,82 +1482,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Redesigned Workbench Controllers (Router, Canvas Dimension, Font Picker)
   // =========================================================================
 
-  const canvasFormats = document.getElementById('canvas-formats');
-  const canvasLenSlider = document.getElementById('canvas-len-slider');
-  const canvasLenVal = document.getElementById('canvas-len-val');
-  const canvasLenAxis = document.getElementById('canvas-len-axis');
-  const canvasDimVal = document.getElementById('canvas-dim-val');
 
-  let canvasAutoLen = true;
-  let canvasFormat = 'auto';
-  let canvasWidth = 720;
-  let canvasHeight = 960;
-
-  function calcAutoCanvasDim() {
-    const val = (textInput ? textInput.value : '永').trim() || '永';
-    const lines = val.split('\n');
-    const lineLens = lines.map(l => [...l].length);
-    const maxLine = Math.max(...lineLens, 1);
-    const numLines = Math.max(lines.length, 1);
-
-    const isVert = currentDirection === 'vertical-rl';
-    const targetCell = 68;
-    const spacingValNum = spacingSlider ? parseFloat(spacingSlider.value) : 0.18;
-
-    if (isVert) {
-      const contentH = maxLine * (targetCell * 1.15) + (maxLine - 1) * (targetCell * spacingValNum);
-      const marginY = Math.max(160, contentH * 0.16);
-      let autoH = Math.round((contentH + marginY * 2) / 40) * 40;
-      autoH = Math.max(720, Math.min(2200, autoH));
-
-      let autoW = 720;
-      if (numLines === 1) autoW = 640;
-      else if (numLines === 2) autoW = 720;
-      else if (numLines <= 4) autoW = 800;
-      else autoW = Math.min(1280, Math.round((numLines * targetCell * 1.5 + 240) / 40) * 40);
-
-      canvasWidth = autoW;
-      canvasHeight = autoH;
-    } else {
-      const contentW = maxLine * (targetCell * 1.15) + (maxLine - 1) * (targetCell * spacingValNum);
-      const marginX = Math.max(160, contentW * 0.16);
-      let autoW = Math.round((contentW + marginX * 2) / 40) * 40;
-      autoW = Math.max(880, Math.min(2400, autoW));
-      let autoH = Math.min(1200, Math.max(540, Math.round((numLines * targetCell * 1.5 + 200) / 40) * 40));
-
-      canvasWidth = autoW;
-      canvasHeight = autoH;
-    }
-  }
-
-  function updateCanvasDimDisplay() {
-    if (canvasAutoLen || canvasFormat === 'auto') {
-      calcAutoCanvasDim();
-    }
-    const isAuto = canvasAutoLen || canvasFormat === 'auto';
-    const isVert = currentDirection === 'vertical-rl';
-    const axis = isVert ? '高度' : '宽度';
-    const len = isVert ? canvasHeight : canvasWidth;
-
-    if (canvasLenAxis) canvasLenAxis.textContent = axis;
-    if (canvasLenSlider) canvasLenSlider.value = len;
-    if (canvasDimVal) canvasDimVal.textContent = `${canvasWidth} × ${canvasHeight}`;
-    if (canvasLenVal) canvasLenVal.textContent = `${len}px`;
-
-    if (canvasFormats) {
-      canvasFormats.querySelectorAll('.chip').forEach(c => {
-        if (isAuto) {
-          c.classList.toggle('active', c.dataset.cf === 'auto');
-        } else {
-          c.classList.toggle('active', c.dataset.cf === canvasFormat);
-        }
-      });
-    }
-    if (calligraphyStage) {
-      calligraphyStage.style.width = `${canvasWidth}px`;
-      calligraphyStage.style.minHeight = `${canvasHeight}px`;
-    }
-  }
 
   if (canvasFormats) {
     canvasFormats.addEventListener('click', (ev) => {
@@ -1351,11 +1531,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     try { if (window.scrollTo && !navigator?.userAgent?.includes('jsdom')) window.scrollTo(0, 0); } catch (_) {}
+    if (view === 'create') {
+      if (typeof layoutStagePaper === 'function') layoutStagePaper();
+      if (typeof fitStage === 'function') fitStage();
+    }
     if (view === 'history') loadJobs();
     if (view === 'fonts') renderFontGrid();
   }
   window.addEventListener('hashchange', updateRoute);
   updateRoute();
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (typeof layoutStagePaper === 'function') layoutStagePaper();
+      if (typeof fitStage === 'function') fitStage();
+    }, 100);
+  });
 
   // Theme selector
   const themeSelect = document.getElementById('theme-select');
@@ -1521,6 +1714,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Initial loads
+  updateCanvasDimDisplay();
   updateText();
   loadStyles();
   loadJobs();
