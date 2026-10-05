@@ -270,4 +270,17 @@ test('dictionary fallback without OpenCC engine also preserves 里 as 里', asyn
   assert.equal(ui.input.value, '千里');
 });
 
+test('preset buttons display traditional names when traditional script is active', async t => {
+  const ui = await setup(t);
+  assert.equal(ui.document.querySelector('.preset-btn').textContent, '王维联句');
+
+  ui.click('btn-trad');
+  assert.equal(ui.document.querySelector('.preset-btn').textContent, '王維聯句');
+
+  ui.click('btn-simp');
+  assert.equal(ui.document.querySelector('.preset-btn').textContent, '王维联句');
+});
+
+
+
 

@@ -50,7 +50,6 @@ const LOCAL_FONTS_MAP = {
 
   // Other Styles (行书/草书/魏碑)
   "zhimang-xingshu": { family: "ZhiMangXing", file: "fonts/ZhiMangXing.ttf", charSupport: "simp" },
-  "liujian-maocao": { family: "LiuJianMaoCao", file: "fonts/LiuJianMaoCao.ttf", charSupport: "simp" },
   "longcang-xingshu": { family: "LongCang", file: "fonts/LongCang.ttf", charSupport: "simp" },
   "longcang": { family: "LongCang", file: "fonts/LongCang.ttf", charSupport: "simp" },
   "hanwang-xing-shu": { family: "HanWangXingShu", file: "fonts/HanWangXingShu.ttf", charSupport: "trad" },
@@ -90,24 +89,24 @@ const LOCAL_FONTS_MAP = {
 
 // Preset classical calligraphy examples (no punctuation, returns for line breaks, 10+ Tang poems added)
 const PRESET_EXAMPLES = [
-  { id: "wangwei", name: "王维联句", trad: "明月松間照\n清泉石上流", simp: "明月松间照\n清泉石上流" },
-  { id: "chunxiao", name: "春晓 (孟浩然)", trad: "春眠不覺曉\n處處聞啼鳥\n夜來風雨聲\n花落知多少", simp: "春眠不觉晓\n处处闻啼鸟\n夜来风雨声\n花落知多少" },
-  { id: "jingye", name: "静夜思 (李白)", trad: "床前明月光\n疑是地上霜\n舉頭望明月\n低頭思故鄉", simp: "床前明月光\n疑是地上霜\n举头望明月\n低头思故乡" },
-  { id: "guanque", name: "登鹳雀楼 (王之涣)", trad: "白日依山盡\n黃河入海流\n欲窮千里目\n更上一層樓", simp: "白日依山尽\n黄河入海流\n欲穷千里目\n更上一层楼" },
-  { id: "jiangxue", name: "江雪 (柳宗元)", trad: "千山鳥飛絕\n萬徑人蹤滅\n孤舟蓑笠翁\n獨釣寒江雪", simp: "千山鸟飞绝\n万径人踪灭\n孤舟蓑笠翁\n独钓寒江雪" },
-  { id: "xiangsi", name: "相思 (王维)", trad: "紅豆生南國\n春來發幾枝\n願君多采擷\n此物最相思", simp: "红豆生南国\n春来发几枝\n愿君多采撷\n此物最相思" },
-  { id: "luchai", name: "鹿柴 (王维)", trad: "空山不見人\n但聞人語響\n返景入深林\n復照青苔上", simp: "空山不见人\n但闻人语响\n返景入深林\n复照青苔上" },
-  { id: "lushan", name: "望庐山瀑布 (李白)", trad: "日照香爐生紫煙\n遙看瀑布挂前川\n飛流直下三千尺\n疑是銀河落九天", simp: "日照香炉生紫烟\n遥看瀑布挂前川\n飞流直下三千尺\n疑是银河落九天" },
-  { id: "baidi", name: "早发白帝城 (李白)", trad: "朝辭白帝彩雲間\n千里江陵一日還\n兩岸猿聲啼不住\n輕舟已過萬重山", simp: "朝辞白帝彩云间\n千里江陵一日还\n两岸猿声啼不住\n轻舟已过万重山" },
-  { id: "fengqiao", name: "枫桥夜泊 (张继)", trad: "月落烏啼霜滿天\n江楓漁火對愁眠\n姑蘇城外寒山寺\n夜半鐘聲到客船", simp: "月落乌啼霜满天\n江枫渔火对愁眠\n姑苏城外寒山寺\n夜半钟声到客船" },
-  { id: "liangzhou", name: "凉州词 (王翰)", trad: "葡萄美酒夜光杯\n欲飲琵琶馬上催\n醉臥沙場君莫笑\n古來征戰幾人回", simp: "葡萄美酒夜光杯\n欲饮琵琶马上催\n醉卧沙场君莫笑\n古来征战几人回" },
-  { id: "guyuan", name: "赋得古原草送别 (白居易)", trad: "離離原上草\n一歲一枯榮\n野火燒不盡\n春風吹又生", simp: "离离原上草\n一岁一枯荣\n野火烧不尽\n春风吹又生" },
-  { id: "songdu", name: "送杜少府之任蜀州 (王勃)", trad: "城闕輔三秦\n風煙望五津\n與君離別意\n同是宦遊人\n海內存知己\n天涯若比鄰\n無為在岐路\n兒女共霑巾", simp: "城阙辅三秦\n风烟望五津\n与君离别意\n同是宦游人\n海内存知己\n天涯若比邻\n无为在歧路\n儿女共沾巾" },
-  { id: "yong", name: "永字八法", trad: "永", simp: "永" },
-  { id: "river", name: "春江花月夜", trad: "春江花月夜", simp: "春江花月夜" },
-  { id: "lanting", name: "兰亭集序", trad: "永和九年\n歲在癸丑\n暮春之初\n會於會稽山陰之蘭亭\n修禊事也", simp: "永和九年\n岁在癸丑\n暮春之初\n会于会稽山阴之兰亭\n修禊事也" },
-  { id: "redcliff", name: "赤壁怀古", trad: "大江東去\n浪淘盡\n千古風流人物\n故壘西邊\n人道是\n三國周郎赤壁", simp: "大江东去\n浪淘尽\n千古风流人物\n故垒西边\n人道是\n三国周郎赤壁" },
-  { id: "houde", name: "厚德自强", trad: "厚德載物\n自強不息", simp: "厚德载物\n自强不息" }
+  { id: "wangwei", name: "王维联句", nameTrad: "王維聯句", trad: "明月松間照\n清泉石上流", simp: "明月松间照\n清泉石上流" },
+  { id: "chunxiao", name: "春晓 (孟浩然)", nameTrad: "春曉 (孟浩然)", trad: "春眠不覺曉\n處處聞啼鳥\n夜來風雨聲\n花落知多少", simp: "春眠不觉晓\n处处闻啼鸟\n夜来风雨声\n花落知多少" },
+  { id: "jingye", name: "静夜思 (李白)", nameTrad: "靜夜思 (李白)", trad: "床前明月光\n疑是地上霜\n舉頭望明月\n低頭思故鄉", simp: "床前明月光\n疑是地上霜\n举头望明月\n低头思故乡" },
+  { id: "guanque", name: "登鹳雀楼 (王之涣)", nameTrad: "登鸛雀樓 (王之渙)", trad: "白日依山盡\n黃河入海流\n欲窮千里目\n更上一層樓", simp: "白日依山尽\n黄河入海流\n欲穷千里目\n更上一层楼" },
+  { id: "jiangxue", name: "江雪 (柳宗元)", nameTrad: "江雪 (柳宗元)", trad: "千山鳥飛絕\n萬徑人蹤滅\n孤舟蓑笠翁\n獨釣寒江雪", simp: "千山鸟飞绝\n万径人踪灭\n孤舟蓑笠翁\n独钓寒江雪" },
+  { id: "xiangsi", name: "相思 (王维)", nameTrad: "相思 (王維)", trad: "紅豆生南國\n春來發幾枝\n願君多采擷\n此物最相思", simp: "红豆生南国\n春来发几枝\n愿君多采撷\n此物最相思" },
+  { id: "luchai", name: "鹿柴 (王维)", nameTrad: "鹿柴 (王維)", trad: "空山不見人\n但聞人語響\n返景入深林\n復照青苔上", simp: "空山不见人\n但闻人语响\n返景入深林\n复照青苔上" },
+  { id: "lushan", name: "望庐山瀑布 (李白)", nameTrad: "望廬山瀑布 (李白)", trad: "日照香爐生紫煙\n遙看瀑布掛前川\n飛流直下三千尺\n疑是銀河落九天", simp: "日照香炉生紫烟\n遥看瀑布挂前川\n飞流直下三千尺\n疑是银河落九天" },
+  { id: "baidi", name: "早发白帝城 (李白)", nameTrad: "早發白帝城 (李白)", trad: "朝辭白帝彩雲間\n千里江陵一日還\n兩岸猿聲啼不住\n輕舟已過萬重山", simp: "朝辞白帝彩云间\n千里江陵一日还\n两岸猿声啼不住\n轻舟已过万重山" },
+  { id: "fengqiao", name: "枫桥夜泊 (张继)", nameTrad: "楓橋夜泊 (張繼)", trad: "月落烏啼霜滿天\n江楓漁火對愁眠\n姑蘇城外寒山寺\n夜半鐘聲到客船", simp: "月落乌啼霜满天\n江枫渔火对愁眠\n姑苏城外寒山寺\n夜半钟声到客船" },
+  { id: "liangzhou", name: "凉州词 (王翰)", nameTrad: "涼州詞 (王翰)", trad: "葡萄美酒夜光杯\n欲飲琵琶馬上催\n醉臥沙場君莫笑\n古來征戰幾人回", simp: "葡萄美酒夜光杯\n欲饮琵琶马上催\n醉卧沙场君莫笑\n古来征战几人回" },
+  { id: "guyuan", name: "赋得古原草送别 (白居易)", nameTrad: "賦得古原草送別 (白居易)", trad: "離離原上草\n一歲一枯榮\n野火燒不盡\n春風吹又生", simp: "离离原上草\n一岁一枯荣\n野火烧不尽\n春风吹又生" },
+  { id: "songdu", name: "送杜少府之任蜀州 (王勃)", nameTrad: "送杜少府之任蜀州 (王勃)", trad: "城闕輔三秦\n風煙望五津\n與君離別意\n同是宦遊人\n海內存知己\n天涯若比鄰\n無為在岐路\n兒女共霑巾", simp: "城阙辅三秦\n风烟望五津\n与君离别意\n同是宦游人\n海内存知己\n天涯若比邻\n无为在歧路\n儿女共沾巾" },
+  { id: "yong", name: "永字八法", nameTrad: "永字八法", trad: "永", simp: "永" },
+  { id: "river", name: "春江花月夜", nameTrad: "春江花月夜", trad: "春江花月夜", simp: "春江花月夜" },
+  { id: "lanting", name: "兰亭集序", nameTrad: "蘭亭集序", trad: "永和九年\n歲在癸丑\n暮春之初\n會於會稽山陰之蘭亭\n修禊事也", simp: "永和九年\n岁在癸丑\n暮春之初\n会于会稽山阴之兰亭\n修禊事也" },
+  { id: "redcliff", name: "赤壁怀古", nameTrad: "赤壁懷古", trad: "大江東去\n浪淘盡\n千古風流人物\n故壘西邊\n人道是\n三國周郎赤壁", simp: "大江东去\n浪淘尽\n千古风流人物\n故垒西边\n人道是\n三国周郎赤壁" },
+  { id: "houde", name: "厚德自强", nameTrad: "厚德自強", trad: "厚德載物\n自強不息", simp: "厚德载物\n自强不息" }
 ];
 
 /// Fallback character dictionary for client-side offline conversion
@@ -206,7 +205,7 @@ const BUILTIN_FONT_META = {
     is_downloaded: 1,
     aesthetic_notes: "宋徽宗赵佶独创，天骨遒美，逸趣横生，横舒竖敛，骨肉兼备。",
     historical_reference: "秾芳诗帖、千字文",
-    sample_text: "秾芳依翠萼，妄发读幽寻"
+    sample_text: "穠芳依翠萼，妄發讀幽尋"
   }
 };
 
@@ -582,7 +581,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (activeSupport === 'simp') {
         textToShow = p.simp;
       }
-      btn.textContent = p.name;
+      const showTradName = (currentScript === 'trad' || activeSupport === 'trad') && activeSupport !== 'simp';
+      btn.textContent = (showTradName && p.nameTrad) ? p.nameTrad : p.name;
       btn.addEventListener('click', () => {
         invalidateScriptConversion();
         textInput.value = textToShow;
