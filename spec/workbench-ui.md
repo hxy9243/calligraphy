@@ -32,3 +32,8 @@ The backend API is unchanged.
 ## Persistence
 `localStorage` key `wb:v1` keeps draft text, layout, font, recents, favourites, canvas format/length, auto-length mode, and theme.
 
+
+Font selection and history detail/playback dialogs close when a click starts and
+ends outside their visible panel. Clicking inside or dragging out keeps the dialog
+open. Closing the detail dialog pauses its video; Escape and close buttons remain
+available.

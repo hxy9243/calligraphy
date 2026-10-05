@@ -2108,6 +2108,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // The transparent dialog fills the screen; only its inner panel is content.
+  document.querySelectorAll('dialog.sheet').forEach(dialog => {
+    let startedOutside = false;
+    dialog.addEventListener('pointerdown', e => {
+      startedOutside = e.target === dialog;
+    });
+    dialog.addEventListener('click', e => {
+      if (e.target === dialog && startedOutside) dialog.close();
+      startedOutside = false;
+    });
+  });
+
   document.querySelectorAll('dialog [data-close]').forEach(b => {
     b.addEventListener('click', (e) => {
       const d = e.target.closest('dialog');
