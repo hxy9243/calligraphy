@@ -7,6 +7,68 @@ const catalog = JSON.parse(await readFile(new URL('../data/calligraphy_fonts.jso
   .filter(font => ['mashanzheng-kai', 'longcang-xingshu', 'lxgw-wenkai-tc'].includes(font.id))
   .map(({ file_path, source_url, ...metadata }) => metadata);
 
+test('mobile viewport changes keep the rendered preview visible without requesting new pixels', async t => {
+  let viewportWidth = 320;
+  const ui = await createFrontend({ setup(window) {
+    Object.defineProperty(window.document.getElementById('stage-viewport'), 'clientWidth', {
+      get: () => viewportWidth,
+    });
+    window.innerWidth = 390;
+    window.innerHeight = 700;
+  } });
+  t.after(ui.close);
+  await ui.tickTimeouts(800);
+  const preview = ui.document.getElementById('editor-preview');
+  const status = ui.document.getElementById('editor-preview-status');
+  const source = preview.src;
+  const count = ui.requests.filter(r => r.url === '/api/editor-preview').length;
+  assert.equal(preview.hidden, false);
+  for (const height of [740, 760, 700]) {
+    ui.window.innerHeight = height;
+    ui.window.dispatchEvent(new ui.window.Event('scroll'));
+    ui.window.dispatchEvent(new ui.window.Event('resize'));
+    await ui.tickTimeouts(100);
+    assert.equal(preview.hidden, false, 'address-bar resize must not blank the artwork');
+    assert.equal(status.hidden, true);
+  }
+  const paper = ui.document.getElementById('calligraphy-stage');
+  const previousWidth = paper.style.width;
+  viewportWidth = 280;
+  ui.window.innerWidth = 350;
+  ui.window.dispatchEvent(new ui.window.Event('resize'));
+  await ui.tickTimeouts(100);
+  assert.notEqual(paper.style.width, previousWidth, 'real width changes still adjust the paper');
+  assert.equal(preview.src, source);
+  assert.equal(preview.hidden, false);
+  await ui.tickTimeouts(800);
+  assert.equal(ui.requests.filter(r => r.url === '/api/editor-preview').length, count);
+  ui.document.getElementById('text-input').value = '永';
+  ui.document.getElementById('text-input').dispatchEvent(new ui.window.Event('input'));
+  await ui.tickTimeouts(800);
+  assert.equal(ui.requests.filter(r => r.url === '/api/editor-preview').at(-1).body.text, '永');
+  assert.equal(ui.requests.filter(r => r.url === '/api/editor-preview').length, count + 1);
+});
+
+test('scroll-related resizing does not invalidate an editor preview already in flight', async t => {
+  let release;
+  const ui = await createFrontend({ fetch({ url }) {
+    if (url === '/api/editor-preview') return new Promise(resolve => { release = resolve; });
+  } });
+  t.after(ui.close);
+  const pending = ui.tickTimeouts(800);
+  await flush();
+  for (let i = 0; i < 3; i++) {
+    ui.window.innerHeight += 20;
+    ui.window.dispatchEvent(new ui.window.Event('resize'));
+    await ui.tickTimeouts(100);
+  }
+  release({ ok: true, blob: async () => new ui.window.Blob(['current']) });
+  await pending;
+  assert.equal(ui.document.getElementById('editor-preview').hidden, false);
+  assert.equal(ui.document.getElementById('editor-preview-status').hidden, true);
+  assert.equal(ui.requests.filter(r => r.url === '/api/editor-preview').length, 1);
+});
+
 test('the public picker uses raster samples and never offers unavailable built-in styles', async t => {
   const ui = await createFrontend({
     setup(window) {

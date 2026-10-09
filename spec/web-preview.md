@@ -72,6 +72,11 @@ text/font changes. These transient previews do not create export jobs or
 consume the three-creations-per-minute budget. Exported stills/videos remain
 authoritative for inferred brush texture and final layout.
 
+Viewport resizing only adjusts the displayed paper and keeps the current PNG
+visible. Mobile browser chrome can resize the viewport while scrolling; this
+must not trigger another backend preview or invalidate an in-flight response.
+Actual text, font and canvas-setting changes still request new preview pixels.
+
 The ordinary public allowlist and restricted-style guard remain enforced at
 catalog and admission. The evaluation deployment explicitly sets
 `CALLIGRAPHY_DEMO_ALL_FONTS=1` to include all locally available source fonts.

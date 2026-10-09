@@ -793,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return (r.width + padW > stageW + 2) || (r.height + padH > stageH + 2);
   }
 
-  function fitStage() {
+  function fitStage(updatePreview = true) {
     if (!calligraphyStage || !calligraphyText) return;
     const baseSizeSetting = fontSizeSlider ? parseInt(fontSizeSlider.value, 10) : 68;
     const stageW = calligraphyStage.clientWidth || parseInt(calligraphyStage.style.width, 10) || 340;
@@ -827,7 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (canvasMeta) {
       canvasMeta.textContent = typeof getActiveFontDisplayName === 'function' ? getActiveFontDisplayName() : '';
     }
-    scheduleEditorPreview();
+    if (updatePreview) scheduleEditorPreview();
   }
 
   function calcAutoCanvasDim() {
@@ -2057,7 +2057,9 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       if (typeof layoutStagePaper === 'function') layoutStagePaper();
-      if (typeof fitStage === 'function') fitStage();
+      // Viewport changes (including mobile browser chrome during scrolling) only
+      // scale the displayed paper; the backend canvas and preview pixels are unchanged.
+      if (typeof fitStage === 'function') fitStage(false);
     }, 100);
   });
 
