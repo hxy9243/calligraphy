@@ -416,7 +416,8 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
 
 /* ---------- Tablet / Narrow screen (<= 960px) ---------- */
 @media (max-width: 960px) {
-  .create-grid { display: flex; flex-direction: column; gap: 14px; }
+  /* Stretch cards to the viewport instead of their font names/chips' intrinsic width. */
+  .create-grid { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
   .compose { display: contents; }
   #card-text { order: 1; }
   .canvas { order: 2; position: static; }
