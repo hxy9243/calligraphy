@@ -9,12 +9,19 @@ The backend API is unchanged.
   preview right), with independent scrolling in each pane. Scrolling controls
   keeps the preview in view; long artwork can be scrolled separately on the right.
   Mobile and narrow viewports (<= 960px) place text input at the very top, followed by live preview, font, layout, and output controls.
+  Narrow cards stretch to the available width, keeping long font labels and recent-font chips contained.
   Viewports <= 640px use a bottom tab bar, a fixed floating action bar and bottom sheets.
 - Create flow: 1 text, 2 font, 3 layout, 4 output. Fonts are chosen in a searchable picker
   (category, script, favourites, recents) that previews the user's own text in each face.
 - Font entries merge `/api/styles` with `/api/font-catalog`; catalogue-only fonts are also
   exportable because the backend prepares them on demand.
 - The stage is a preview only: browser fonts approximate, not reproduce, the engine output.
+
+## Default script
+- The interface declares `zh-Hant` and starts with Traditional Chinese text, converter selection and preset names/text.
+- The font picker and catalogue initially show Traditional-capable fonts (`trad` and `both`). The explicit Simplified and unrestricted filters remain available.
+- Font display labels from both API routes use the existing OpenCC Traditional conversion. Search accepts either script, while font IDs, source metadata and artwork text remain unchanged.
+- Explicit script/font choices can still select Simplified text. Opening the picker or loading font metadata alone does not convert a draft using the default Kai font.
 
 ## Text limits and Layout constraints
 - Total character limit: 256 characters (expanded from 120).
@@ -32,7 +39,7 @@ The backend API is unchanged.
 - History cards clamp text; the detail dialog shows full text, parameters, and download options.
 
 ## Persistence
-`localStorage` key `wb:v1` keeps draft text, layout, font, recents, favourites, canvas format/length, auto-length mode, and theme.
+`localStorage` keys `calligraphy.direction` and `calligraphy.favorites` retain writing direction and favourite font IDs. Draft text and other controls remain in the current page; changing the default script does not rewrite saved preferences or history text.
 
 
 Font selection and history detail/playback dialogs close when a click starts and

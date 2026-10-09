@@ -88,6 +88,7 @@ test('the public picker uses raster samples and never offers unavailable built-i
   t.after(ui.close);
   const { document } = ui;
   assert.equal(document.querySelector('[data-font-id="aa shoujin"]'), null);
+  document.querySelector('[data-filter="support"] [data-val="all"]').click();
   assert.equal(document.querySelectorAll('.font-card').length, 5);
   const images = document.querySelectorAll('.glyph-sample img');
   assert.equal(images.length, 5);
@@ -100,6 +101,7 @@ test('the public picker uses raster samples and never offers unavailable built-i
   assert.equal(document.getElementById('style-select').value, 'mashanzheng');
   assert.equal(document.querySelector('#font-current-glyph img').getAttribute('src'), '/api/font-samples/mashanzheng-kai');
   document.getElementById('font-current').click();
+  document.querySelector('#picker-support [data-sup="all"]').click();
   assert.equal(document.querySelectorAll('.picker-sample img').length, 5);
   assert.equal(document.querySelectorAll('.picker-item').length, 5);
   assert.ok(ui.requests.every(request => !request.url.startsWith('/fonts/')));

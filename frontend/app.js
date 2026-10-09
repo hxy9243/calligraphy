@@ -156,6 +156,12 @@ function fallbackConvert(text, target) {
 let allFonts = [];
 let availableStyleIds = new Set(["kai", "yan"]);
 
+// Match either input script against Traditional display labels without changing
+// stored font identities, source metadata or the user's draft text.
+function normalizeFontSearch(text) {
+  return fallbackConvert(text, 'trad').toLowerCase();
+}
+
 const BUILTIN_FONT_META = {
   "kai": {
     id: "kai",
@@ -220,7 +226,7 @@ function getFontMeta(styleId) {
 
 let activeFilters = {
   category: "all",
-  char_support: "all",
+  char_support: "trad",
   medium: "all",
   search: ""
 };
@@ -591,6 +597,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateScriptButtons() {
+    btnTrad.setAttribute('aria-pressed', String(currentScript === 'trad'));
+    btnSimp.setAttribute('aria-pressed', String(currentScript === 'simp'));
     if (currentScript === 'trad') {
       btnTrad.classList.add('active');
       btnSimp.classList.remove('active');
@@ -1199,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
           data.styles.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s.id;
-            opt.textContent = `${s.name} - ${s.description}`;
+            opt.textContent = fallbackConvert(`${s.name} - ${s.description || ''}`, 'trad');
             styleSelect.appendChild(opt);
           });
           // Default to generic Kai; preserve an explicitly selected style.
@@ -1792,7 +1800,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById("fonts-search") || document.getElementById("search-input");
     if (searchInput) {
       searchInput.addEventListener("input", (e) => {
-        activeFilters.search = e.target.value.trim().toLowerCase();
+        activeFilters.search = normalizeFontSearch(e.target.value.trim());
         renderFontGrid();
       });
     }
@@ -1860,12 +1868,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // 4. Search
       if (activeFilters.search) {
         const s = activeFilters.search;
-        const match = (f.name_zh && f.name_zh.toLowerCase().includes(s)) ||
-                      (f.name_en && f.name_en.toLowerCase().includes(s)) ||
-                      (f.artist && f.artist.toLowerCase().includes(s)) ||
-                      (f.style_display && f.style_display.toLowerCase().includes(s)) ||
-                      (f.historical_reference && f.historical_reference.toLowerCase().includes(s)) ||
-                      (f.font_author && f.font_author.toLowerCase().includes(s));
+        const match = [f.name_zh, f.name_en, f.artist, f.style_display, f.historical_reference, f.font_author]
+          .some(value => value && normalizeFontSearch(value).includes(s));
         if (!match) return false;
       }
       return true;
@@ -2084,7 +2088,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const pickerSearch = document.getElementById('picker-search');
 
   let pickerActiveCat = 'all';
-  let pickerActiveSup = 'all';
+  let pickerActiveSup = 'trad';
   let recentFonts = ['kai'];
 
   let favoriteFonts = ['kai', 'i-yan-kai', 'tw-sung', 'chill-qiuhong-kai'];
@@ -2116,7 +2120,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderPicker() {
     if (!pickerList) return;
     pickerList.innerHTML = '';
-    const q = pickerSearch ? pickerSearch.value.trim().toLowerCase() : '';
+    const q = pickerSearch ? normalizeFontSearch(pickerSearch.value.trim()) : '';
 
     const catalogList = [
       ...Object.values(BUILTIN_FONT_META).filter(f => availableStyleIds.has(f.id)).map(f => getFontMeta(f.id) || f),
@@ -2139,7 +2143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pickerActiveSup === 'simp' && f.char_support !== 'simp' && f.char_support !== 'both') return false;
       }
       if (q) {
-        const hay = [f.name_zh, f.name_en, f.artist, f.style_display, f.historical_reference, f.font_author].filter(Boolean).join(' ').toLowerCase();
+        const hay = normalizeFontSearch([f.name_zh, f.name_en, f.artist, f.style_display, f.historical_reference, f.font_author].filter(Boolean).join(' '));
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -2279,7 +2283,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applySelectedFont = function(styleId) {
     origApplySelectedFont(styleId);
     const fontMeta = getFontMeta(styleId);
-    if (fontCurrentName) fontCurrentName.textContent = fontMeta ? fontMeta.name_zh : (styleId || '標準楷書');
+    if (fontCurrentName) fontCurrentName.textContent = fontMeta ? fontMeta.name_zh : getActiveFontDisplayName(styleId);
     if (fontCurrentSub) fontCurrentSub.textContent = fontMeta ? `${fontMeta.style_display} · ${fontMeta.artist} (${fontMeta.dynasty_era})` : '';
     if (fontCurrentGlyph) fontCurrentGlyph.innerHTML = fontSampleMarkup(fontMeta);
     if (fontNote) fontNote.textContent = fontMeta ? (fontMeta.aesthetic_notes || '') : '';

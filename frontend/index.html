@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -54,8 +54,8 @@
           <header class="card-head">
             <h2><span class="step">1</span> 文字</h2>
             <div class="seg" role="group" aria-label="字形">
-              <button type="button" id="btn-simp" class="seg-btn" data-script="simp">簡體</button>
-              <button type="button" id="btn-trad" class="seg-btn active" data-script="trad">繁體</button>
+              <button type="button" id="btn-trad" class="seg-btn active" data-script="trad" aria-pressed="true">繁體</button>
+              <button type="button" id="btn-simp" class="seg-btn" data-script="simp" aria-pressed="false">簡體</button>
             </div>
           </header>
           <textarea id="text-input" rows="3" spellcheck="false" aria-label="書寫文本"
@@ -294,8 +294,8 @@
       <div class="filter-block">
         <span class="field-label">字形</span>
         <div class="chip-row wrap" data-filter="support">
-          <button type="button" class="chip active" data-val="all">不限</button>
-          <button type="button" class="chip" data-val="trad">繁體</button>
+          <button type="button" class="chip" data-val="all">不限</button>
+          <button type="button" class="chip active" data-val="trad">繁體</button>
           <button type="button" class="chip" data-val="simp">簡體</button>
           <button type="button" class="chip" data-val="both">繁簡兼備</button>
         </div>
@@ -340,8 +340,8 @@
         <button type="button" class="chip" data-cat="other">行草·其他</button>
       </div>
       <div class="chip-row scroll" id="picker-support" role="group" aria-label="字形">
-        <button type="button" class="chip active" data-sup="all">繁簡不限</button>
-        <button type="button" class="chip" data-sup="trad">繁體</button>
+        <button type="button" class="chip" data-sup="all">繁簡不限</button>
+        <button type="button" class="chip active" data-sup="trad">繁體</button>
         <button type="button" class="chip" data-sup="simp">簡體</button>
       </div>
     </div>
