@@ -93,3 +93,32 @@ per tab session: open the site in Safari/Chrome before creating work, because
 browser session history does not transfer. It offers URL copying with manual
 selection when the clipboard API is unavailable. Detection is advisory only;
 it does not disable generation or downloads in any browser.
+
+## Bounded glyph preparation
+
+Kai/Yan editor previews prepare independent uncached glyphs in up to two spawned
+processes. The parent retains deterministic input order, stroke order, final
+composition and cache identity; duplicate characters are still prepared once.
+Only sufficiently large cold work (at least 64 uncached strokes across multiple
+glyphs) starts a pool. Warm geometry and smaller requests stay serial to avoid
+process-import overhead. Source-font previews retain their lightweight Pillow
+path. This changes preparation scheduling, not glyph geometry or animation.
+
+`CALLIGRAPHY_PREVIEW_WORKERS=1` disables the pool; the default/hard maximum is two.
+The editor also reduces this budget for CPU affinity, Linux cgroup CPU quotas,
+and small cgroup memory limits. Native math pools in the preview subprocess and
+OpenCV threads in fitting children are limited to one. The existing single-editor
+admission slot bounds concurrent requests in the deployed one-worker server;
+its 30-second process-group deadline also kills fitting descendants. Per-glyph
+file locks and atomic SQLite writes preserve shared-cache safety. Failures cancel
+queued fits and propagate without publishing a partial preview.
+
+The reusable `create_scene(..., glyph_workers=1)` and `prepare_kai(..., workers=1)`
+APIs remain serial by default; video rendering and exports are unchanged.
+`scripts/benchmark-preview.py` compares serial and bounded editor subprocesses
+with separate cold geometry caches and warm reruns, checking identical PNG hashes.
+`test_parallel_preview.py` covers worker budgets, bounded submission, error
+cleanup, serial/warm fallback, duplicate reuse and partial/final pixel equality.
+
+See [measured preview validation](../docs/validation-parallel-preview.md) for
+cold/warm timings, equivalence checks and environment limits.

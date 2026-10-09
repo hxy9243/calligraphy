@@ -253,6 +253,7 @@ def create_scene(
     glyphs: Optional[Dict[str, Any]] = None,
     fetch_missing: bool = False,
     mode: str = "auto",
+    glyph_workers: int = 1,
 ) -> Any:
     """Create a renderable scene from a SceneSpec.
     
@@ -281,7 +282,7 @@ def create_scene(
         plan = RenderPlan.create(scene_spec, stroke_counts=stroke_counts)
         if mode in ("auto", "stroke_ir", "contact"):
             from .kai_scene import KaiScene, prepare_kai
-            return KaiScene(plan.to_dict(), prepare_kai(loaded_glyphs, outline_expansion=TEMPLATE_EXPANSIONS[style]),
+            return KaiScene(plan.to_dict(), prepare_kai(loaded_glyphs, outline_expansion=TEMPLATE_EXPANSIONS[style], workers=glyph_workers),
                             appearance=scene_spec.appearance, transforms=scene_spec.transforms)
         return TemplateScene(plan, loaded_glyphs, style=style)
 

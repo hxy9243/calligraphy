@@ -19,6 +19,71 @@ from .style_catalog import downloaded_catalog_entry
 _SLOT = threading.Lock()
 
 
+def _cgroup_directories(controller):
+    """Inspect the process's cgroup and ancestors, including non-namespaced hosts."""
+    root = Path('/sys/fs/cgroup')
+    directories = {root, root / controller}
+    try:
+        memberships = Path('/proc/self/cgroup').read_text().splitlines()
+    except OSError:
+        memberships = []
+    for membership in memberships:
+        try:
+            _, controllers, relative = membership.split(':', 2)
+        except ValueError:
+            continue
+        if controllers and controller not in controllers.split(','):
+            continue
+        relative = Path(relative.lstrip('/'))
+        if '..' in relative.parts:
+            continue
+        base = root / controllers if controllers else root
+        current = base / relative
+        while current != base:
+            directories.add(current)
+            current = current.parent
+        directories.add(base)
+    return directories
+
+
+def glyph_worker_count():
+    """At most two processes within the existing single-preview admission slot."""
+    try:
+        workers = max(1, min(2, int(os.environ.get('CALLIGRAPHY_PREVIEW_WORKERS', '2'))))
+    except ValueError:
+        workers = 1
+    cpus = os.cpu_count() or 1
+    if hasattr(os, 'sched_getaffinity'):
+        try:
+            cpus = min(cpus, len(os.sched_getaffinity(0)))
+        except OSError:
+            pass
+    workers = min(workers, max(1, cpus))
+    for directory in _cgroup_directories('cpu'):
+        try:
+            quota, period = (directory / 'cpu.max').read_text().split()
+            if quota != 'max':
+                workers = min(workers, max(1, int(quota) // int(period)))
+        except (OSError, ValueError, ZeroDivisionError):
+            pass
+        try:
+            quota = int((directory / 'cpu.cfs_quota_us').read_text())
+            period = int((directory / 'cpu.cfs_period_us').read_text())
+            if quota > 0:
+                workers = min(workers, max(1, quota // period))
+        except (OSError, ValueError, ZeroDivisionError):
+            pass
+    for directory in _cgroup_directories('memory'):
+        for name in ('memory.max', 'memory.limit_in_bytes'):
+            try:
+                limit = int((directory / name).read_text())
+                # Reserve 256 MiB for the parent and 256 MiB per fitting child.
+                workers = min(workers, max(1, (limit - 256 * 1024**2) // (256 * 1024**2)))
+            except (OSError, ValueError):
+                pass
+    return workers
+
+
 def render_pixels(params):
     style = validate_style(params['style'])
     width, height = params['width'], params['height']
@@ -27,7 +92,7 @@ def render_pixels(params):
         from calligraphy.spec import SceneSpec
         scene = create_scene(SceneSpec(text=params['text'], style=style,
             layout={'width': width, 'height': height, 'direction': params['direction'], 'gap': params['spacing']},
-            punctuation=params['punctuation']), fetch_missing=True)
+            punctuation=params['punctuation']), fetch_missing=True, glyph_workers=glyph_worker_count())
         duration = scene.duration if hasattr(scene, 'duration') else scene.plan.duration
         image = scene.frame(duration)
     else:
@@ -83,7 +148,9 @@ def cached_preview(payload):
     with tempfile.TemporaryDirectory(prefix='calligraphy-editor-') as temp:
         target = Path(temp) / 'preview.png'
         process = subprocess.Popen([sys.executable, '-m', 'backend.editor_preview', str(target)],
-            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
+            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True,
+            env={**os.environ, 'OMP_NUM_THREADS': '1', 'OPENBLAS_NUM_THREADS': '1',
+                 'MKL_NUM_THREADS': '1', 'NUMEXPR_NUM_THREADS': '1'})
         try:
             _, error = process.communicate(payload.encode(), timeout=30)
         except subprocess.TimeoutExpired:
