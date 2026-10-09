@@ -55,8 +55,8 @@ for (const [reason, fail] of Object.entries(failures)) {
     fail(ui.conversions[0]);
     await flush();
     assert.equal(ui.input.value, '鳥');
-    assert.match(ui.status.textContent, /离线字表/);
-    assert.match(ui.status.textContent, /部分字词可能未转换/);
+    assert.match(ui.status.textContent, /離線字表/);
+    assert.match(ui.status.textContent, /部分字詞可能未轉換/);
     assert.ok(!ui.status.classList.contains('success'));
   });
 }
@@ -68,7 +68,7 @@ test('an unchanged offline fallback is not presented as a successful full conver
   failures.unavailable(ui.conversions[0]);
   await flush();
   assert.equal(ui.input.value, '龟');
-  assert.match(ui.status.textContent, /部分字词可能未转换/);
+  assert.match(ui.status.textContent, /部分字詞可能未轉換/);
   assert.ok(!ui.status.classList.contains('success'));
 });
 
@@ -156,14 +156,14 @@ test('repeated conversion-toggle clicks use the latest pending direction', async
   ui.setText('鸟');
   ui.click('btn-convert-current');
   ui.click('btn-convert-current');
-  assert.deepEqual(ui.conversions.map(request => request.body.target), ['trad', 'simp']);
-  ui.conversions[0].resolve(jsonResponse({ text: '鳥' }));
+  assert.deepEqual(ui.conversions.map(request => request.body.target), ['simp', 'trad']);
+  ui.conversions[0].resolve(jsonResponse({ text: '鸟' }));
   await flush();
   assert.equal(ui.input.value, '鸟');
-  assert.match(ui.status.textContent, /正在转换文本为简体/);
-  ui.conversions[1].resolve(jsonResponse({ text: '鸟' }));
+  assert.match(ui.status.textContent, /正在轉換文本爲繁體/);
+  ui.conversions[1].resolve(jsonResponse({ text: '鳥' }));
   await flush();
-  assert.equal(ui.input.value, '鸟');
+  assert.equal(ui.input.value, '鳥');
 });
 
 test('a new script choice for empty text supersedes an older request', async t => {
@@ -206,7 +206,7 @@ test('an older success timer cannot hide a newer conversion status', async t => 
   await flush();
   ui.click('btn-simp');
   await ui.tickTimeouts();
-  assert.match(ui.status.textContent, /正在转换文本为简体/);
+  assert.match(ui.status.textContent, /正在轉換文本爲簡體/);
   assert.ok(!ui.status.classList.contains('hidden'));
   ui.conversions[1].resolve(jsonResponse({ text: '鸟' }));
   await flush();
@@ -224,10 +224,10 @@ test('missing characters in font triggers warning and blocks preview', async t =
   const warning = ui.document.getElementById('char-warning');
   assert.ok(!warning.hidden, 'warning should be visible');
   assert.match(warning.textContent, /缺少字符/);
-  assert.match(warning.textContent, /无法生成/);
+  assert.match(warning.textContent, /無法生成/);
 
   ui.click('btn-preview');
-  assert.match(ui.status.textContent, /无法生成/);
+  assert.match(ui.status.textContent, /無法生成/);
 
   ui.click('btn-trad');
   ui.conversions[ui.conversions.length - 1].resolve(jsonResponse({ text: '東去浪淘盡' }));
@@ -272,7 +272,7 @@ test('dictionary fallback without OpenCC engine also preserves 里 as 里', asyn
 
 test('preset buttons display traditional names when traditional script is active', async t => {
   const ui = await setup(t);
-  assert.equal(ui.document.querySelector('.preset-btn').textContent, '王维联句');
+  assert.equal(ui.document.querySelector('.preset-btn').textContent, '王維聯句');
 
   ui.click('btn-trad');
   assert.equal(ui.document.querySelector('.preset-btn').textContent, '王維聯句');
@@ -351,6 +351,5 @@ for (const engine of ['OpenCC', 'dictionary']) {
     assert.match(warning.textContent, /【东】/);
   });
 }
-
 
 

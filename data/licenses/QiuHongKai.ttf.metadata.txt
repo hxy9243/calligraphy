@@ -1,0 +1,10 @@
+Retained source font metadata
+Font: Chill QiuHong Kai
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/vertexaisearch/ChillCalligraphy
+
+Copyright © 2020 by Keynoteart. All rights reserved.
+
+Keynoteart
+
+人生哥据叶运鹏先生手稿制

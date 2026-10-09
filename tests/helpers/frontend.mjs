@@ -24,8 +24,14 @@ export async function createFrontend({ jobs = [], fetch: handleFetch, setup } = 
   const mediaEvents = [];
   const intervals = new Map();
   const timeouts = new Map();
+  const timeoutDelays = new Map();
   let timerId = 0;
   window.HTMLElement.prototype.scrollIntoView = function () {};
+  window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  window.HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+    this.dispatchEvent(new window.Event('close'));
+  };
   for (const method of ['load', 'pause', 'play']) {
     window.HTMLMediaElement.prototype[method] = function () {
       mediaEvents.push({ method, element: this, src: this.getAttribute('src') });
@@ -37,11 +43,12 @@ export async function createFrontend({ jobs = [], fetch: handleFetch, setup } = 
     return timerId;
   };
   window.clearInterval = id => intervals.delete(id);
-  window.setTimeout = callback => {
+  window.setTimeout = (callback, delay) => {
     timeouts.set(++timerId, callback);
+    timeoutDelays.set(timerId, delay);
     return timerId;
   };
-  window.clearTimeout = id => timeouts.delete(id);
+  window.clearTimeout = id => { timeouts.delete(id); timeoutDelays.delete(id); };
   window.fetch = async (url, options = {}) => {
     const request = { url, options, body: options.body ? JSON.parse(options.body) : undefined };
     requests.push(request);
@@ -49,9 +56,12 @@ export async function createFrontend({ jobs = [], fetch: handleFetch, setup } = 
     if (response !== undefined) return response;
     if (url === '/api/styles') return jsonResponse({ styles: [{ id: 'kai', name: 'Kai', description: 'Fixture' }] });
     if (url === '/api/font-catalog') return jsonResponse([]);
+    if (url === '/api/editor-preview') return { ok: true, status: 200, blob: async () => new window.Blob(['PNG'], { type: 'image/png' }) };
     if (url === '/api/jobs') return jsonResponse({ jobs });
     throw new Error(`Unexpected request: ${url}`);
   };
+  window.URL.createObjectURL = () => 'blob:editor-preview';
+  window.URL.revokeObjectURL = () => {};
   await setup?.(window);
   window.eval(script);
   document.dispatchEvent(new window.Event('DOMContentLoaded'));
@@ -59,9 +69,9 @@ export async function createFrontend({ jobs = [], fetch: handleFetch, setup } = 
 
   return {
     window, document, requests, mediaEvents, intervals, timeouts,
-    async tickTimeouts() {
-      const pending = [...timeouts.entries()];
-      for (const [id] of pending) timeouts.delete(id);
+    async tickTimeouts(delay) {
+      const pending = [...timeouts.entries()].filter(([id]) => delay === undefined || timeoutDelays.get(id) === delay);
+      for (const [id] of pending) { timeouts.delete(id); timeoutDelays.delete(id); }
       await Promise.all(pending.map(([, callback]) => callback()));
       await flush();
     },

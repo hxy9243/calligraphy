@@ -1,0 +1,8 @@
+Retained source font metadata
+Font: Chill LongCang Kai Bold
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/jaywcjlove/free-font
+
+Copyright 2018 The LongCang Project Authors (https://github.com/googlefonts/longcang)
+
+http://scripts.sil.org/OFL

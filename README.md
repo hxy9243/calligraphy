@@ -123,7 +123,7 @@ From the repository root, with the virtual environment activated:
 
 ```sh
 # Install the additional studio dependencies
-pip install fastapi 'uvicorn[standard]' 'pydantic>=2,<3'
+pip install -e '.[studio]'
 
 # Start the studio API and static web UI
 uvicorn backend.app:app --reload --port 8000
@@ -249,3 +249,10 @@ The supported source is published at [hxy9243/calligraphy](https://github.com/hx
 on `main`, with retained Git history. The original `caligraphy` checkout and its
 unfinished Lishu worktree are preserved under the local workspace's `archive/`
 directory. Research experiments remain in the separate `calligraphy-lab` repository.
+
+## Railway demo deployment
+
+[Deployment instructions](docs/deployment.md) describe the Docker image, pinned
+studio dependencies, private font assets, Railway IaC manifest, persistent
+volume, rate limit, job deadlines and restart recovery. The frontend and API
+share one service and origin.

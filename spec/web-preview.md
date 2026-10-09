@@ -1,6 +1,6 @@
 # Studio preview display and direction
 
-The studio in `frontend/` uses a live CSS text stage for immediate editing and
+The studio in `frontend/` uses server-rendered raster images for live font previews and
 an export panel for server-rendered previews and completed videos. The export
 panel can be opened by generating a preview or selecting an image/video from the
 current session's job history.
@@ -35,7 +35,7 @@ shared worker passes it into `SceneSpec.layout.direction` for SVG, PNG and video
 Existing jobs without a direction retain the vertical default. Direction changes
 create distinct render requests even when their text and style match.
 
-The live CSS stage is an editing aid, not a pixel-identical export. Server page
+The live font stage is an editing aid, not a pixel-identical export. Server page
 fitting and line wrapping continue to use the shared scene plan, and choosing
 horizontal writing does not rotate the page or swap its dimensions.
 
@@ -53,3 +53,38 @@ reload persistence, defaults and unavailable browser storage. The Python
 params, worker and `RenderPlan` placements for both directions. It stubs glyph
 preparation and output encoding; existing renderer/export tests cover those
 separately.
+
+## Font privacy
+
+The server mounts only the frontend as static content. `/fonts/*` and
+`/data/fonts/*` return 404; the browser never receives source font bytes. Catalog
+metadata omits filesystem paths and download URLs. Font tiles and picker glyphs
+use fixed server-rasterized PNG samples from `/api/font-samples/{style}`. This
+endpoint accepts no arbitrary text or asset paths. `POST /api/editor-preview`
+accepts bounded text/layout settings and returns PNG pixels, never font bytes.
+Catalog fonts use their source glyphs; Kai/Yan use the scene renderer. The browser
+debounces edits by 800 ms, keeps at most one request in flight and ignores stale
+responses. Pending/error status sits outside the artwork viewport. Font cards,
+the picker and the selected-font badge use precomputed backend PNG samples of
+永, including Kai/Yan. An authoritative missing-glyph response lists the exact
+missing characters in an alert near the input and blocks exports until the
+text/font changes. These transient previews do not create export jobs or
+consume the three-creations-per-minute budget. Exported stills/videos remain
+authoritative for inferred brush texture and final layout.
+
+The ordinary public allowlist and restricted-style guard remain enforced at
+catalog and admission. The evaluation deployment explicitly sets
+`CALLIGRAPHY_DEMO_ALL_FONTS=1` to include all locally available source fonts.
+Source files and license notices remain server-side even in this mode.
+
+First visits start with Traditional Chinese interface copy, initial text and
+presets, with the Traditional button active. The Simplified toggle remains
+available; explicitly selecting a simplified-only font can convert the text.
+Script dictionaries and simplified preset text retain both forms.
+
+The GitHub Star link is the final header control at the far right. A browser
+identifying itself with `MicroMessenger` gets a dismissible WeChat advisory once
+per tab session: open the site in Safari/Chrome before creating work, because
+browser session history does not transfer. It offers URL copying with manual
+selection when the clipboard API is unavailable. Detection is advisory only;
+it does not disable generation or downloads in any browser.

@@ -19,6 +19,9 @@ dependencies = [
   "opencc>=1.1.9,<2",
 ]
 
+[project.optional-dependencies]
+studio = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.30,<1", "pydantic>=2,<3"]
+
 [tool.setuptools.packages.find]
 include = ["calligraphy", "calligraphy.*"]
 namespaces = false

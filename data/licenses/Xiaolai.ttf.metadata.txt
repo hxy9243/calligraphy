@@ -1,0 +1,13 @@
+Retained source font metadata
+Font: Xiaolai Font
+Catalog license designation (not a grant): SIL OFL 1.1
+Source: https://github.com/lxgw/kose-font
+
+Copyright 2020-2024 LXGW (https://github.com/lxgw/kose-font)
+Copyright 2014 Nozomi Seto (https://ja.osdn.net/projects/setofont/)
+
+LXGW / Nozomi Seto
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This Font Software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the SIL Open Font License for the specific language, permissions and limitations governing your use of this Font Software.
+
+http://scripts.sil.org/OFL

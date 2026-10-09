@@ -16,8 +16,11 @@ from calligraphy.font_pipeline import registered_styles
 from calligraphy.text.converter import ConversionUnavailableError, convert_text
 from calligraphy.text.input import parse_text
 from .database import Database, get_db
+from .database import AdmissionError
+from .public_fonts import allowed_style, public_catalog, private_catalog, validate_style, font_sample
 from .style_catalog import STYLE_ALIASES
-from .worker import execute_job, get_runner
+from .worker import execute_job_bounded as execute_job, get_runner
+from .editor_preview import editor_preview
 
 MAX_INPUT_CHARACTERS = 256
 MAX_LINE_CHARACTERS = 20
@@ -34,8 +37,8 @@ class PreviewRequest(BaseModel):
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
     punctuation: str = Field(default="omit")
-    width: Optional[int] = Field(default=None)
-    height: Optional[int] = Field(default=None)
+    width: Optional[int] = Field(default=None, ge=64, le=1280)
+    height: Optional[int] = Field(default=None, ge=64, le=1280)
 
     @field_validator("text")
     @classmethod
@@ -48,6 +51,13 @@ class PreviewRequest(BaseModel):
         return v
 
 
+class EditorPreviewRequest(PreviewRequest):
+    width: int = Field(default=480, ge=64, le=640)
+    height: int = Field(default=640, ge=64, le=640)
+    font_size: int = Field(default=48, ge=8, le=160)
+    fit: bool = True
+
+
 class RenderRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
@@ -56,8 +66,15 @@ class RenderRequest(BaseModel):
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
     punctuation: str = Field(default="omit")
-    width: Optional[int] = Field(default=None)
-    height: Optional[int] = Field(default=None)
+    width: Optional[int] = Field(default=None, ge=64, le=1280)
+    height: Optional[int] = Field(default=None, ge=64, le=1280)
+
+    @field_validator("width", "height")
+    @classmethod
+    def even_dimensions(cls, value):
+        if value is not None and value % 2:
+            raise ValueError("视频尺寸须为偶数 / Video dimensions must be even.")
+        return value
 
     @field_validator("text")
     @classmethod
@@ -116,13 +133,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": str(exc)},
     )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.exception_handler(AdmissionError)
+async def admission_error(request, exc):
+    return JSONResponse(status_code=429, content={"detail": str(exc)}, headers={"Retry-After": str(exc.retry_after)})
+
+
+def checked_style(style):
+    try:
+        return validate_style(style)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 SESSION_COOKIE_NAME = "calligraphy_session"
@@ -130,6 +150,12 @@ SESSION_COOKIE_NAME = "calligraphy_session"
 
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
+    # Browser mutations are same-origin. Railway terminates TLS before forwarding.
+    origin = request.headers.get("origin")
+    if request.method not in ("GET", "HEAD", "OPTIONS") and origin:
+        from urllib.parse import urlsplit
+        if urlsplit(origin).netloc != request.headers.get("host"):
+            return JSONResponse(status_code=403, content={"detail": "Cross-origin request denied."})
     session_id = request.cookies.get(SESSION_COOKIE_NAME)
     is_new = False
     if not session_id or len(session_id) > 64:
@@ -147,6 +173,7 @@ async def session_middleware(request: Request, call_next):
             httponly=True,
             samesite="lax",
             max_age=7 * 86400,
+            secure=os.environ.get("CALLIGRAPHY_SECURE_COOKIES") == "1",
         )
     return response
 
@@ -175,6 +202,8 @@ def list_styles():
         "shutifang-liugongquan-kai": "書體坊柳公權楷 (ShuTiFang Liu GongQuan)",
     }
     for entry in registered_styles():
+        if not allowed_style(entry["style"]):
+            continue
         display_name = font_names.get(entry["style"], entry["style"])
         styles.append({
             "id": entry["style"],
@@ -182,7 +211,13 @@ def list_styles():
             "description": f"{entry['prepared']} prepared glyphs, extensible font",
             "type": "font",
         })
-    return {"styles": styles}
+    known = {s["id"] for s in styles}
+    for entry in private_catalog():
+        canonical = STYLE_ALIASES.get(entry["id"], entry["id"])
+        if allowed_style(canonical) and entry.get("is_downloaded") == 1 and canonical not in known:
+            styles.append({"id": canonical, "name": entry["name_zh"], "description": "Font-derived writing / 字体推断书写", "type": "font"})
+            known.add(canonical)
+    return {"styles": [s for s in styles if allowed_style(s["id"])]}
 
 
 @app.post("/api/convert-script")
@@ -198,12 +233,27 @@ def convert_script_endpoint(req: ConvertRequest):
 @app.get("/api/font-catalog")
 @app.get("/fonts.json")
 def get_font_catalog():
-    """Retrieve full calligraphy font database catalog."""
-    catalog_path = Path(__file__).resolve().parent.parent / "data" / "calligraphy_fonts.json"
-    if catalog_path.exists():
-        with open(catalog_path, "r", encoding="utf-8") as f:
-            return JSONResponse(content=json.load(f))
-    return JSONResponse(content=[])
+    return JSONResponse(content=public_catalog())
+
+
+@app.get("/api/font-samples/{style}")
+def sample_font(style: str):
+    if not allowed_style(style):
+        raise HTTPException(status_code=404, detail="Font sample not available.")
+    try:
+        pixels = font_sample(style)
+    except (ValueError, OSError):
+        raise HTTPException(status_code=404, detail="Font sample not available.")
+    return Response(pixels, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/health")
+def health():
+    get_db()._get_sqlite_conn().execute("SELECT 1").fetchone()
+    runner = get_runner()
+    if not runner.is_healthy():
+        raise HTTPException(status_code=503, detail="Render worker unavailable.")
+    return {"status": "ok"}
 
 
 @app.post("/api/previews")
@@ -225,7 +275,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
 
     job_id = f"prev_{uuid.uuid4().hex[:12]}"
     db = get_db()
-    chosen_style = STYLE_ALIASES.get(req.style, req.style)
+    chosen_style = checked_style(req.style)
     params = {
         "format": req.format,
         "spacing": req.spacing,
@@ -245,6 +295,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         style=chosen_style,
         params=params,
         status="rendering",
+        admit=True,
     )
     # Execute preview immediately for snappy preview response
     success = execute_job(job, db)
@@ -271,6 +322,22 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
     }
 
 
+@app.post("/api/editor-preview")
+def render_editor_preview(req: EditorPreviewRequest):
+    params = req.model_dump()
+    params['style'] = checked_style(req.style)
+    try:
+        params['lines'] = parse_text(req.text, punctuation=req.punctuation)['lines']
+        pixels = editor_preview(params)
+    except BlockingIOError as exc:
+        raise HTTPException(status_code=503, detail=str(exc), headers={'Retry-After': '2'})
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc))
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return Response(pixels, media_type='image/png', headers={'Cache-Control': 'no-store'})
+
+
 @app.post("/api/renders", status_code=status.HTTP_202_ACCEPTED)
 def submit_render(req: RenderRequest, request: Request, response: Response):
     """Submit asynchronous video generation job."""
@@ -290,7 +357,7 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
 
     job_id = f"vid_{uuid.uuid4().hex[:12]}"
     db = get_db()
-    chosen_style = STYLE_ALIASES.get(req.style, req.style)
+    chosen_style = checked_style(req.style)
     params = {
         "fps": req.fps,
         "speed": req.speed,
@@ -309,6 +376,7 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         text=req.text,
         style=chosen_style,
         params=params,
+        admit=True,
     )
     runner = get_runner()
     runner.notify()
@@ -442,11 +510,6 @@ def get_job_image(job_id: str, request: Request, response: Response):
         media_type=media_type,
     )
 
-
-# Mount fonts static directory if exists
-fonts_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
-if fonts_dir.exists():
-    app.mount("/fonts", StaticFiles(directory=str(fonts_dir)), name="fonts")
 
 # Mount frontend static directory if exists
 frontend_dir = Path(__file__).resolve().parent.parent / "frontend"

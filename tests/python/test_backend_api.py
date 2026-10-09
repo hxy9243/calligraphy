@@ -84,20 +84,16 @@ class BackendApiTests(unittest.TestCase):
             "bpmf-zihi-kai",
             "hanwang-boldpen-xingkai",
             "hanwang-wave-kai",
-            "hanwang-kandayan",
         ):
             self.assertNotIn(removed_id, catalog_ids)
+        # The full local inventory restores the existing Kan Da Yan source font.
+        self.assertIn("hanwang-kandayan", catalog_ids)
 
-        # Test static fonts endpoint
-        res_font = self.client.get("/fonts/MaShanZheng.ttf")
-        self.assertEqual(res_font.status_code, 200)
-        self.assertIn("font", res_font.headers["content-type"].lower())
-        res_tw_sung = self.client.get("/fonts/TW-Sung.ttf")
-        self.assertEqual(res_tw_sung.status_code, 200)
-        res_genryu = self.client.get("/fonts/GenRyuMin-Regular.otf")
-        self.assertEqual(res_genryu.status_code, 200)
-        res_fangsong = self.client.get("/fonts/cwTeXFangSong.ttf")
-        self.assertEqual(res_fangsong.status_code, 200)
+        # Font bytes stay private even when their exact filenames are known.
+        for filename in ("MaShanZheng.ttf", "TW-Sung.ttf", "GenRyuMin-Regular.otf", "cwTeXFangSong.ttf"):
+            self.assertEqual(self.client.get(f"/fonts/{filename}").status_code, 404)
+        self.assertTrue(all("file_path" not in entry and "download_url" not in entry for entry in catalog))
+        self.assertNotIn("shutifang-liugongquan-kai", catalog_ids)
 
     def test_delete_history_is_session_scoped_and_only_allows_terminal_jobs(self):
         self.client.get("/api/styles")

@@ -73,6 +73,7 @@ class BackendDirectionTests(unittest.TestCase):
         for direction in (None, "vertical-rl", "horizontal-lr"):
             for output_format, exporter in (("auto", self.export_svg), ("png", self.export_still)):
                 with self.subTest(direction=direction, output_format=output_format):
+                    self.client.cookies.set("calligraphy_session", f"direction-{direction}-{output_format}")
                     payload = {"text": "永永\n永永", "format": output_format}
                     if direction is not None:
                         payload["direction"] = direction

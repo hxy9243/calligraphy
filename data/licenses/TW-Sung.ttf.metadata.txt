@@ -1,0 +1,8 @@
+Retained source font metadata
+Font: CNS11643 TW-Sung
+Catalog license designation (not a grant): Open Government Data License 1.0
+Source: https://www.cns11643.gov.tw/
+
+(c)2018 National Development Council. Open Government Data License, version 1.0(https://data.gov.tw/en/license).
+
+(c)2018國家發展委員會。本字型採用政府資料開放授權條款－第1版 (https://data.gov.tw/license) 。

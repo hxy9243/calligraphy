@@ -4,6 +4,11 @@ import os
 import sys
 import threading
 import time
+import fcntl
+import math
+import signal
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -13,6 +18,61 @@ from .database import Database, get_db
 from .style_catalog import downloaded_catalog_entry
 
 logger = logging.getLogger("calligraphy.worker")
+_RENDER_SLOT = threading.Lock()
+_PROCESSES = {}
+_PROCESSES_LOCK = threading.Lock()
+
+
+def output_root():
+    return Path(os.environ.get("CALLIGRAPHY_OUTPUT_DIR", "outputs")).resolve()
+
+
+def execute_job_bounded(job, db):
+    """One compute slot, with a killable process and deadline in deployment."""
+    wait = 5 if job["job_type"] == "preview" else 650
+    if not _RENDER_SLOT.acquire(timeout=wait):
+        db.update_job(job["job_id"], status="failed", completed=True,
+                      error_message="服务器正在处理任务，请稍后再试 / Renderer busy; please retry.")
+        return False
+    try:
+        if os.environ.get("CALLIGRAPHY_ISOLATE_JOBS") != "1":
+            return execute_job(job, db)
+        deadline = int(os.environ.get("CALLIGRAPHY_JOB_TIMEOUT_SECONDS", "600"))
+        process = subprocess.Popen([sys.executable, "-m", "backend.worker", "--job-id", job["job_id"], "--database", db.db_url], start_new_session=True)
+        with _PROCESSES_LOCK:
+            _PROCESSES[job["job_id"]] = (process, db)
+        try:
+            process.wait(timeout=deadline)
+        except subprocess.TimeoutExpired:
+            # Kill the encoder as well as the renderer; threads cannot do this.
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+            raise TimeoutError("任务超时，请缩短文本后重试 / Render exceeded its time limit.")
+        finished = db.get_job(job["job_id"])
+        if finished and finished["status"] == "failed":
+            return False
+        if process.returncode != 0 or finished["status"] not in ("succeeded", "failed"):
+            raise RuntimeError("渲染进程中断，请重试 / Render process interrupted; please retry.")
+        return finished["status"] == "succeeded"
+    except Exception as exc:
+        logger.exception("Isolated job failed")
+        db.update_job(job["job_id"], status="failed", completed=True, error_message=str(exc))
+        return False
+    finally:
+        with _PROCESSES_LOCK:
+            _PROCESSES.pop(job["job_id"], None)
+        _RENDER_SLOT.release()
+
+
+def cleanup_expired_outputs(db):
+    cutoff = time.time() - int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400"))
+    db.prune_history(datetime.fromtimestamp(cutoff, timezone.utc).isoformat())
+    # Include orphaned output files whose history was explicitly deleted.
+    root = output_root()
+    for folder in ("previews", "videos"):
+        for path in (root / folder).glob("*"):
+            if path.is_file() and not path.is_symlink() and path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
 
 
 def _auto_prepare_font(style: str, text: str) -> None:
@@ -55,14 +115,25 @@ def _auto_prepare_font(style: str, text: str) -> None:
 
     licenses_dir = Path(__file__).resolve().parent.parent / "data" / "licenses"
     license_type = (entry.get("license") or "").lower()
-    if "gpl" in license_type or "wang" in clean_style or "hanwang" in clean_style:
+    demo_licenses = {"mashanzheng": "MaShanZheng.ttf.OFL.txt",
+                     "longcang": "LongCang.ttf.OFL.txt",
+                     "lxgw-wenkai-tc": "LXGWWenKaiTC-OFL.txt",
+                     "zhimang-xingshu": "ZhiMangXing.ttf.OFL.txt",
+                     "edukai": "EduKai-License.txt", "tw-kai": "TW-Kai-License.txt",
+                     "tw-sung": "TW-Sung-License.txt", "genryu-min": "GenRyuMin-OFL.txt",
+                     "genwan-min": "GenWanMin-OFL.txt", "xiaolai-kai": "Xiaolai-OFL.txt",
+                     "cwtex-fangsong": "cwTeXFangSong-GPL.txt"}
+    if clean_style in demo_licenses:
+        license_path = licenses_dir / demo_licenses[clean_style]
+    elif clean_style.startswith("hanwang-") or clean_style == "lishu hanwang":
         license_path = licenses_dir / "WangFonts-GPL.txt"
     elif "arphic" in clean_style:
         license_path = licenses_dir / "Arphic-License.txt"
     elif "shutifang" in clean_style or "liugongquan" in clean_style:
         license_path = licenses_dir / "ShuTiFang-License.txt"
     else:
-        license_path = licenses_dir / "MaShanZheng.ttf.OFL.txt"
+        # Preserve this font's embedded notices; never attribute another font's OFL.
+        license_path = Path(__file__).resolve().parent.parent / entry["license_path"]
 
     try:
         needed_glyphs = resolve_glyphs(text, fetch_missing=True)
@@ -131,7 +202,7 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
 
         db.update_job(job_id, progress=0.5)
 
-        base_output_dir = Path("outputs").resolve()
+        base_output_dir = output_root()
         if job_type == "preview":
             out_dir = base_output_dir / "previews"
             out_dir.mkdir(parents=True, exist_ok=True)
@@ -151,6 +222,9 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
             out_file = out_dir / f"{job_id}.mp4"
             fps = int(params.get("fps", 24))
             speed = float(params.get("speed", 1.0))
+            duration = scene.duration if hasattr(scene, "duration") else scene.plan.duration
+            if duration / speed > 120 or math.ceil(duration * fps / speed) > 3000:
+                raise ValueError("视频超过 120 秒或 3000 帧，请缩短文本或加快速度 / Video exceeds 120 seconds or 3000 frames.")
             export_video(scene, out_file, fps=fps, speed=speed)
 
         db.update_job(
@@ -181,10 +255,19 @@ class BackgroundTaskRunner:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._cond = threading.Condition()
+        self._lease_file = None
 
     def start(self) -> None:
         if self._running:
             return
+        self._lease_file = self.db.sqlite_path.with_suffix(".worker.lock").open("a")
+        try:
+            fcntl.flock(self._lease_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            self._lease_file.close()
+            self._lease_file = None
+            raise RuntimeError("Only one studio instance may use this SQLite volume.")
+        self.db.recover_interrupted_jobs()
         self._running = True
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
@@ -195,20 +278,42 @@ class BackgroundTaskRunner:
 
     def stop(self) -> None:
         self._running = False
+        with _PROCESSES_LOCK:
+            for job_id, (process, db) in list(_PROCESSES.items()):
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                db.update_job(job_id, status="failed", completed=True,
+                              error_message="服务正在重启，请重试 / Service is restarting; please retry.")
         with self._cond:
             self._cond.notify_all()
         if self._thread:
-            self._thread.join(timeout=2.0)
+            self._thread.join(timeout=3.0)
+        if self._lease_file and not self._thread.is_alive():
+            self._lease_file.close()
+            self._lease_file = None
+
+    def is_healthy(self):
+        return self._running and self._thread is not None and self._thread.is_alive()
 
     def _loop(self) -> None:
+        last_cleanup = 0
         while self._running:
-            job = self.db.claim_next_job()
-            if job:
-                execute_job(job, self.db)
-            else:
-                with self._cond:
-                    if self._running:
-                        self._cond.wait(timeout=1.0)
+            try:
+                if time.monotonic() - last_cleanup > 60:
+                    cleanup_expired_outputs(self.db)
+                    last_cleanup = time.monotonic()
+                job = self.db.claim_next_job()
+                if job:
+                    execute_job_bounded(job, self.db)
+                else:
+                    with self._cond:
+                        if self._running:
+                            self._cond.wait(timeout=1.0)
+            except Exception:
+                logger.exception("Worker queue error")
+                time.sleep(1)
 
 
 _RUNNER_INSTANCE: Optional[BackgroundTaskRunner] = None
@@ -237,4 +342,21 @@ def run_worker_loop(db_url: Optional[str] = None) -> None:
 
 
 if __name__ == "__main__":
-    run_worker_loop()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--job-id")
+    parser.add_argument("--database")
+    args = parser.parse_args()
+    if args.job_id:
+        db = Database(args.database)
+        job = db.get_job(args.job_id)
+        sys.exit(0 if job and execute_job(job, db) else 1)
+    else:
+        # Use the same exclusive lease, recovery and bounded execution as the API.
+        runner = BackgroundTaskRunner(Database(args.database))
+        runner.start()
+        try:
+            while runner.is_healthy():
+                time.sleep(1)
+        except KeyboardInterrupt:
+            runner.stop()

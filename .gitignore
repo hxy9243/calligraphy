@@ -13,3 +13,13 @@ dist/
 *.db-*
 calligraphy-fonts-worktree
 uv.lock
+
+.railway/cache/
+*.worker.lock
+
+# Private evaluation inputs: provision through the Railway volume, never GitHub.
+data/fonts/AaShouJin.ttf
+data/fonts/ChironGoRoundTC.ttf
+data/fonts/HanWangKanDaYan.ttf
+data/fonts/QijiWoodblockKai.ttf
+data/font_samples/

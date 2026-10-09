@@ -1,0 +1,14 @@
+Retained source font metadata
+Font: Yuji Boku Brush
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/google/fonts/tree/main/ofl/yujiboku
+
+Copyright 2021 The Yuji Project Authors (https://github.com/Kinutafontfactory/Yuji)
+
+Kinuta Font Factory
+
+Kataoka Yuji
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL
+
+https://scripts.sil.org/OFL

@@ -1,0 +1,10 @@
+Retained source font metadata
+Font: EduKai Regular Script
+Catalog license designation (not a grant): Open Government Data License 1.0
+Source: https://language.moe.gov.tw/
+
+(c) This license allows for redistribution, commercial and non-commercial, as long as it is passed along unchanged and in whole, with credit to MOE.
+
+(c)本字形檔採用創用CC姓名標示-禁止改作3.0 臺灣版授權。如需引用，請標示中華民國教育部。
+
+(c)本字形档采用创用CC姓名标示-禁止改作 3.0 台湾版授权。如需引用，请标示中华民国教育部。

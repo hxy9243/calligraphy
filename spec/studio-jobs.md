@@ -1,8 +1,14 @@
 # Studio render queue and job history
 
+After a render submission is accepted, a separate confirmation popup acknowledges
+the queued work and redirects to history after 3000 ms. Users can open history
+immediately or dismiss the dialog to keep editing; dismissal and Escape cancel
+the redirect. Failed submissions never acknowledge success or navigate.
+The confirmation never occupies the artwork preview.
+
 This describes the implemented local SQLite-backed studio in `backend/` and
-`frontend/`. The broader hosted service, leases, admission limits and persistence
-plans remain in [the MVP plan](../docs/mvp-plan.md).
+`frontend/`. The single-instance demo deployment is documented in [deployment](../docs/deployment.md).
+The broader multi-worker service remains in [the MVP plan](../docs/mvp-plan.md).
 
 ## Submission and request identity
 
@@ -49,8 +55,30 @@ The background claim also filters to `job_type = 'render'`, so even legacy queue
 preview rows are ineligible for background execution. Worker completion records
 `succeeded` or `failed` on the owning job.
 
-Worker leases, crash recovery and automatic retries are not implemented by this
-queue change. A worker crash can still leave an active job requiring recovery.
+The demo holds an exclusive file lease for the database's worker. A second
+instance refuses startup before touching active jobs. Startup marks interrupted
+`rendering`/`running` jobs failed with an explicit retry message; queued jobs remain
+queued. There are no automatic retries. Deployment must run one API process and
+one replica with the persistent SQLite volume.
+
+Previews and videos share one compute slot. Previews wait at most five seconds
+for that slot before failing with a retry message. In deployment, each admitted
+job runs in its own process group with a 600-second wall-clock deadline. Timeout
+and shutdown kill the renderer and encoder together. A failed process is recorded
+as a failed job. The worker catches queue errors and keeps polling.
+
+Both creation endpoints share an atomic sliding-window limit of three new jobs
+per browser session in 60 seconds. Events persist in SQLite independently of job
+history, so deletion and restarts do not reset the budget. Identical active video
+submissions reuse their job without consuming another creation. Rejected requests
+return HTTP 429 with `Retry-After`; invalid requests and full-queue rejections do
+not consume budget. The global active-job ceiling defaults to ten. Without
+accounts, clearing cookies creates a new identity; this is not an IP abuse limit.
+
+Canvas dimensions are bounded to 64–1280 pixels per side, with even video sizes.
+After preparation, videos above 120 seconds or 3000 frames are rejected before
+encoding. Terminal history and output files expire after 24 hours; cleanup also
+removes expired files whose history was previously deleted.
 
 ## Browser behavior
 
@@ -90,7 +118,7 @@ jobs cannot be deleted; the button becomes available after success or failure.
 `DELETE /api/jobs/{job_id}` atomically verifies session ownership and terminal
 status before deleting the SQLite history row. It returns 204 on success, 404
 for missing or other-session jobs, and 409 for active jobs. Deleted jobs no longer
-appear in history or provide status/download access. Output files remain on disk;
-this action deletes history, without changing file retention. The browser reports
+appear in history or provide status/download access. Output files remain on disk until the 24-hour retention cleanup;
+this action deletes history without changing file retention. The browser reports
 errors in the confirmation dialog and permits retry, refreshes counts after
 success, and rejects list responses captured before deletion.

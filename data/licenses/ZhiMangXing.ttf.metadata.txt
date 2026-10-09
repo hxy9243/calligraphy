@@ -1,0 +1,12 @@
+Retained source font metadata
+Font: Zhi Mang Xing Brush Semi-Cursive
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/google/fonts/tree/main/ofl/zhimangxing
+
+Copyright 2018 The ZhiMangXing Project Authors (https://github.com/googlefonts/zhimangxing)
+
+ZhongQi
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL
+
+http://scripts.sil.org/OFL

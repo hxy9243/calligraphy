@@ -1,0 +1,14 @@
+Retained source font metadata
+Font: Iansui Hard Pen Kai
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/ButTaiwan/iansui
+
+Copyright 2025 The Iansui Project Authors (https://github.com/ButTaiwan/iansui)
+
+zi-hi.com / Fontworks Inc.
+
+But Ko / Fontworks Inc.
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL
+
+https://scripts.sil.org/OFL

@@ -1,0 +1,12 @@
+Retained source font metadata
+Font: Long Cang Cursive Script
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/google/fonts/tree/main/ofl/longcang
+
+Copyright 2018 The LongCang Project Authors (https://github.com/googlefonts/longcang)
+
+ZhongQi
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL
+
+http://scripts.sil.org/OFL

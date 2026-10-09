@@ -1,0 +1,12 @@
+Retained source font metadata
+Font: Klee One Regular
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/fontworks-fonts/Klee
+
+Copyright 2020 The Klee Project Authors (https://github.com/fontworks-fonts/Klee)
+
+Fontworks Inc.
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL
+
+https://scripts.sil.org/OFL

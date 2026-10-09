@@ -3,6 +3,8 @@ import json
 import os
 import sqlite3
 import threading
+import time
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -17,6 +19,12 @@ RENDER_PARAMETER_DEFAULTS = {
 
 def now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+class AdmissionError(Exception):
+    def __init__(self, message, retry_after=60):
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 class Database:
@@ -97,6 +105,32 @@ class Database:
                         ON jobs(status, created_at ASC);
                         """
                     )
+                    conn.execute("CREATE TABLE IF NOT EXISTS creation_events (session_id TEXT NOT NULL, created_at REAL NOT NULL)")
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_creation_events ON creation_events(session_id, created_at)")
+
+    def _admit_creation(self, conn, session_id):
+        """Called inside the same write transaction as the new job insertion."""
+        now = time.time()
+        conn.execute("DELETE FROM creation_events WHERE created_at <= ?", (now - 60,))
+        events = conn.execute("SELECT created_at FROM creation_events WHERE session_id = ? ORDER BY created_at", (session_id,)).fetchall()
+        if len(events) >= 3:
+            raise AdmissionError("每分钟最多创建 3 次，请稍后再试 / Maximum 3 creations per minute.", max(1, math.ceil(events[0][0] + 60 - now)))
+        active = conn.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('queued', 'rendering', 'running')").fetchone()[0]
+        if active >= int(os.environ.get("CALLIGRAPHY_MAX_ACTIVE_JOBS", "10")):
+            raise AdmissionError("任务队列已满，请稍后再试 / Render queue is full.", 10)
+        conn.execute("INSERT INTO creation_events VALUES (?, ?)", (session_id, now))
+
+    def recover_interrupted_jobs(self):
+        """The exclusive single-instance runner calls this before accepting work."""
+        now = now_utc_iso()
+        conn = self._get_sqlite_conn()
+        with self._lock, conn:
+            return conn.execute("UPDATE jobs SET status = 'failed', error_message = ?, completed_at = ?, updated_at = ? WHERE status IN ('rendering', 'running')", ("服务重启中断了任务，请重新创建 / Interrupted by server restart; please retry.", now, now)).rowcount
+
+    def prune_history(self, cutoff):
+        conn = self._get_sqlite_conn()
+        with self._lock, conn:
+            conn.execute("DELETE FROM jobs WHERE status IN ('succeeded', 'failed') AND completed_at < ?", (cutoff,))
 
     def touch_session(self, session_id: str) -> None:
         now = now_utc_iso()
@@ -124,6 +158,7 @@ class Database:
         output_path: Optional[str] = None,
         status: str = "queued",
         progress: float = 0.0,
+        admit: bool = False,
     ) -> Dict[str, Any]:
         now = now_utc_iso()
         params_str = json.dumps(params, ensure_ascii=False, sort_keys=True)
@@ -132,6 +167,9 @@ class Database:
             conn = self._get_sqlite_conn()
             with self._lock:
                 with conn:
+                    if admit:
+                        conn.execute("BEGIN IMMEDIATE;")
+                        self._admit_creation(conn, session_id)
                     self._insert_job(
                         conn, job_id, session_id, job_type, text, style,
                         params_str, output_path, status, progress, now,
@@ -160,6 +198,7 @@ class Database:
         text: str,
         style: str,
         params: Dict[str, Any],
+        admit: bool = False,
     ) -> Dict[str, Any]:
         """Reuse identical active renders in this session, or enqueue a new one.
 
@@ -191,6 +230,8 @@ class Database:
                     if {**RENDER_PARAMETER_DEFAULTS, **job["params"]} == identity_params:
                         return job
 
+                if admit:
+                    self._admit_creation(conn, session_id)
                 self._insert_job(
                     conn, job_id, session_id, "render", text, style,
                     json.dumps(identity_params, ensure_ascii=False, sort_keys=True),

@@ -190,6 +190,8 @@ class RenderQueueApiTests(unittest.TestCase):
         first = self.submit()
         for name, value in (("fps", 30), ("speed", 2.0), ("spacing", 0.4), ("text", "明"), ("style", "yan")):
             with self.subTest(parameter=name):
+                # These are separate editing sessions, rather than a rate-limit test.
+                self.client.cookies.set("calligraphy_session", f"parameters-{name}")
                 other = self.submit({**self.request, name: value})
                 self.assertNotEqual(first["job_id"], other["job_id"])
 

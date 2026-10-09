@@ -19,7 +19,8 @@
     "file_size_bytes": 6439388,
     "aesthetic_notes": "典型的颜体楷书风骨，蚕头燕尾，横轻竖重，结体宽博雄健，中宫茂密，气度沉雄博大，极具盛唐豪迈气象。",
     "sample_text": "天朗氣清\n惠風和暢\n盛德大業\n至公無私",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangYanKai.ttf.metadata.txt"
   },
   {
     "id": "mashanzheng-kai",
@@ -41,7 +42,8 @@
     "file_size_bytes": 5857936,
     "aesthetic_notes": "浓墨重彩，中锋运笔，提按分明。笔画饱满富有弹韧之张力，起笔藏露互见，收笔凝炼稳健，气势磅礴。",
     "sample_text": "厚德载物，宁静致远；海纳百川，有容乃大。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/MaShanZheng.ttf.metadata.txt"
   },
   {
     "id": "hanwang-medium-kai",
@@ -63,7 +65,8 @@
     "file_size_bytes": 8644696,
     "aesthetic_notes": "点画严整精审，骨力遒劲，间架开阔。撇捺舒展优美，尽显唐人楷法精微工稳之妙。",
     "sample_text": "落霞與孤鶩齊飛\n秋水共長天一色",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangMediumKai.ttf.metadata.txt"
   },
   {
     "id": "arphic-ukai",
@@ -85,7 +88,8 @@
     "file_size_bytes": 17140900,
     "aesthetic_notes": "笔画纯正清秀，起行收三段分明，转折处方圆兼顾，适合正文书法排版与典籍翻印。",
     "sample_text": "落霞与孤鹜齐飞，秋水共长天一色。",
-    "char_support": "both"
+    "char_support": "both",
+    "license_path": "data/licenses/ArphicUKai.ttc.metadata.txt"
   },
   {
     "id": "lxgw-wenkai",
@@ -107,7 +111,8 @@
     "file_size_bytes": 13872424,
     "aesthetic_notes": "温润典雅，兼有仿宋与楷体之美。笔划起伏带有手写运笔的呼吸感，既端庄严谨又灵秀活泼。",
     "sample_text": "行到水穷处，坐看云起时。",
-    "char_support": "both"
+    "char_support": "both",
+    "license_path": "data/licenses/LXGWWenKai-Regular.ttf.metadata.txt"
   },
   {
     "id": "i-yan-kai",
@@ -129,7 +134,8 @@
     "file_size_bytes": 8953596,
     "aesthetic_notes": "着重还原古碑刻石的斑驳苍茫与颜鲁公浑厚古拙的运笔骨力，金石气浓烈。",
     "sample_text": "山氣日夕佳\n飛鳥相與還",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/IYanKai.ttf.metadata.txt"
   },
   {
     "id": "chill-qiuhong-kai",
@@ -151,7 +157,8 @@
     "file_size_bytes": 14924580,
     "aesthetic_notes": "笔画连贯自如，中锋取势，如秋鸿戏水，兼顾正楷的端庄与文人书札的飘逸意境。",
     "sample_text": "鸿雁长飞光不度，鱼龙潜跃水成文。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/QiuHongKai.ttf.metadata.txt"
   },
   {
     "id": "cwtex-q-kai",
@@ -173,7 +180,8 @@
     "file_size_bytes": 14459312,
     "aesthetic_notes": "运笔清润雅致，撇掠修长，横画微仰，带有木刻活字版画的雅正书卷气。",
     "sample_text": "明月松間照\n清泉石上流",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/cwTeXQKai.ttf.metadata.txt"
   },
   {
     "id": "yanshu-chunfeng-kai",
@@ -195,7 +203,8 @@
     "file_size_bytes": 9673860,
     "aesthetic_notes": "行笔轻灵温润，如春风拂柳。小楷结构精妙入微，露锋入纸，映带顾盼，极富文人雅趣。",
     "sample_text": "春风又绿江南岸，明月何时照我还。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/ChunFengKai.ttf.metadata.txt"
   },
   {
     "id": "yanshu-youran-xiaokai",
@@ -217,7 +226,8 @@
     "file_size_bytes": 12639808,
     "aesthetic_notes": "结字端庄小巧，用笔尖锐精谨，清朗秀发，颇得明代吴门书派小楷之高洁神采。",
     "sample_text": "采菊东篱下，悠然见南山。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/YouRanXiaoKai.ttf.metadata.txt"
   },
   {
     "id": "maoken-yingbi-kai",
@@ -239,7 +249,8 @@
     "file_size_bytes": 6394236,
     "aesthetic_notes": "线条刚健利落，提按顿挫清晰，笔锋如刀尖游走纸上，极具现代硬笔书法严整端庄之美。",
     "sample_text": "精诚所至，金石为开；读书百遍，其义自见。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/MaokenYingBiKai.ttf.metadata.txt"
   },
   {
     "id": "icrane-pen-kai",
@@ -261,7 +272,8 @@
     "file_size_bytes": 13085136,
     "aesthetic_notes": "笔势如白鹤亮翅，清瘦挺拔，撇如匕首捺如长剑，带有宋徽宗瘦金楷法遗韵，风骨奇峻。",
     "sample_text": "白日依山盡\n黃河入海流",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/ICranePenKai.ttf.metadata.txt"
   },
   {
     "id": "lxgw-zhenkai",
@@ -283,7 +295,8 @@
     "file_size_bytes": 17545474,
     "aesthetic_notes": "字形饱满凝练，笔重而神采飞扬，在保持文楷温润气质的同时增强了骨力与视觉分量。",
     "sample_text": "山不在高，有仙则名；水不在深，有龙则灵。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/LXGWZhenKai.ttf.metadata.txt"
   },
   {
     "id": "yozai-kai",
@@ -305,7 +318,8 @@
     "file_size_bytes": 15605374,
     "aesthetic_notes": "笔致悠闲自如，如闲庭信步，带有一股温润淡雅的书卷气与生活诗意。",
     "sample_text": "采菊东篱下，悠然见南山；山气日夕佳，飞鸟相与还。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/YozaiKai.ttf.metadata.txt"
   },
   {
     "id": "chill-longcang-kai",
@@ -327,7 +341,8 @@
     "file_size_bytes": 3857504,
     "aesthetic_notes": "庄严古厚，笔意沉稳，结构端方如佛陀说法，带有经卷雕版的肃穆静穆气韵。",
     "sample_text": "观自在菩萨，行深般若波罗蜜多时，照见五蕴皆空。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/ChillLongCangKai.otf.metadata.txt"
   },
   {
     "id": "chill-longcang-kai-bold",
@@ -349,7 +364,8 @@
     "file_size_bytes": 4247828,
     "aesthetic_notes": "用墨浓重沉着，结体宽博，气势磅礴，金石刻石气味扑面而来。",
     "sample_text": "金刚不坏，如山岳之安；海纳百川，无欲则刚。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/ChillLongCangKaiBold.otf.metadata.txt"
   },
   {
     "id": "lxgw-wenkai-bold",
@@ -371,7 +387,8 @@
     "file_size_bytes": 13700636,
     "aesthetic_notes": "粗壮端丽，黑白对比鲜明，适合标题书写与大字展板，兼得力道与书韵。",
     "sample_text": "会当凌绝顶，一览众山小；万里长空，勇攀高峰。",
-    "char_support": "both"
+    "char_support": "both",
+    "license_path": "data/licenses/LXGWWenKaiBold.ttf.metadata.txt"
   },
   {
     "id": "lxgw-wenkai-mono",
@@ -393,7 +410,8 @@
     "file_size_bytes": 13900940,
     "aesthetic_notes": "字字等宽，行列整齐划一，极富古代考工记规整中正之律动美感。",
     "sample_text": "平平仄仄平平仄，仄仄平平仄仄平；对仗工整，声律悠扬。",
-    "char_support": "both"
+    "char_support": "both",
+    "license_path": "data/licenses/LXGWWenKaiMono.ttf.metadata.txt"
   },
   {
     "id": "hanwang-standard-kai",
@@ -415,7 +433,8 @@
     "file_size_bytes": 8878388,
     "aesthetic_notes": "中规中矩，点画挺拔，起笔顺畅，收笔凝炼，尽显传统中华正楷的大雅纯正。",
     "sample_text": "海納百川有容乃大\n壁立千仞無欲則剛",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangStandardKai.ttf.metadata.txt"
   },
   {
     "id": "hanwang-simplified-kai",
@@ -437,7 +456,8 @@
     "file_size_bytes": 10520788,
     "aesthetic_notes": "将传统毛笔运笔顿挫完美融入简体字形中，中锋提按，骨肉停匀。",
     "sample_text": "江山如此多娇，引无数英雄竞折腰；数风流人物，还看今朝。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/HanWangSimplifiedKai.ttf.metadata.txt"
   },
   {
     "id": "hanwang-phonetic-kai",
@@ -459,7 +479,8 @@
     "file_size_bytes": 8573860,
     "aesthetic_notes": "融合汉字毛笔正楷与右侧微型注音符号，是传统语文音韵学典籍刻本的重要典范。",
     "sample_text": "春眠不覺曉\n處處聞啼鳥",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangPhoneticKai.ttf.metadata.txt"
   },
   {
     "id": "hanwang-hollow-kai",
@@ -481,7 +502,8 @@
     "file_size_bytes": 6278820,
     "aesthetic_notes": "外轮廓勾勒精微严审，如古代书法名迹双钩下真迹一等之绝技，极具临池摹勒之趣。",
     "sample_text": "厚德載物\n自強不息",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangHollowKai.ttf.metadata.txt"
   },
   {
     "id": "hanwang-lisu-medium",
@@ -503,7 +525,8 @@
     "file_size_bytes": 8456096,
     "aesthetic_notes": "横画如千里阵云，起笔蚕头圆润藏锋，收笔燕尾昂扬上挑，结体中宫端严，左右开张。",
     "sample_text": "雲騰致雨\n露結為霜",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangLiSuMedium.ttf.metadata.txt"
   },
   {
     "id": "hanwang-lisu-bold",
@@ -525,7 +548,8 @@
     "file_size_bytes": 6968804,
     "aesthetic_notes": "笔墨饱满，线条雄浑重厚，方劲挺拔，有秦汉金石鼎鼐之重与摩崖大字之开阔气概。",
     "sample_text": "金石為開\n精誠所至",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangLiSuBold.ttf.metadata.txt"
   },
   {
     "id": "zhimang-xingshu",
@@ -547,7 +571,8 @@
     "file_size_bytes": 4063532,
     "aesthetic_notes": "运笔流畅如江河奔涌，行笔提按抑扬顿挫，牵丝引带自然天成，骨骼清健，极具宋人尚意书风之神采。",
     "sample_text": "大江东去，浪淘尽，千古风流人物；故垒西边，人道是三国周郎赤壁。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/ZhiMangXing.ttf.metadata.txt"
   },
   {
     "id": "longcang-xingshu",
@@ -569,7 +594,8 @@
     "file_size_bytes": 5162508,
     "aesthetic_notes": "笔触苍劲老辣，多用枯笔飞白，结字奇崛纵肆，带有狂放不羁的文人隐士心性，艺术张力非凡。",
     "sample_text": "莫听穿林打叶声，何妨吟啸且徐行；竹杖芒鞋轻胜马，谁怕？一蓑烟雨任平生。",
-    "char_support": "simp"
+    "char_support": "simp",
+    "license_path": "data/licenses/LongCang.ttf.metadata.txt"
   },
   {
     "id": "hanwang-xing-shu",
@@ -591,7 +617,8 @@
     "file_size_bytes": 8300148,
     "aesthetic_notes": "飘若浮云，矫若惊龙！尽得晋人萧散洒脱之韵，映带顾盼，动静相生，是复现天下第一行书风韵之佳构。",
     "sample_text": "永和九年歲在癸丑\n暮春之初會於蘭亭",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangXingShu.ttf.metadata.txt"
   },
   {
     "id": "hanwang-wei-bei",
@@ -613,7 +640,8 @@
     "file_size_bytes": 9720104,
     "aesthetic_notes": "方笔为主，斩钉截铁，棱角峥嵘。体势欹侧而重心稳固，充满北朝刀砍斧凿之雄奇苍莽金石气魄。",
     "sample_text": "龍飛鳳舞\n雄深雅健",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangWeiBei.ttf.metadata.txt"
   },
   {
     "id": "hanwang-pen-xing-kai",
@@ -635,7 +663,8 @@
     "file_size_bytes": 3922376,
     "aesthetic_notes": "笔势流动敏捷，牵丝连带清爽利落。兼具毛笔行书的节奏与现代钢笔书写的流畅明快，极富生活气息。",
     "sample_text": "大江東去浪淘盡\n千古風流人物",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangPenXingKai.ttf.metadata.txt"
   },
   {
     "id": "tw-kai",
@@ -657,7 +686,8 @@
     "file_size_bytes": 36839480,
     "aesthetic_notes": "標準楷書正體，字形端莊周正，骨肉勻稱，起筆落筆中規中矩，典雅大氣，全字符集完全覆蓋唐詩三百首無一遺漏。",
     "sample_text": "天朗氣清\n惠風和暢\n盛德大業\n至公無私",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/TW-Kai.ttf.metadata.txt"
   },
   {
     "id": "edukai",
@@ -679,7 +709,8 @@
     "file_size_bytes": 15820240,
     "aesthetic_notes": "嚴格依據國字標準楷體規範修訂，筆筆分明，筆意清挺，中宮端整，為正體繁體中文最權威之書法字形基準。",
     "sample_text": "床前明月光\n疑是地上霜\n舉頭望明月\n低頭思故鄉",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/EduKai.ttf.metadata.txt"
   },
   {
     "id": "lxgw-wenkai-tc",
@@ -701,7 +732,8 @@
     "file_size_bytes": 15267616,
     "aesthetic_notes": "霞鹜文楷專為繁體中文定制版本，兼具硬筆書寫的溫潤筆觸與宋代刻本的古樸清雅，字形極其舒朗流暢，全集字庫完整支援。",
     "sample_text": "千山鳥飛絕\n萬徑人蹤滅\n孤舟蓑笠翁\n獨釣寒江雪",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/LXGWWenKaiTC-Regular.ttf.metadata.txt"
   },
   {
     "id": "xiaolai-kai",
@@ -723,7 +755,8 @@
     "file_size_bytes": 22220806,
     "aesthetic_notes": "筆觸隨性自然，溫潤生動，宛如文人隨筆手札，兼備繁體字形規範與手寫書法溫度。",
     "sample_text": "白日依山盡\n黃河入海流\n欲窮千里目\n更上一層樓",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/Xiaolai.ttf.metadata.txt"
   },
   {
     "id": "tw-sung",
@@ -745,7 +778,8 @@
     "aesthetic_notes": "正統宋體字形，橫細豎粗，橫畫末端有銳利頓角，點捺撇剔均具毛筆書法起收刀刻筆意，端整典雅，全字符集完全覆蓋唐詩三百首無一遺漏。",
     "sample_text": "春眠不覺曉\n處處聞啼鳥\n夜來風雨聲\n花落知多少",
     "char_support": "trad",
-    "file_size_bytes": 35744084
+    "file_size_bytes": 35744084,
+    "license_path": "data/licenses/TW-Sung.ttf.metadata.txt"
   },
   {
     "id": "genryu-min",
@@ -767,7 +801,8 @@
     "aesthetic_notes": "起筆收筆帶有粗細轉折與斜度筆意，融合了木刻刀法之硬朗與毛筆書寫之流麗，文人雅致氣韻濃厚，完全覆蓋唐詩三百首。",
     "sample_text": "白日依山盡\n黃河入海流\n欲窮千里目\n更上一層樓",
     "char_support": "trad",
-    "file_size_bytes": 16449288
+    "file_size_bytes": 16449288,
+    "license_path": "data/licenses/GenRyuMin-Regular.otf.metadata.txt"
   },
   {
     "id": "genwan-min",
@@ -789,7 +824,8 @@
     "aesthetic_notes": "在筆畫轉角交匯處融入溫潤的墨暈滲化效果，模擬古墨落於熟宣微潤之視覺層次，意境空靈柔和，全字庫完備無缺。",
     "sample_text": "千山鳥飛絕\n萬徑人蹤滅\n孤舟蓑笠翁\n獨釣寒江雪",
     "char_support": "trad",
-    "file_size_bytes": 22772928
+    "file_size_bytes": 22772928,
+    "license_path": "data/licenses/GenWanMin-Regular.otf.metadata.txt"
   },
   {
     "id": "cwtex-fangsong",
@@ -811,7 +847,8 @@
     "aesthetic_notes": "字形瘦長挺秀，起落筆棱角分明，橫豎勻正，撇捺如刀，盡顯傳統文人手稿與典籍清拔雅致風骨。",
     "sample_text": "紅豆生南國\n春來發幾枝\n願君多采擷\n此物最相思",
     "char_support": "trad",
-    "file_size_bytes": 9345840
+    "file_size_bytes": 9345840,
+    "license_path": "data/licenses/cwTeXFangSong.ttf.metadata.txt"
   },
   {
     "id": "hanwang-shinsu",
@@ -833,7 +870,8 @@
     "aesthetic_notes": "意在行楷之間，筆法自然靈動，牽絲映帶，結字舒展明快，是行氣流暢之當代文人書法風貌。",
     "sample_text": "朝辭白帝彩雲間\n千里江陵一日還\n兩岸猿聲啼不住\n輕舟已過萬重山",
     "char_support": "trad",
-    "file_size_bytes": 9618528
+    "file_size_bytes": 9618528,
+    "license_path": "data/licenses/HanWangShinSuMedium.ttf.metadata.txt"
   },
   {
     "id": "bakudai-kai",
@@ -855,7 +893,8 @@
     "file_size_bytes": 14232448,
     "aesthetic_notes": "笔力苍劲，中锋行笔，墨色浓郁，雄浑开阔，极富传统殿堂大楷气韵。",
     "sample_text": "白日依山盡\n黃河入海流\n欲窮千里目\n更上一層樓",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/Bakudai-Regular.ttf.metadata.txt"
   },
   {
     "id": "masafont-xing",
@@ -877,7 +916,8 @@
     "file_size_bytes": 17922528,
     "aesthetic_notes": "行云流水，气韵生动，行笔流畅洒脱，承晋唐二王与米芾行书笔意。",
     "sample_text": "花間一壺酒\n獨酌無相親\n舉杯邀明月\n對影成三人",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/MasaFont-Regular.ttf.metadata.txt"
   },
   {
     "id": "qiji-woodblock-kai",
@@ -899,7 +939,8 @@
     "file_size_bytes": 41068828,
     "aesthetic_notes": "古雅绝伦，刀法与笔意融合，明代套色印刷套版顶峰之作，文人气息深厚。",
     "sample_text": "落霞與孤齊飛\n秋水共長天一色",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/qiji-combo.ttf.metadata.txt"
   },
   {
     "id": "iansui-kai",
@@ -921,7 +962,8 @@
     "file_size_bytes": 9447424,
     "aesthetic_notes": "笔画清新质朴，骨节匀称，兼备铅笔钢笔之温润质感与传统楷书之法度。",
     "sample_text": "春眠不覺曉\n處處聞啼鳥\n夜來風雨聲\n花落知多少",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/Iansui-Regular.ttf.metadata.txt"
   },
   {
     "id": "yuji-boku",
@@ -943,7 +985,8 @@
     "file_size_bytes": 8525588,
     "aesthetic_notes": "笔饱墨酣，飞白淋漓，极富书法家运笔呼吸节奏，笔力雄健跌宕。",
     "sample_text": "明月松間照\n清泉石上流",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/YujiBoku-Regular.ttf.metadata.txt"
   },
   {
     "id": "yuji-mai",
@@ -965,7 +1008,8 @@
     "file_size_bytes": 8496292,
     "aesthetic_notes": "起伏跌宕，轻重缓急富于乐感，如凤翥龙翔，翩若惊鸿。",
     "sample_text": "朝辭白帝彩雲間\n千里江陵一日還",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/YujiMai-Regular.ttf.metadata.txt"
   },
   {
     "id": "yuji-syuku",
@@ -987,7 +1031,8 @@
     "file_size_bytes": 8430348,
     "aesthetic_notes": "笔致沉穆安详，结字端稳沉着，墨韵内敛古拙。",
     "sample_text": "松下問童子\n言師採藥去\n只在此山中\n雲深不知處",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/YujiSyuku-Regular.ttf.metadata.txt"
   },
   {
     "id": "klee-one",
@@ -1009,7 +1054,8 @@
     "file_size_bytes": 8724204,
     "aesthetic_notes": "端庄秀润，静穆清雅，既具传统书法顿挫之美，又有现代阅读之明快。",
     "sample_text": "月落烏啼霜滿天\n江楓漁火對愁眠",
-    "char_support": "both"
+    "char_support": "both",
+    "license_path": "data/licenses/KleeOne-Regular.ttf.metadata.txt"
   },
   {
     "id": "klee-one-semibold",
@@ -1031,7 +1077,8 @@
     "file_size_bytes": 8905128,
     "aesthetic_notes": "骨骼扎实，笔力更显遒劲饱满，适合标题与书法条幅创作。",
     "sample_text": "大江東去\n浪淘盡\n千古風流人物",
-    "char_support": "both"
+    "char_support": "both",
+    "license_path": "data/licenses/KleeOne-SemiBold.ttf.metadata.txt"
   },
   {
     "id": "cwtex-q-ming",
@@ -1053,7 +1100,8 @@
     "file_size_bytes": 15903000,
     "aesthetic_notes": "横细竖粗，角折分明，保留浓厚的文人古籍雕版刀刻金石韵味。",
     "sample_text": "海內存知己\n天涯若比鄰",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/cwTeXQMing-Medium.ttf.metadata.txt"
   },
   {
     "id": "cwtex-q-yuan",
@@ -1075,7 +1123,8 @@
     "file_size_bytes": 7201124,
     "aesthetic_notes": "笔画起落圆润饱满，舒和自然，如古玉温润，极富文人墨客闲适之气。",
     "sample_text": "清風徐來\n水波不興",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/cwTeXQYuan-Medium.ttf.metadata.txt"
   },
   {
     "id": "jason-handwriting1",
@@ -1097,7 +1146,8 @@
     "file_size_bytes": 19556948,
     "aesthetic_notes": "笔意清隽灵秀，结字疏朗自然，极富日常手书的书卷温润之气。",
     "sample_text": "遠上寒山石徑斜\n白雲生處有人家",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/JasonHandwriting1-Regular.ttf.metadata.txt"
   },
   {
     "id": "jason-handwriting2",
@@ -1119,7 +1169,8 @@
     "file_size_bytes": 19785768,
     "aesthetic_notes": "笔走龙蛇，略带连笔牵丝，灵动生动，挥洒自如。",
     "sample_text": "停車坐愛楓林晚\n霜葉紅於二月花",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/JasonHandwriting2-Regular.ttf.metadata.txt"
   },
   {
     "id": "jason-handwriting3",
@@ -1141,7 +1192,8 @@
     "file_size_bytes": 14848228,
     "aesthetic_notes": "连绵跌宕，行云流水，深具草意与文人随性创作之趣。",
     "sample_text": "人生若只如初見\n何事秋風悲畫扇",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/JasonHandwriting3-Regular.ttf.metadata.txt"
   },
   {
     "id": "jason-handwriting4",
@@ -1163,7 +1215,8 @@
     "file_size_bytes": 19478848,
     "aesthetic_notes": "骨力苍劲雄强，下笔有力，厚重大气。",
     "sample_text": "自古逢秋悲寂寥\n我言秋日勝春朝",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/JasonHandwriting4-Regular.ttf.metadata.txt"
   },
   {
     "id": "hanwang-kantan",
@@ -1185,7 +1238,8 @@
     "file_size_bytes": 3922320,
     "aesthetic_notes": "线条圆转回旋，字形圆融丰满，无角不圆，极富祥和欢腾的东方传统民俗意趣。",
     "sample_text": "紫氣東來\n萬象更新",
-    "char_support": "trad"
+    "char_support": "trad",
+    "license_path": "data/licenses/HanWangKanTan.ttf.metadata.txt"
   },
   {
     "id": "shutifang-liugongquan-kai",
@@ -1207,6 +1261,99 @@
     "file_size_bytes": 5902040,
     "aesthetic_notes": "骨力遒劲，结体严谨，中宫紧敛，四肢舒展，兼具颜真卿之端庄与欧阳询之挺劲，深得柳体'颜筋柳骨'之绝妙精髓。",
     "sample_text": "用筆在心\n心正則筆正",
+    "char_support": "both",
+    "license_path": "data/licenses/ShuTiFangLiuGongQuanKai.ttf.metadata.txt"
+  },
+  {
+    "id": "aa shoujin",
+    "name_zh": "Aa宋徽宗国宝瘦金书",
+    "name_en": "Aa Shou Jin",
+    "style_category": "kaishu",
+    "style_display": "Aa Shou Jin",
+    "medium": "brush",
+    "artist": "字体设计 / Font design",
+    "dynasty_era": "现代 / Modern",
+    "historical_reference": "本地注册字体 / Locally registered font",
+    "font_author": "See embedded font metadata",
+    "license": "Noncommercial; embedded metadata",
+    "license_type": "Noncommercial",
+    "source_url": "User-supplied local TTF; embedded metadata retained",
+    "is_downloaded": 1,
+    "file_path": "data/fonts/AaShouJin.ttf",
+    "license_path": "data/licenses/AaShouJin.ttf.notice.txt",
+    "file_format": "ttf",
+    "file_size_bytes": 15252828,
+    "aesthetic_notes": "本地注册字体；书写动作由字体推断。",
+    "sample_text": "永和九年",
+    "char_support": "both"
+  },
+  {
+    "id": "chiron-goround",
+    "name_zh": "昭源環方",
+    "name_en": "Chiron Go Round TC",
+    "style_category": "other",
+    "style_display": "Chiron Go Round TC",
+    "medium": "brush",
+    "artist": "字体设计 / Font design",
+    "dynasty_era": "现代 / Modern",
+    "historical_reference": "本地注册字体 / Locally registered font",
+    "font_author": "See embedded font metadata",
+    "license": "See retained font notice",
+    "license_type": "See font notice",
+    "source_url": "https://github.com/chiron-fonts/chiron-go-round-tc",
+    "is_downloaded": 1,
+    "file_path": "data/fonts/ChironGoRoundTC.ttf",
+    "license_path": "data/licenses/ChironGoRoundTC.ttf.notice.txt",
+    "file_format": "ttf",
+    "file_size_bytes": 24212952,
+    "aesthetic_notes": "本地注册字体；书写动作由字体推断。",
+    "sample_text": "永和九年",
+    "char_support": "trad"
+  },
+  {
+    "id": "hanwang-kandayan",
+    "name_zh": "王漢宗勘亭流大顏",
+    "name_en": "HanWang Kan Da Yan",
+    "style_category": "kaishu",
+    "style_display": "HanWang Kan Da Yan",
+    "medium": "brush",
+    "artist": "字体设计 / Font design",
+    "dynasty_era": "现代 / Modern",
+    "historical_reference": "本地注册字体 / Locally registered font",
+    "font_author": "See embedded font metadata",
+    "license": "See retained font notice",
+    "license_type": "See font notice",
+    "source_url": "https://code.google.com/archive/p/wangfonts/",
+    "is_downloaded": 1,
+    "file_path": "data/fonts/HanWangKanDaYan.ttf",
+    "license_path": "data/licenses/HanWangKanDaYan.ttf.notice.txt",
+    "file_format": "ttf",
+    "file_size_bytes": 4986624,
+    "aesthetic_notes": "本地注册字体；书写动作由字体推断。",
+    "sample_text": "永和九年",
+    "char_support": "trad"
+  },
+  {
+    "id": "qiji-kai",
+    "name_zh": "齊伋木刻楷體（本地版）",
+    "name_en": "Qiji Woodblock Kai (local)",
+    "style_category": "kaishu",
+    "style_display": "Qiji Woodblock Kai (local)",
+    "medium": "brush",
+    "artist": "字体设计 / Font design",
+    "dynasty_era": "现代 / Modern",
+    "historical_reference": "本地注册字体 / Locally registered font",
+    "font_author": "See embedded font metadata",
+    "license": "See retained font notice",
+    "license_type": "See font notice",
+    "source_url": "https://github.com/LingDong-/qiji-font",
+    "is_downloaded": 1,
+    "file_path": "data/fonts/QijiWoodblockKai.ttf",
+    "license_path": "data/licenses/QijiWoodblockKai.ttf.notice.txt",
+    "file_format": "ttf",
+    "file_size_bytes": 11038112,
+    "aesthetic_notes": "本地注册字体；书写动作由字体推断。",
+    "sample_text": "永和九年",
     "char_support": "both"
   }
 ]

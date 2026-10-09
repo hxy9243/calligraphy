@@ -1,0 +1,6 @@
+Retained source font metadata
+Font: Qiji Woodblock Kai
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/LingDong-/qiji-font
+
+Copyright (c) 2020, Lingdong Huang

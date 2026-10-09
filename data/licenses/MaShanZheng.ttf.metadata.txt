@@ -1,0 +1,12 @@
+Retained source font metadata
+Font: Ma Shan Zheng Brush Kai
+Catalog license designation (not a grant): SIL Open Font License 1.1
+Source: https://github.com/google/fonts/tree/main/ofl/mashanzheng
+
+Copyright 2018 The MaShanZheng Project Authors (https://github.com/googlefonts/mashanzheng)
+
+ZhongQi
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org
+
+https://openfontlicense.org

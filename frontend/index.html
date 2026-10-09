@@ -4,40 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f7f4ed">
-  <title>书法工坊 | Calligraphy Workbench</title>
+  <title>書法工坊 | Calligraphy Workbench</title>
   <link rel="stylesheet" href="/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="theme-xuan" data-view="create">
 
 <!-- ============ Top bar ============ -->
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="#create" aria-label="书法工坊">
+    <a class="brand" href="#create" aria-label="書法工坊">
       <span class="seal">墨</span>
-      <span class="brand-text"><strong>书法工坊</strong><small>Calligraphy Workbench</small></span>
+      <span class="brand-text"><strong>書法工坊</strong><small>Calligraphy Workbench</small></span>
     </a>
 
-    <nav class="nav-tabs" aria-label="主导航">
-      <a href="#create" data-nav="create">✍ 创作</a>
-      <a href="#history" data-nav="history">🕮 历史 <span class="badge-count" data-history-count hidden></span></a>
-      <a href="#fonts" data-nav="fonts">字 字库</a>
+    <nav class="nav-tabs" aria-label="主導航">
+      <a href="#create" data-nav="create">✍ 創作</a>
+      <a href="#history" data-nav="history">🕮 歷史 <span class="badge-count" data-history-count hidden></span></a>
+      <a href="#fonts" data-nav="fonts">字 字庫</a>
     </nav>
 
     <div class="topbar-tools">
       <a class="job-indicator" href="#history" id="job-indicator" hidden>
         <span class="spinner" aria-hidden="true"></span><span id="job-indicator-text">渲染中</span>
       </a>
-      <label class="theme-picker" title="宣纸意境">
-        <span class="sr-only">宣纸意境</span>
-        <select id="theme-select" aria-label="宣纸意境">
-          <option value="theme-xuan">澄心堂宣纸</option>
-          <option value="theme-gold">洒金熟宣</option>
+      <label class="theme-picker" title="宣紙意境">
+        <span class="sr-only">宣紙意境</span>
+        <select id="theme-select" aria-label="宣紙意境">
+          <option value="theme-xuan">澄心堂宣紙</option>
+          <option value="theme-gold">灑金熟宣</option>
           <option value="theme-rubbing">碑帖拓片（深色）</option>
         </select>
       </label>
+      <a class="github-star" href="https://github.com/hxy9243/calligraphy" target="_blank" rel="noopener noreferrer" aria-label="Star this project on GitHub"><span aria-hidden="true">★</span> Star</a>
     </div>
   </div>
 </header>
@@ -46,7 +44,7 @@
 
   <!-- ============ VIEW: Create ============ -->
   <section id="view-create" class="view" aria-labelledby="create-title">
-    <h1 id="create-title" class="sr-only">创作</h1>
+    <h1 id="create-title" class="sr-only">創作</h1>
     <div class="create-grid">
 
       <!-- Left: compose -->
@@ -56,40 +54,41 @@
           <header class="card-head">
             <h2><span class="step">1</span> 文字</h2>
             <div class="seg" role="group" aria-label="字形">
-              <button type="button" id="btn-simp" class="seg-btn active" data-script="simp">简体</button>
-              <button type="button" id="btn-trad" class="seg-btn" data-script="trad">繁體</button>
+              <button type="button" id="btn-simp" class="seg-btn" data-script="simp">簡體</button>
+              <button type="button" id="btn-trad" class="seg-btn active" data-script="trad">繁體</button>
             </div>
           </header>
-          <textarea id="text-input" rows="3" spellcheck="false" aria-label="书写文本"
-            placeholder="输入要书写的汉字，单行限20字内，支持换行分列（1–256 字）">明月松间照
+          <textarea id="text-input" rows="3" spellcheck="false" aria-label="書寫文本"
+            placeholder="輸入要書寫的漢字，單行限20字內，支持換行分列（1–256 字）">明月松間照
 清泉石上流</textarea>
           <div class="field-foot">
             <span id="char-warning" class="warn" hidden></span>
-            <span id="char-counter" class="counter"><span id="char-count">0</span>/256 · 单行≤20</span>
+            <span id="char-counter" class="counter"><span id="char-count">0</span>/256 · 單行≤20</span>
           </div>
-          <button type="button" id="btn-convert-current" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1">转为繁简</button>
+          <button type="button" id="btn-convert-current" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1">轉爲繁簡</button>
+          <p id="font-glyph-warning" class="warn" role="alert" hidden></p>
           <div id="status-message" class="status-message hidden"></div>
           <div class="presets-block">
-            <span class="field-label">经典法帖范文：</span>
+            <span class="field-label">經典法帖範文：</span>
             <div id="preset-list" class="chip-row wrap"></div>
           </div>
         </section>
 
         <section class="card" id="card-font">
           <header class="card-head">
-            <h2><span class="step">2</span> 字体</h2>
+            <h2><span class="step">2</span> 字體</h2>
           </header>
           <button type="button" id="font-current" class="font-current" aria-haspopup="dialog">
-            <span class="font-current-glyph" id="font-current-glyph">永</span>
+            <span class="font-current-glyph" id="font-current-glyph"><img src="/api/font-samples/kai" alt="永字樣" class="font-raster-sample" /></span>
             <span class="font-current-meta">
-              <strong id="font-current-name">载入中…</strong>
+              <strong id="font-current-name">載入中…</strong>
               <small id="font-current-sub"></small>
             </span>
-            <span class="font-current-cta">更换 ›</span>
+            <span class="font-current-cta">更換 ›</span>
           </button>
           <div id="font-recent" class="chip-row scroll" aria-label="最近使用"></div>
           <p id="font-note" class="note"></p>
-          <select id="style-select" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1" aria-label="字体选择"></select>
+          <select id="style-select" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1" aria-label="字體選擇"></select>
         </section>
 
         <section class="card" id="card-layout">
@@ -99,37 +98,37 @@
           <div class="field">
             <span class="field-label">排版方向</span>
             <div class="seg full" role="group" aria-label="排版方向">
-              <button type="button" id="btn-vertical" class="seg-btn active" data-dir="vertical" aria-pressed="true">竖排 · 右起</button>
-              <button type="button" id="btn-horizontal" class="seg-btn" data-dir="horizontal" aria-pressed="false">横排</button>
+              <button type="button" id="btn-vertical" class="seg-btn active" data-dir="vertical" aria-pressed="true">豎排 · 右起</button>
+              <button type="button" id="btn-horizontal" class="seg-btn" data-dir="horizontal" aria-pressed="false">橫排</button>
             </div>
           </div>
           <div class="field">
-            <div class="label-row"><label for="punctuation-select">标点符号</label></div>
+            <div class="label-row"><label for="punctuation-select">標點符號</label></div>
             <select id="punctuation-select" class="select-field">
-              <option value="omit" selected>忽略所有标点 (默认)</option>
-              <option value="break">按标点换行折行</option>
+              <option value="omit" selected>忽略所有標點 (默認)</option>
+              <option value="break">按標點換行折行</option>
             </select>
           </div>
           <div class="field">
-            <div class="label-row"><span class="field-label">画幅形制</span><output id="canvas-dim-val">720 × 960</output></div>
-            <div class="chip-row wrap" id="canvas-formats" role="group" aria-label="画幅形制">
-              <button type="button" class="chip active" data-cf="auto">自适应</button>
-              <button type="button" class="chip" data-cf="3:4" data-w="720" data-h="960">3:4 标准条幅</button>
-              <button type="button" class="chip" data-cf="9:16" data-w="720" data-h="1280">9:16 修长条屏</button>
-              <button type="button" class="chip" data-cf="1:2" data-w="640" data-h="1280">1:2 加长条幅</button>
+            <div class="label-row"><span class="field-label">畫幅形制</span><output id="canvas-dim-val">720 × 960</output></div>
+            <div class="chip-row wrap" id="canvas-formats" role="group" aria-label="畫幅形制">
+              <button type="button" class="chip active" data-cf="auto">自適應</button>
+              <button type="button" class="chip" data-cf="3:4" data-w="720" data-h="960">3:4 標準條幅</button>
+              <button type="button" class="chip" data-cf="9:16" data-w="720" data-h="1280">9:16 修長條屏</button>
+              <button type="button" class="chip" data-cf="1:2" data-w="640" data-h="1280">1:2 加長條幅</button>
               <button type="button" class="chip" data-cf="1:1" data-w="960" data-h="960">1:1 正方斗方</button>
-              <button type="button" class="chip" data-cf="16:9" data-w="1280" data-h="720">16:9 横披画幅</button>
+              <button type="button" class="chip" data-cf="16:9" data-w="1280" data-h="720">16:9 橫披畫幅</button>
             </div>
           </div>
           <div class="field">
             <div class="label-row">
-              <label for="canvas-len-slider">画布长度 (<span id="canvas-len-axis">高度</span>)</label>
+              <label for="canvas-len-slider">畫布長度 (<span id="canvas-len-axis">高度</span>)</label>
               <output id="canvas-len-val">960px</output>
             </div>
             <input type="range" id="canvas-len-slider" min="600" max="2200" step="40" value="960">
           </div>
           <div class="field">
-            <div class="label-row"><label for="size-slider">字号</label><output id="size-val">68px</output></div>
+            <div class="label-row"><label for="size-slider">字號</label><output id="size-val">68px</output></div>
             <input type="range" id="size-slider" min="24" max="140" value="68">
           </div>
           <div class="field">
@@ -138,26 +137,26 @@
           </div>
           <label class="check">
             <input type="checkbox" id="fit-toggle" checked>
-            <span>长文本自动缩小以适应画布</span>
+            <span>長文本自動縮小以適應畫布</span>
           </label>
         </section>
 
         <section class="card" id="card-output">
           <header class="card-head">
-            <h2><span class="step">4</span> 输出</h2>
+            <h2><span class="step">4</span> 輸出</h2>
           </header>
           <div class="field-row">
             <div class="field">
-              <span class="field-label">视频速度</span>
-              <div class="seg full" role="group" aria-label="视频速度" id="speed-seg">
-                <button type="button" class="seg-btn" data-speed="0.75">舒缓</button>
-                <button type="button" class="seg-btn active" data-speed="1">标准</button>
-                <button type="button" class="seg-btn" data-speed="1.5">畅快</button>
+              <span class="field-label">視頻速度</span>
+              <div class="seg full" role="group" aria-label="視頻速度" id="speed-seg">
+                <button type="button" class="seg-btn" data-speed="0.75">舒緩</button>
+                <button type="button" class="seg-btn active" data-speed="1">標準</button>
+                <button type="button" class="seg-btn" data-speed="1.5">暢快</button>
               </div>
             </div>
             <div class="field">
-              <span class="field-label">帧率</span>
-              <div class="seg full" role="group" aria-label="帧率" id="fps-seg">
+              <span class="field-label">幀率</span>
+              <div class="seg full" role="group" aria-label="幀率" id="fps-seg">
                 <button type="button" class="seg-btn active" data-fps="24">24 fps</button>
                 <button type="button" class="seg-btn" data-fps="30">30 fps</button>
               </div>
@@ -174,17 +173,18 @@
           </div>
         </section>
 
+        <p class="creation-note">每分鐘最多創建 3 次 · 成品保留 24 小時 · 清除瀏覽器數據後無法找回記錄</p>
         <div class="action-bar">
-          <button type="button" id="btn-preview" class="btn btn-secondary">▢ 导出静图</button>
-          <button type="button" id="btn-render" class="btn btn-primary">▶ 生成书写视频</button>
+          <button type="button" id="btn-preview" class="btn btn-secondary">▢ 導出靜圖</button>
+          <button type="button" id="btn-render" class="btn btn-primary">▶ 生成書寫視頻</button>
         </div>
       </div>
 
       <!-- Right: canvas -->
       <div class="canvas">
         <div class="canvas-head">
-          <div class="seg" role="tablist" aria-label="画布">
-            <button type="button" role="tab" class="seg-btn active" id="tab-live" data-canvas="live" aria-selected="true">实时试写</button>
+          <div class="seg" role="tablist" aria-label="畫布">
+            <button type="button" role="tab" class="seg-btn active" id="tab-live" data-canvas="live" aria-selected="true">排版預覽</button>
             <button type="button" role="tab" class="seg-btn" id="tab-result" data-canvas="result" aria-selected="false">最新成品 <i class="dot" id="result-dot" hidden></i></button>
           </div>
           <span class="canvas-meta" id="canvas-meta"></span>
@@ -197,9 +197,12 @@
 
         <!-- live stage -->
         <div id="pane-live" class="pane">
+          <p class="stage-hint">字體預覽 · 停止輸入後自動更新 · 書寫動作由字體推斷</p>
+          <p id="editor-preview-status" role="status" aria-live="polite">正在更新字體預覽…</p>
           <div class="stage-viewport" id="stage-viewport">
             <div class="stage-paper vertical" id="calligraphy-stage">
-              <div class="stage-text" id="calligraphy-text">明月松间照
+              <img id="editor-preview" alt="所選字體的書法預覽" hidden />
+              <div class="stage-text" id="calligraphy-text">明月松間照
 清泉石上流</div>
             </div>
           </div>
@@ -209,8 +212,8 @@
         <!-- result viewer -->
         <div id="pane-result" class="pane" hidden>
           <div id="result-empty" class="empty">
-            <p>还没有成品</p>
-            <small>点击「导出静图」或「生成书写视频」，结果会出现在这里；全部记录可在「历史」中查看。</small>
+            <p>還沒有成品</p>
+            <small>點擊「導出靜圖」或「生成書寫視頻」，結果會出現在這裏；全部記錄可在「歷史」中查看。</small>
           </div>
           <div id="result-body" hidden>
             <div id="export-output-box" class="export-output-box hidden">
@@ -222,15 +225,15 @@
               <div id="video-container" class="preview-box hidden video-export-wrapper">
                 <video id="result-video" controls autoplay loop playsinline></video>
                 <div class="video-actions-row">
-                  <a id="btn-video-dl" class="btn btn-secondary btn-sm" href="#" download>⬇ 下载完整 MP4 视频</a>
+                  <a id="btn-video-dl" class="btn btn-secondary btn-sm" href="#" download>⬇ 下載完整 MP4 視頻</a>
                 </div>
               </div>
             </div>
             <div class="viewer" id="result-viewer"></div>
             <div class="result-actions">
-              <button type="button" class="btn btn-ghost btn-sm" id="result-zoom">实际大小</button>
-              <a class="btn btn-secondary btn-sm" id="result-download" href="#" download>⬇ 下载</a>
-              <a class="btn btn-ghost btn-sm" href="#history">在历史中查看</a>
+              <button type="button" class="btn btn-ghost btn-sm" id="result-zoom">實際大小</button>
+              <a class="btn btn-secondary btn-sm" id="result-download" href="#" download>⬇ 下載</a>
+              <a class="btn btn-ghost btn-sm" href="#history">在歷史中查看</a>
             </div>
           </div>
         </div>
@@ -242,25 +245,25 @@
   <section id="view-history" class="view" aria-labelledby="history-title" hidden>
     <div class="page-head">
       <div>
-        <h1 id="history-title">历史记录</h1>
-        <p class="page-desc">本浏览器会话中的静图与视频任务。点击记录查看完整成品。</p>
+        <h1 id="history-title">歷史記錄</h1>
+        <p class="page-desc">本瀏覽器會話中的靜圖與視頻任務。點擊記錄查看完整成品。</p>
       </div>
       <div class="toolbar">
-        <div class="chip-row scroll" id="history-filters" role="group" aria-label="筛选">
+        <div class="chip-row scroll" id="history-filters" role="group" aria-label="篩選">
           <button type="button" class="chip active" data-hf="all">全部</button>
-          <button type="button" class="chip" data-hf="render">视频</button>
-          <button type="button" class="chip" data-hf="preview">静图</button>
-          <button type="button" class="chip" data-hf="active">进行中</button>
-          <button type="button" class="chip" data-hf="failed">失败</button>
+          <button type="button" class="chip" data-hf="render">視頻</button>
+          <button type="button" class="chip" data-hf="preview">靜圖</button>
+          <button type="button" class="chip" data-hf="active">進行中</button>
+          <button type="button" class="chip" data-hf="failed">失敗</button>
         </div>
-        <input type="search" id="history-search" class="search" placeholder="搜索文字或字体" aria-label="搜索历史">
+        <input type="search" id="history-search" class="search" placeholder="搜索文字或字體" aria-label="搜索歷史">
       </div>
     </div>
     <div id="jobs-list" class="history-grid jobs-list"></div>
     <div id="history-empty" class="empty" hidden>
-      <p>暂无记录</p>
-      <small>在「创作」中生成静图或视频后，会出现在这里。</small>
-      <a class="btn btn-primary btn-sm" href="#create">去创作</a>
+      <p>暫無記錄</p>
+      <small>在「創作」中生成靜圖或視頻後，會出現在這裏。</small>
+      <a class="btn btn-primary btn-sm" href="#create">去創作</a>
     </div>
   </section>
 
@@ -268,22 +271,22 @@
   <section id="view-fonts" class="view" aria-labelledby="fonts-title" hidden>
     <div class="page-head">
       <div>
-        <h1 id="fonts-title">字库鉴赏</h1>
-        <p class="page-desc" id="fonts-summary">历代名家书法字库 · 查阅出处与协议，一键用于创作。</p>
+        <h1 id="fonts-title">字庫鑑賞</h1>
+        <p class="page-desc" id="fonts-summary">歷代名家書法字庫 · 查閱出處與協議，一鍵用於創作。</p>
       </div>
       <div class="toolbar">
-        <input type="search" id="fonts-search" class="search" placeholder="搜索名家、字库、碑帖…" aria-label="搜索字库">
+        <input type="search" id="fonts-search" class="search" placeholder="搜索名家、字庫、碑帖…" aria-label="搜索字庫">
       </div>
     </div>
     <details class="filters" open>
-      <summary>筛选</summary>
+      <summary>篩選</summary>
       <div class="filter-block">
-        <span class="field-label">风格</span>
+        <span class="field-label">風格</span>
         <div class="chip-row wrap" data-filter="category">
           <button type="button" class="chip active" data-val="all">全部</button>
-          <button type="button" class="chip" data-val="kaishu">楷书</button>
-          <button type="button" class="chip" data-val="lishu">隶书</button>
-          <button type="button" class="chip" data-val="songti">宋体·雕版</button>
+          <button type="button" class="chip" data-val="kaishu">楷書</button>
+          <button type="button" class="chip" data-val="lishu">隸書</button>
+          <button type="button" class="chip" data-val="songti">宋體·雕版</button>
           <button type="button" class="chip" data-val="fangsong">仿宋</button>
           <button type="button" class="chip" data-val="other">行草·魏碑·其他</button>
         </div>
@@ -292,17 +295,17 @@
         <span class="field-label">字形</span>
         <div class="chip-row wrap" data-filter="support">
           <button type="button" class="chip active" data-val="all">不限</button>
-          <button type="button" class="chip" data-val="trad">繁体</button>
-          <button type="button" class="chip" data-val="simp">简体</button>
-          <button type="button" class="chip" data-val="both">繁简兼备</button>
+          <button type="button" class="chip" data-val="trad">繁體</button>
+          <button type="button" class="chip" data-val="simp">簡體</button>
+          <button type="button" class="chip" data-val="both">繁簡兼備</button>
         </div>
       </div>
       <div class="filter-block">
         <span class="field-label">器具</span>
         <div class="chip-row wrap" data-filter="medium">
           <button type="button" class="chip active" data-val="all">不限</button>
-          <button type="button" class="chip" data-val="brush">毛笔</button>
-          <button type="button" class="chip" data-val="pen">硬笔</button>
+          <button type="button" class="chip" data-val="brush">毛筆</button>
+          <button type="button" class="chip" data-val="pen">硬筆</button>
         </div>
       </div>
     </details>
@@ -311,35 +314,35 @@
 </main>
 
 <!-- ============ Bottom tab bar (mobile) ============ -->
-<nav class="tabbar" aria-label="主导航">
-  <a href="#create" data-nav="create"><i>✍</i><span>创作</span></a>
-  <a href="#history" data-nav="history"><i>🕮</i><span>历史</span><b class="badge-count" data-history-count hidden></b></a>
-  <a href="#fonts" data-nav="fonts"><i>字</i><span>字库</span></a>
+<nav class="tabbar" aria-label="主導航">
+  <a href="#create" data-nav="create"><i>✍</i><span>創作</span></a>
+  <a href="#history" data-nav="history"><i>🕮</i><span>歷史</span><b class="badge-count" data-history-count hidden></b></a>
+  <a href="#fonts" data-nav="fonts"><i>字</i><span>字庫</span></a>
 </nav>
 
 <!-- ============ Font picker ============ -->
 <dialog id="font-picker" class="sheet" aria-labelledby="picker-title">
   <div class="sheet-inner">
     <header class="sheet-head">
-      <h2 id="picker-title">选择字体</h2>
-      <button type="button" class="icon-btn" data-close aria-label="关闭">✕</button>
+      <h2 id="picker-title">選擇字體</h2>
+      <button type="button" class="icon-btn" data-close aria-label="關閉">✕</button>
     </header>
     <div class="sheet-tools">
-      <input type="search" id="picker-search" class="search" placeholder="搜索字体、名家…" aria-label="搜索字体">
-      <div class="chip-row scroll" id="picker-cats" role="group" aria-label="风格">
+      <input type="search" id="picker-search" class="search" placeholder="搜索字體、名家…" aria-label="搜索字體">
+      <div class="chip-row scroll" id="picker-cats" role="group" aria-label="風格">
         <button type="button" class="chip active" data-cat="all">全部</button>
         <button type="button" class="chip" data-cat="fav">★ 收藏</button>
-        <button type="button" class="chip" data-cat="engine">笔画引擎</button>
-        <button type="button" class="chip" data-cat="kaishu">楷书</button>
-        <button type="button" class="chip" data-cat="lishu">隶书</button>
-        <button type="button" class="chip" data-cat="songti">宋体</button>
+        <button type="button" class="chip" data-cat="engine">筆畫引擎</button>
+        <button type="button" class="chip" data-cat="kaishu">楷書</button>
+        <button type="button" class="chip" data-cat="lishu">隸書</button>
+        <button type="button" class="chip" data-cat="songti">宋體</button>
         <button type="button" class="chip" data-cat="fangsong">仿宋</button>
         <button type="button" class="chip" data-cat="other">行草·其他</button>
       </div>
       <div class="chip-row scroll" id="picker-support" role="group" aria-label="字形">
-        <button type="button" class="chip active" data-sup="all">繁简不限</button>
-        <button type="button" class="chip" data-sup="trad">繁体</button>
-        <button type="button" class="chip" data-sup="simp">简体</button>
+        <button type="button" class="chip active" data-sup="all">繁簡不限</button>
+        <button type="button" class="chip" data-sup="trad">繁體</button>
+        <button type="button" class="chip" data-sup="simp">簡體</button>
       </div>
     </div>
     <ul id="picker-list" class="picker-list"></ul>
@@ -351,21 +354,21 @@
   <div class="sheet-inner">
     <header class="sheet-head">
       <h2 id="detail-title">成品</h2>
-      <button type="button" class="icon-btn" data-close aria-label="关闭">✕</button>
+      <button type="button" class="icon-btn" data-close aria-label="關閉">✕</button>
     </header>
     <div class="detail-body">
       <div class="detail-media">
         <div class="viewer" id="detail-viewer"></div>
         <div class="result-actions">
-          <button type="button" class="btn btn-ghost btn-sm" id="detail-zoom">实际大小</button>
-          <a class="btn btn-secondary btn-sm" id="detail-download" href="#" download>⬇ 下载</a>
+          <button type="button" class="btn btn-ghost btn-sm" id="detail-zoom">實際大小</button>
+          <a class="btn btn-secondary btn-sm" id="detail-download" href="#" download>⬇ 下載</a>
         </div>
       </div>
       <aside class="detail-info">
         <dl id="detail-meta" class="meta-list"></dl>
         <h3>全文</h3>
         <pre id="detail-text" class="detail-text"></pre>
-        <button type="button" class="btn btn-primary" id="detail-reuse">载入创作台继续编辑</button>
+        <button type="button" class="btn btn-primary" id="detail-reuse">載入創作臺繼續編輯</button>
       </aside>
     </div>
   </div>
@@ -374,17 +377,43 @@
 <dialog id="delete-history" class="sheet sheet-confirm" aria-labelledby="delete-history-title" aria-describedby="delete-history-description">
   <div class="sheet-inner">
     <header class="sheet-head">
-      <h2 id="delete-history-title">删除历史记录？</h2>
-      <button type="button" class="icon-btn" data-close aria-label="关闭">✕</button>
+      <h2 id="delete-history-title">刪除歷史記錄？</h2>
+      <button type="button" class="icon-btn" data-close aria-label="關閉">✕</button>
     </header>
     <div class="delete-history-body">
-      <p id="delete-history-description">删除后，这条记录将从历史中移除，无法恢复。请先下载需要保留的作品。</p>
+      <p id="delete-history-description">刪除後，這條記錄將從歷史中移除，無法恢復。請先下載需要保留的作品。</p>
       <p id="delete-history-text" class="job-text"></p>
       <p id="delete-history-error" role="alert" hidden></p>
       <div class="job-action">
         <button type="button" class="btn btn-secondary" data-close>取消</button>
-        <button type="button" class="btn btn-primary" id="confirm-delete-history">确认删除</button>
+        <button type="button" class="btn btn-primary" id="confirm-delete-history">確認刪除</button>
       </div>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="creation-notice" class="sheet sheet-confirm" aria-labelledby="creation-notice-title" aria-describedby="creation-notice-description">
+  <div class="sheet-inner notice-body">
+    <h2 id="creation-notice-title">已提交創作 ✓</h2>
+    <p id="creation-notice-description">作品正在排隊製作，3 秒後將前往歷史頁。您可以在那裡查看進度，完成後播放或下載。</p>
+    <div class="notice-actions">
+      <button type="button" class="btn btn-primary" id="creation-view-history" autofocus>立即查看歷史</button>
+      <button type="button" class="btn btn-secondary" data-close>留在創作頁</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="wechat-notice" class="sheet sheet-confirm" aria-labelledby="wechat-notice-title" aria-describedby="wechat-notice-description">
+  <div class="sheet-inner notice-body">
+    <h2 id="wechat-notice-title">建議使用 Safari 或 Chrome</h2>
+    <p id="wechat-notice-description">微信內建瀏覽器可能無法正常下載作品。請點選右上角「⋯」，選擇「在瀏覽器中開啟」，或複製網址到 Safari／Chrome。</p>
+    <p class="note">請先切換瀏覽器再創作；不同瀏覽器的創作紀錄不會同步。</p>
+    <label for="wechat-page-url">目前網址</label>
+    <input id="wechat-page-url" type="text" readonly aria-label="可複製的目前網址" />
+    <p id="wechat-copy-status" class="note" role="status" aria-live="polite"></p>
+    <div class="notice-actions">
+      <button type="button" class="btn btn-primary" id="wechat-copy-link">複製網址</button>
+      <button type="button" class="btn btn-secondary" data-close>知道了，繼續瀏覽</button>
     </div>
   </div>
 </dialog>
