@@ -122,3 +122,40 @@ appear in history or provide status/download access. Output files remain on disk
 this action deletes history without changing file retention. The browser reports
 errors in the confirmation dialog and permits retry, refreshes counts after
 success, and rejects list responses captured before deletion.
+
+## WeChat iPhone video download handoff
+
+A WeChat download click opens recovery guidance, even when the first-visit notice
+has been dismissed. Ordinary browsers retain direct session-owned downloads and
+inline playback is unchanged. Opening the recovery dialog alone creates no link.
+The user explicitly chooses **建立 10 分鐘影片連結** after seeing the privacy notice.
+`POST /api/jobs/{job_id}/export-link` verifies the browser owns a completed render
+with an existing non-symlink MP4. It creates a 256-bit random capability for that
+single artifact; SQLite stores only its SHA-256 digest and expiration. A new link
+replaces the previous link for that job. Expiry is the earliest of ten minutes,
+24-hour maximum retention, configured shorter retention, completion age and file
+age. Creation never renders another video or transfers a session cookie.
+
+The returned relative URL uses `/export.html#job_id.token`. The fragment is not
+sent in HTTP requests or Referer headers; the landing page has no third-party
+resources, a restrictive CSP and no-referrer policy. The user copies the link to
+Safari/Chrome or manually uses WeChat's browser menu when available. There is no
+fake “Open Safari” button. The landing page preserves the fragment for that menu
+handoff and submits the token in a native form POST body to
+`/api/exports/{job_id}/download`. This streams an MP4 attachment without buffering
+a large video in JavaScript; FileResponse handles Range requests. Access logs
+must not record request bodies. Responses are private/no-store and noindex.
+
+Possession of the link authorizes downloading only this MP4, without history or
+other job access. The endpoint rechecks hash, expiry, completion, artifact type,
+file existence and retention. Owners can revoke via
+`DELETE /api/jobs/{job_id}/export-link`; deleting history also removes the
+capability, and normal cleanup prunes expired/orphaned capabilities. Revocation
+blocks subsequent requests, not an already-started download. Browser history and
+clipboard may retain the bearer link, so the UI warns against forwarding it.
+Create/revoke actions are serialized across dialog dismissal and reopening.
+
+Regression coverage: `tests/python/test_video_exports.py` and
+`tests/frontend-video-export.test.mjs`. A physical iPhone/WeChat-to-Safari download
+still needs on-device validation; DOM/API tests cannot verify OS download handling
+or promise that a video will save directly into Photos.

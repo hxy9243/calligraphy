@@ -418,6 +418,23 @@
   </div>
 </dialog>
 
+<dialog id="video-export-notice" class="sheet sheet-confirm" aria-labelledby="video-export-title">
+  <div class="sheet-inner notice-body">
+    <h2 id="video-export-title">在 iPhone 瀏覽器下載影片</h2>
+    <p>微信可能攔截 MP4 下載。建立這部已完成影片的臨時連結，複製並貼到 Safari／Chrome 網址列即可下載，無需重新生成。</p>
+    <p class="note">連結最長有效 10 分鐘，也可能隨影片清理提早到期。任何持有連結的人都可下載這一部影片；請勿轉傳。重新建立會停用上一個連結。其他作品和創作紀錄不會共享。</p>
+    <input id="video-export-url" type="text" readonly hidden aria-label="臨時影片下載連結" />
+    <p id="video-export-status" class="note" role="status" aria-live="polite"></p>
+    <div class="notice-actions">
+      <button type="button" class="btn btn-primary" id="video-export-create">建立 10 分鐘影片連結</button>
+      <button type="button" class="btn btn-primary" id="video-export-copy" hidden>複製影片連結</button>
+      <button type="button" class="btn btn-secondary" id="video-export-revoke" hidden>停用連結</button>
+      <a class="btn btn-secondary" id="video-export-direct" data-export-direct="true" download>仍在微信下載</a>
+      <button type="button" class="btn btn-secondary" data-close>關閉</button>
+    </div>
+  </div>
+</dialog>
+
 <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
 <script src="/vendor/opencc.js"></script>
