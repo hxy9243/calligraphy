@@ -9,13 +9,16 @@ The backend API is unchanged.
   preview right), with independent scrolling in each pane. Scrolling controls
   keeps the preview in view; long artwork can be scrolled separately on the right.
   Mobile and narrow viewports (<= 960px) place text input at the very top, followed by live preview, font, layout, and output controls.
-  Narrow cards stretch to the available width, keeping long font labels and recent-font chips contained.
+  Narrow cards stretch to the available width with explicit 100% bounds. Mobile cards share 12px internal padding; controls, grid tracks and long labels can shrink without widening the page. Chip strips keep their own horizontal scroll, and compact action buttons stay within the fixed bar. The usage note follows output controls rather than preceding text input. Vertical preview paper fits the stage content box after subtracting padding, including widths below 260px; horizontal artwork can still scroll within its stage.
   Viewports <= 640px use a bottom tab bar, a fixed floating action bar and bottom sheets.
 - Create flow: 1 text, 2 font, 3 layout, 4 output. Fonts are chosen in a searchable picker
   (category, script, favourites, recents) that previews the user's own text in each face.
 - Font entries merge `/api/styles` with `/api/font-catalog`; catalogue-only fonts are also
   exportable because the backend prepares them on demand.
 - The stage is a preview only: browser fonts approximate, not reproduce, the engine output.
+- Text presets include poems and excerpts; the standalone 永字八法 preset is no longer
+  offered. Users can still type 永, and the font samples and rendering engine keep
+  their existing glyph support.
 
 ## Default script
 - The interface declares `zh-Hant` and starts with Traditional Chinese text, converter selection and preset names/text.

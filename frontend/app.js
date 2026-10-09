@@ -102,7 +102,6 @@ const PRESET_EXAMPLES = [
   { id: "liangzhou", name: "凉州词 (王翰)", nameTrad: "涼州詞 (王翰)", trad: "葡萄美酒夜光杯\n欲飲琵琶馬上催\n醉臥沙場君莫笑\n古來征戰幾人回", simp: "葡萄美酒夜光杯\n欲饮琵琶马上催\n醉卧沙场君莫笑\n古来征战几人回" },
   { id: "guyuan", name: "赋得古原草送别 (白居易)", nameTrad: "賦得古原草送別 (白居易)", trad: "離離原上草\n一歲一枯榮\n野火燒不盡\n春風吹又生", simp: "离离原上草\n一岁一枯荣\n野火烧不尽\n春风吹又生" },
   { id: "songdu", name: "送杜少府之任蜀州 (王勃)", nameTrad: "送杜少府之任蜀州 (王勃)", trad: "城闕輔三秦\n風煙望五津\n與君離別意\n同是宦遊人\n海內存知己\n天涯若比鄰\n無為在岐路\n兒女共霑巾", simp: "城阙辅三秦\n风烟望五津\n与君离别意\n同是宦游人\n海内存知己\n天涯若比邻\n无为在歧路\n儿女共沾巾" },
-  { id: "yong", name: "永字八法", nameTrad: "永字八法", trad: "永", simp: "永" },
   { id: "river", name: "春江花月夜", nameTrad: "春江花月夜", trad: "春江花月夜", simp: "春江花月夜" },
   { id: "lanting", name: "兰亭集序", nameTrad: "蘭亭集序", trad: "永和九年\n歲在癸丑\n暮春之初\n會於會稽山陰之蘭亭\n修禊事也", simp: "永和九年\n岁在癸丑\n暮春之初\n会于会稽山阴之兰亭\n修禊事也" },
   { id: "redcliff", name: "赤壁怀古", nameTrad: "赤壁懷古", trad: "大江東去\n浪淘盡\n千古風流人物\n故壘西邊\n人道是\n三國周郎赤壁", simp: "大江东去\n浪淘尽\n千古风流人物\n故垒西边\n人道是\n三国周郎赤壁" },
@@ -749,7 +748,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function layoutStagePaper() {
     if (!calligraphyStage) return;
-    const vw = Math.max(260, (stageViewport ? stageViewport.clientWidth : 0) || (600 - 48));
+    // clientWidth includes padding. Fit vertical paper to the usable content
+    // width instead of forcing a 260px minimum on narrow phones.
+    const viewportStyle = stageViewport ? window.getComputedStyle(stageViewport) : null;
+    const paddingX = viewportStyle
+      ? (parseFloat(viewportStyle.paddingLeft) || 0) + (parseFloat(viewportStyle.paddingRight) || 0)
+      : 0;
+    const measuredWidth = stageViewport ? stageViewport.clientWidth : 0;
+    const vw = measuredWidth > 0 ? Math.max(1, measuredWidth - paddingX) : 600 - 48;
     const cw = canvasWidth || 720;
     const ch = canvasHeight || 960;
     const aspect = cw / ch;
