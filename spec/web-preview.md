@@ -1,22 +1,31 @@
 # Studio preview display and direction
 
-The studio in `frontend/` uses server-rendered raster images for live font previews and
-an export panel for server-rendered previews and completed videos. The export
-panel can be opened by generating a preview or selecting an image/video from the
-current session's job history.
+The studio in `frontend/` uses server-rendered raster images for live font previews.
+The creation canvas contains only the live layout preview; there is no latest-result tab.
+Generated still previews open in a modal. Completed history images/videos open in a
+work modal without navigating away from history or changing its filter/search state.
 
 ## Media lifecycle
 
-The export panel owns one persistent image element and a separate inline-SVG
-container. Each new inline SVG replaces only the SVG container's content. Showing
-an image (including a saved SVG through the history image URL) clears the inline
-SVG and reveals the original image element. Repeated SVG/image transitions must
-never detach that element or leave the panel blank.
+The still-preview modal keeps a persistent image node and a separate inline-SVG
+container. Each inline SVG replaces only that container. Repeated SVG/image
+transitions preserve the image node. History uses a fresh image/video node per
+opening. Videos have native controls and explicit user-started playback, with no
+audio autoplay. Closing, replacing, or navigating away pauses and unloads media.
 
-Video playback hides the image/SVG panel. Showing either kind of still preview
-or closing the export panel pauses the video so hidden media does not continue
-playing. Reopening a saved video reloads its source and attempts playback; normal
-browser autoplay restrictions can still require the user to press Play.
+Both work modals use the available viewport height (dynamic viewport units). Video
+fits the full media region without the former 420px ceiling. On small screens the
+player and its actions fill the initial viewport and job metadata scrolls below.
+Native dialog modality, keyboard trapping, Escape, close, and outside-click
+controls are supported; dismissal restores focus to the opener when still mounted.
+
+Every completed history video and its detail modal offers an explicit share
+control. Creating a link discloses that anyone holding it can view/download that
+single video; creating a replacement invalidates its predecessor. Copy fallback
+selects the URL for manual copy. Revocation remains available after reopening the
+share dialog. Links last 72 hours from explicit creation, retaining only that
+shared video for that interval. Both creation and copy show the exact expiry and
+anyone-with-link privacy notice. The standalone viewer and capability boundary are in `studio-jobs.md`.
 
 ## Layout direction
 

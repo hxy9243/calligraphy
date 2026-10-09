@@ -66,13 +66,15 @@ def execute_job_bounded(job, db):
 
 def cleanup_expired_outputs(db):
     cutoff = time.time() - int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400"))
-    db.prune_history(datetime.fromtimestamp(cutoff, timezone.utc).isoformat())
-    # Include orphaned output files whose history was explicitly deleted.
     root = output_root()
-    for folder in ("previews", "videos"):
-        for path in (root / folder).glob("*"):
-            if path.is_file() and not path.is_symlink() and path.stat().st_mtime < cutoff:
-                path.unlink(missing_ok=True)
+    # Hold SQLite's write reservation through unlink: share issuance validates
+    # and grants its lease in the same kind of transaction, across DB instances.
+    with db.retention_cleanup(datetime.fromtimestamp(cutoff, timezone.utc).isoformat()) as protected:
+        # Include orphaned outputs whose history was explicitly deleted.
+        for folder in ("previews", "videos"):
+            for path in (root / folder).glob("*"):
+                if path.is_file() and not path.is_symlink() and path.resolve() not in protected and path.stat().st_mtime < cutoff:
+                    path.unlink(missing_ok=True)
 
 
 def _auto_prepare_font(style: str, text: str) -> None:

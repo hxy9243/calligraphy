@@ -5,6 +5,7 @@ import sqlite3
 import threading
 import time
 import math
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -105,6 +106,10 @@ class Database:
                         ON jobs(status, created_at ASC);
                         """
                     )
+                    # One short-lived, revocable capability per finished video.
+                    conn.execute("CREATE TABLE IF NOT EXISTS video_exports (job_id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, expires_at REAL NOT NULL)")
+                    # Sharing has its own capability; it never extends an export link.
+                    conn.execute("CREATE TABLE IF NOT EXISTS video_shares (job_id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, expires_at REAL NOT NULL)")
                     conn.execute("CREATE TABLE IF NOT EXISTS creation_events (session_id TEXT NOT NULL, created_at REAL NOT NULL)")
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_creation_events ON creation_events(session_id, created_at)")
 
@@ -127,10 +132,31 @@ class Database:
         with self._lock, conn:
             return conn.execute("UPDATE jobs SET status = 'failed', error_message = ?, completed_at = ?, updated_at = ? WHERE status IN ('rendering', 'running')", ("服务重启中断了任务，请重新创建 / Interrupted by server restart; please retry.", now, now)).rowcount
 
-    def prune_history(self, cutoff):
+    @contextmanager
+    def retention_cleanup(self, cutoff):
+        """Serialize cleanup through unlink with share creation across processes.
+
+        The caller must remove expired files before leaving this context. A share
+        is never issued between protected-path selection and physical removal.
+        """
         conn = self._get_sqlite_conn()
         with self._lock, conn:
-            conn.execute("DELETE FROM jobs WHERE status IN ('succeeded', 'failed') AND completed_at < ?", (cutoff,))
+            conn.execute("BEGIN IMMEDIATE;")
+            now = time.time()
+            conn.execute("""DELETE FROM jobs WHERE status IN ('succeeded', 'failed')
+                AND COALESCE(completed_at, created_at) < ?
+                AND NOT (status = 'succeeded' AND job_type = 'render' AND EXISTS
+                    (SELECT 1 FROM video_shares WHERE video_shares.job_id = jobs.job_id AND video_shares.expires_at > ?))""", (cutoff, now))
+            conn.execute("DELETE FROM video_exports WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (now,))
+            conn.execute("DELETE FROM video_shares WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (now,))
+            rows = conn.execute("""SELECT jobs.output_path FROM jobs JOIN video_shares USING (job_id)
+                WHERE video_shares.expires_at > ? AND jobs.status = 'succeeded'
+                    AND jobs.job_type = 'render' AND jobs.output_path IS NOT NULL""", (now,)).fetchall()
+            yield {Path(row["output_path"]).resolve() for row in rows}
+
+    def prune_history(self, cutoff):
+        with self.retention_cleanup(cutoff):
+            pass
 
     def touch_session(self, session_id: str) -> None:
         now = now_utc_iso()
@@ -334,7 +360,65 @@ class Database:
                     "DELETE FROM jobs WHERE job_id = ? AND session_id = ?;",
                     (job_id, session_id),
                 )
+                conn.execute("DELETE FROM video_exports WHERE job_id = ?", (job_id,))
+                conn.execute("DELETE FROM video_shares WHERE job_id = ?", (job_id,))
                 return "deleted"
+
+    def set_video_export(self, job_id, session_id, token_hash, expires_at):
+        conn = self._get_sqlite_conn()
+        with self._lock, conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            conn.execute("DELETE FROM video_exports WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (time.time(),))
+            job = conn.execute("SELECT status, job_type FROM jobs WHERE job_id = ? AND session_id = ?", (job_id, session_id)).fetchone()
+            if not job or job["status"] != "succeeded" or job["job_type"] != "render":
+                return False
+            conn.execute("INSERT INTO video_exports VALUES (?, ?, ?) ON CONFLICT(job_id) DO UPDATE SET token_hash = excluded.token_hash, expires_at = excluded.expires_at", (job_id, token_hash, expires_at))
+            return True
+
+    def get_video_export(self, job_id):
+        conn = self._get_sqlite_conn()
+        with self._lock:
+            row = conn.execute("SELECT * FROM video_exports WHERE job_id = ?", (job_id,)).fetchone()
+            return dict(row) if row else None
+
+    def revoke_video_export(self, job_id):
+        conn = self._get_sqlite_conn()
+        with self._lock, conn:
+            conn.execute("DELETE FROM video_exports WHERE job_id = ?", (job_id,))
+
+    def set_video_share(self, job_id, session_id, token_hash, expires_at, validate_artifact=None):
+        """Rotate under the same database reservation as retention cleanup.
+
+        API issuance supplies validate_artifact, which checks the current file
+        and ordinary retention or existing lease *inside* this transaction.
+        """
+        conn = self._get_sqlite_conn()
+        with self._lock, conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            conn.execute("DELETE FROM video_shares WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (time.time(),))
+            job = conn.execute("SELECT * FROM jobs WHERE job_id = ? AND session_id = ?", (job_id, session_id)).fetchone()
+            if not job or job["status"] != "succeeded" or job["job_type"] != "render":
+                return False
+            if validate_artifact is not None:
+                previous = conn.execute("SELECT * FROM video_shares WHERE job_id = ?", (job_id,)).fetchone()
+                validate_artifact(self._decode_job(job), dict(previous) if previous else None)
+            conn.execute("INSERT INTO video_shares VALUES (?, ?, ?) ON CONFLICT(job_id) DO UPDATE SET token_hash = excluded.token_hash, expires_at = excluded.expires_at", (job_id, token_hash, expires_at))
+            return True
+
+    def get_video_share(self, job_id):
+        conn = self._get_sqlite_conn()
+        with self._lock:
+            row = conn.execute("SELECT * FROM video_shares WHERE job_id = ?", (job_id,)).fetchone()
+            return dict(row) if row else None
+
+    def revoke_video_share(self, job_id, session_id):
+        conn = self._get_sqlite_conn()
+        with self._lock, conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            if not conn.execute("SELECT 1 FROM jobs WHERE job_id = ? AND session_id = ?", (job_id, session_id)).fetchone():
+                return False
+            conn.execute("DELETE FROM video_shares WHERE job_id = ?", (job_id,))
+            return True
 
     def claim_next_job(self) -> Optional[Dict[str, Any]]:
         """Atomically claim the oldest queued render across worker processes."""

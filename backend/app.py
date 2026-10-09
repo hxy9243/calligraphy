@@ -1,4 +1,13 @@
 import json
+import hashlib
+import secrets
+import time
+import re
+import math
+import threading
+from collections import deque
+from datetime import datetime, timezone
+from urllib.parse import parse_qs
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -150,12 +159,21 @@ SESSION_COOKIE_NAME = "calligraphy_session"
 
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
+    public_capability = request.url.path.startswith(("/api/exports/", "/api/shares/")) or request.url.path in (
+        "/export.html", "/export.js", "/export.css", "/watch.html", "/watch.js", "/watch.css",
+    )
+    capability_response = public_capability or request.url.path.endswith(("/export-link", "/share-link"))
     # Browser mutations are same-origin. Railway terminates TLS before forwarding.
     origin = request.headers.get("origin")
     if request.method not in ("GET", "HEAD", "OPTIONS") and origin:
         from urllib.parse import urlsplit
         if urlsplit(origin).netloc != request.headers.get("host"):
-            return JSONResponse(status_code=403, content={"detail": "Cross-origin request denied."})
+            return JSONResponse(status_code=403, content={"detail": "Cross-origin request denied."}, headers=EXPORT_HEADERS if capability_response else None)
+    # Capabilities never become browser sessions and never grant history access.
+    if public_capability:
+        response = await call_next(request)
+        response.headers.update(EXPORT_HEADERS)
+        return response
     session_id = request.cookies.get(SESSION_COOKIE_NAME)
     is_new = False
     if not session_id or len(session_id) > 64:
@@ -166,6 +184,8 @@ async def session_middleware(request: Request, call_next):
     db.touch_session(session_id)
 
     response = await call_next(request)
+    if capability_response:
+        response.headers.update(EXPORT_HEADERS)
     if is_new:
         response.set_cookie(
             key=SESSION_COOKIE_NAME,
@@ -509,6 +529,235 @@ def get_job_image(job_id: str, request: Request, response: Response):
         str(file_path),
         media_type=media_type,
     )
+
+
+EXPORT_HEADERS = {
+    "Cache-Control": "private, no-store",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Robots-Tag": "noindex, nofollow, noarchive",
+}
+EXPORT_TTL_SECONDS = 600
+
+
+def export_video_path(job, lease_expires=None):
+    """Validate the sole artifact a capability may release, including retention."""
+    if not job or job["job_type"] != "render" or job["status"] != "succeeded" or not job.get("output_path"):
+        raise HTTPException(404, "影片尚未完成或已移除 / Video unavailable")
+    path = Path(job["output_path"])
+    if path.suffix.lower() != ".mp4" or path.is_symlink() or not path.is_file():
+        raise HTTPException(404, "影片檔案已移除 / Video unavailable")
+    retention = min(86400, int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400")))
+    completed = datetime.fromisoformat(job["completed_at"] or job["created_at"]).timestamp()
+    deadline = min(completed, path.stat().st_mtime) + retention
+    # Explicit sharing may retain this one file longer. Callers supply the
+    # current lease; this helper performs no nested database access.
+    if lease_expires is not None and lease_expires > time.time():
+        deadline = max(deadline, lease_expires)
+    if deadline <= time.time():
+        raise HTTPException(404, "影片已到期 / Video expired")
+    return path, deadline
+
+
+@app.post("/api/jobs/{job_id}/export-link")
+def create_video_export(job_id: str, request: Request):
+    db = get_db()
+    job = db.get_job(job_id)
+    if not job or job["session_id"] != request.state.session_id:
+        raise HTTPException(404, "Job not found")
+    share = db.get_video_share(job_id)
+    _, deadline = export_video_path(job, share["expires_at"] if share else None)
+    token = secrets.token_urlsafe(32)
+    expires = min(time.time() + EXPORT_TTL_SECONDS, deadline)
+    if not db.set_video_export(job_id, request.state.session_id, hashlib.sha256(token.encode()).hexdigest(), expires):
+        raise HTTPException(404, "Job not found")
+    # Fragment stays out of access logs and Referer headers. No cookie transfer.
+    return JSONResponse({"url": f"/export.html#{job_id}.{token}", "expires_at": expires}, headers=EXPORT_HEADERS)
+
+
+@app.delete("/api/jobs/{job_id}/export-link", status_code=204)
+def revoke_video_export(job_id: str, request: Request):
+    db = get_db()
+    job = db.get_job(job_id)
+    if not job or job["session_id"] != request.state.session_id:
+        raise HTTPException(404, "Job not found")
+    db.revoke_video_export(job_id)
+    return Response(status_code=204, headers=EXPORT_HEADERS)
+
+
+@app.post("/api/exports/{job_id}/download")
+async def download_video_export(job_id: str, request: Request):
+    # A native form download avoids buffering a large MP4 in iPhone JavaScript.
+    # Token is sent in the body, never a query/path that access logs record.
+    if request.headers.get("content-type", "").split(";")[0] != "application/x-www-form-urlencoded":
+        raise HTTPException(404, "下載連結無效或已到期 / Export link invalid or expired")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > 128:
+            raise HTTPException(404, "Export link invalid or expired")
+    try:
+        fields = parse_qs(body.decode("ascii"), strict_parsing=True)
+        token, = fields.get("token", [])
+    except (ValueError, UnicodeError):
+        raise HTTPException(404, "Export link invalid or expired")
+    db = get_db()
+    capability = db.get_video_export(job_id)
+    if not capability or capability["expires_at"] <= time.time() or not secrets.compare_digest(
+        capability["token_hash"], hashlib.sha256(token.encode()).hexdigest()
+    ):
+        raise HTTPException(404, "下載連結無效或已到期，請回微信重新建立 / Export link invalid or expired")
+    share = db.get_video_share(job_id)
+    path, _ = export_video_path(db.get_job(job_id), share["expires_at"] if share else None)
+    return FileResponse(path, media_type="video/mp4", filename="calligraphy_video.mp4", headers=EXPORT_HEADERS)
+
+
+@app.get("/export.html")
+def video_export_page():
+    return FileResponse(Path(__file__).resolve().parent.parent / "frontend" / "export.html", headers={
+        **EXPORT_HEADERS,
+        "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    })
+
+
+SHARE_TTL_SECONDS = 72 * 3600
+SHARE_COOKIE_NAME = "calligraphy_video_share"
+SHARE_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
+SHARE_TOKEN = re.compile(r"[A-Za-z0-9_-]{43}\Z")
+SHARE_UNAVAILABLE = "影片連結無效、已到期或已停用 / Video link unavailable"
+SHARE_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+
+
+class ShareAccessLimiter:
+    """Bound exchange attempts, never the Range/HEAD requests used for seeking.
+
+    This demo runs exactly one API process. The bounded sliding window stores
+    keyed peer digests in memory, not addresses or tokens in persistent logs.
+    A multi-process deployment must replace this with a shared edge limiter.
+    """
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._salt = secrets.token_bytes(32)
+        self._peers = {}
+        self._all = deque()
+
+    def admit(self, peer):
+        key = hashlib.sha256(self._salt + peer.encode()).digest()
+        now = time.monotonic()
+        with self._lock:
+            while self._all and self._all[0] <= now - 60:
+                self._all.popleft()
+            for identity, attempts in list(self._peers.items()):
+                while attempts and attempts[0] <= now - 60:
+                    attempts.popleft()
+                if not attempts:
+                    del self._peers[identity]
+            attempts = self._peers.get(key, deque())
+            blocked = self._all if len(self._all) >= 600 else attempts if len(attempts) >= 60 else None
+            if blocked is not None:
+                raise HTTPException(429, "請稍後再試 / Please try again shortly", headers={"Retry-After": str(max(1, math.ceil(blocked[0] + 60 - now)))})
+            self._peers.setdefault(key, attempts).append(now)
+            self._all.append(now)
+
+
+_share_access_limiter = ShareAccessLimiter()
+
+
+def shared_video_path(job, lease_expires=None):
+    """A live explicit share lease extends only this video's ordinary retention."""
+    try:
+        if lease_expires is not None and lease_expires > time.time():
+            path, _ = export_video_path(job, lease_expires)
+            return path, lease_expires
+        # No active lease: creation must not resurrect an already-expired video.
+        path, deadline = export_video_path(job)
+        if job.get("expires_at"):
+            deadline = min(deadline, datetime.fromisoformat(job["expires_at"]).timestamp())
+        if deadline <= time.time():
+            raise ValueError("expired")
+        return path, deadline
+    except (HTTPException, OSError, ValueError, TypeError):
+        raise HTTPException(404, SHARE_UNAVAILABLE) from None
+
+
+def checked_video_share(job_id, token):
+    if not SHARE_ID.fullmatch(job_id) or not isinstance(token, str) or not SHARE_TOKEN.fullmatch(token):
+        raise HTTPException(404, SHARE_UNAVAILABLE)
+    db = get_db()
+    capability = db.get_video_share(job_id)
+    if not capability or capability["expires_at"] <= time.time() or not secrets.compare_digest(
+        capability["token_hash"], hashlib.sha256(token.encode("ascii")).hexdigest()
+    ):
+        raise HTTPException(404, SHARE_UNAVAILABLE)
+    path, deadline = shared_video_path(db.get_job(job_id), capability["expires_at"])
+    return path, min(capability["expires_at"], deadline)
+
+
+@app.post("/api/jobs/{job_id}/share-link")
+def create_video_share(job_id: str, request: Request):
+    db = get_db()
+    if not SHARE_ID.fullmatch(job_id):
+        raise HTTPException(404, SHARE_UNAVAILABLE)
+    token = secrets.token_urlsafe(32)
+    expires = time.time() + SHARE_TTL_SECONDS
+    if not db.set_video_share(
+        job_id, request.state.session_id, hashlib.sha256(token.encode("ascii")).hexdigest(), expires,
+        validate_artifact=lambda job, previous: shared_video_path(job, previous["expires_at"] if previous else None),
+    ):
+        raise HTTPException(404, SHARE_UNAVAILABLE)
+    return JSONResponse({"url": f"/watch.html#{job_id}.{token}", "expires_at": expires}, headers=EXPORT_HEADERS)
+
+
+@app.delete("/api/jobs/{job_id}/share-link", status_code=204)
+def revoke_video_share(job_id: str, request: Request):
+    if not SHARE_ID.fullmatch(job_id) or not get_db().revoke_video_share(job_id, request.state.session_id):
+        raise HTTPException(404, SHARE_UNAVAILABLE)
+    return Response(status_code=204, headers=EXPORT_HEADERS)
+
+
+@app.post("/api/shares/{job_id}/access")
+async def access_video_share(job_id: str, request: Request):
+    # Only this bounded exchange receives the fragment bearer in its body.
+    # Never accept URL tokens, log request bodies, or fall back to owner cookies.
+    _share_access_limiter.admit(request.client.host if request.client else "unknown")
+    if not SHARE_ID.fullmatch(job_id) or request.headers.get("content-type", "").split(";")[0].strip() != "application/x-www-form-urlencoded":
+        raise HTTPException(404, SHARE_UNAVAILABLE)
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > 128:
+            raise HTTPException(404, SHARE_UNAVAILABLE)
+        body.extend(chunk)
+    try:
+        fields = parse_qs(body.decode("ascii"), strict_parsing=True, max_num_fields=1)
+        token, = fields["token"]
+    except (KeyError, ValueError, UnicodeError):
+        raise HTTPException(404, SHARE_UNAVAILABLE) from None
+    _, expires = checked_video_share(job_id, token)
+    response = JSONResponse({"video_url": f"/api/shares/{job_id}/video", "expires_at": expires}, headers=EXPORT_HEADERS)
+    response.set_cookie(
+        SHARE_COOKIE_NAME, token, httponly=True, samesite="strict",
+        secure=request.url.scheme == "https" or os.environ.get("CALLIGRAPHY_SECURE_COOKIES") == "1",
+        path=f"/api/shares/{job_id}", max_age=max(1, math.ceil(expires - time.time())),
+        expires=datetime.fromtimestamp(expires, timezone.utc),
+    )
+    return response
+
+
+@app.api_route("/api/shares/{job_id}/video", methods=["GET", "HEAD"])
+def shared_video(job_id: str, request: Request):
+    path, _ = checked_video_share(job_id, request.cookies.get(SHARE_COOKIE_NAME))
+    # Query options select disposition only. Authorization is exclusively the
+    # per-video cookie and is revalidated before every request, including HEAD.
+    filename = "calligraphy_video.mp4" if request.query_params.get("download") == "1" else None
+    return FileResponse(path, media_type="video/mp4", filename=filename, headers=EXPORT_HEADERS)
+
+
+@app.api_route("/watch.html", methods=["GET", "HEAD"])
+def video_share_page():
+    return FileResponse(Path(__file__).resolve().parent.parent / "frontend" / "watch.html", headers={
+        **EXPORT_HEADERS, "Content-Security-Policy": SHARE_CSP,
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=(), autoplay=()",
+    })
 
 
 # Mount frontend static directory if exists

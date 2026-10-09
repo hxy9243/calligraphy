@@ -77,8 +77,10 @@ accounts, clearing cookies creates a new identity; this is not an IP abuse limit
 
 Canvas dimensions are bounded to 64–1280 pixels per side, with even video sizes.
 After preparation, videos above 120 seconds or 3000 frames are rejected before
-encoding. Terminal history and output files expire after 24 hours; cleanup also
-removes expired files whose history was previously deleted.
+encoding. Ordinary terminal history and output files expire after 24 hours (or
+the configured retention); an explicitly shared video receives the 72-hour
+retention lease described below. Cleanup also removes expired files whose
+history was previously deleted.
 
 ## Browser behavior
 
@@ -89,7 +91,7 @@ submission errors can appear by the form because no accepted job exists yet.
 
 After acceptance the job list refreshes. Each job card displays its own queued,
 rendering/running percentage, completed or failed status. Failed cards contain
-the associated error; completed video cards offer Play and Download. Render
+the associated error; completed video cards offer Play, Download and Share. Render
 progress, completion and failure never use the shared inline form status. Job
 completion does not open the export panel, start video playback, or change the
 current editor contents; playback is an explicit card action.
@@ -118,7 +120,126 @@ jobs cannot be deleted; the button becomes available after success or failure.
 `DELETE /api/jobs/{job_id}` atomically verifies session ownership and terminal
 status before deleting the SQLite history row. It returns 204 on success, 404
 for missing or other-session jobs, and 409 for active jobs. Deleted jobs no longer
-appear in history or provide status/download access. Output files remain on disk until the 24-hour retention cleanup;
-this action deletes history without changing file retention. The browser reports
+appear in history or provide status/download access. Output files remain on disk
+until the ordinary retention cleanup; deleting a shared video also ends its
+extended retention lease. The browser reports
 errors in the confirmation dialog and permits retry, refreshes counts after
 success, and rejects list responses captured before deletion.
+
+## Standalone video sharing
+
+Completed video cards and their detail viewer offer Share. Opening the sharing
+dialog alone does not publish a capability: the owner explicitly creates a link
+after seeing that anyone holding it can watch and download this one video.
+The dialog offers copying, a selectable-link fallback and revocation. Before
+creation it explains the 72-hour lifetime and single-video access granted to
+anyone holding the link. Creation and both clipboard/manual-copy feedback show
+the actual expiry date/time and repeat that privacy notice.
+
+`POST /api/jobs/{job_id}/share-link` requires the owning browser session and an
+existing, completed, non-symlink MP4. It returns `/watch.html#job_id.token` and an
+`expires_at` Unix timestamp. The bearer has 256 bits of entropy. SQLite's separate
+`video_shares` table stores only the SHA-256 digest and expiry. A new share link
+replaces the old one, immediately invalidating its subsequent access and media
+requests. The link lasts 72 hours from creation and grants a retention lease for
+that one completed job and MP4. Unshared jobs retain ordinary 24-hour/configured
+retention. An active share lease supersedes ordinary file/completion age and an
+ordinary job expiry without rewriting them. A still-active share can be rotated
+for a fresh 72-hour lease, but an expired unshared artifact cannot be resurrected.
+Sharing never renders another video or extends the lifetime of an existing
+ten-minute export/download capability.
+
+Issuance verifies session ownership and validates the current artifact inside
+SQLite `BEGIN IMMEDIATE`, including any existing active lease. Cleanup holds the
+same database write reservation from history pruning and protected-path
+selection through filesystem unlink. These operations serialize across separate
+Database objects/processes: if issuance wins, cleanup preserves its job and file;
+if cleanup wins, creation cannot return a link to the removed artifact. Revocation
+ends the extension immediately, and normal cleanup removes the file/history once
+their ordinary retention has passed. Explicit history deletion invalidates the
+share immediately and leaves the orphaned file for that same ordinary cleanup.
+
+The standalone viewer is public and does not require or create an owner session.
+It uses only same-origin assets, no analytics or third-party resources, a
+restrictive CSP, no-referrer, private/no-store and noindex headers. Its fragment
+never enters an HTTP URL or Referer header. The viewer posts the bearer in a
+bounded URL-encoded body to `POST /api/shares/{job_id}/access`. Valid access sets
+an HttpOnly, SameSite=Strict capability cookie scoped to `/api/shares/{job_id}`,
+Secure on HTTPS (or when secure cookies are configured), and expiring with the
+capability. This cookie authorizes only this video, never job history or owner
+APIs. Access endpoints never fall back to a browser's owner cookie. Request bodies
+and Cookie/Set-Cookie headers must not be logged by deployment middleware.
+
+Native video controls use the token-free `GET /api/shares/{job_id}/video` route;
+`HEAD` and byte Range requests are supported for native playback and seeking.
+`?download=1` selects an MP4 attachment on that same authorized route. Every
+request rechecks the capability digest, expiry, completed video state, artifact
+type/existence and current retention deadline. `DELETE
+/api/jobs/{job_id}/share-link` verifies ownership and revokes the capability.
+Deleting history removes it atomically, and retention cleanup removes expired
+and orphaned records. Revocation blocks subsequent requests; it cannot erase
+bytes already downloaded or buffered during an earlier authorized request.
+
+The single-process demo bounds access exchanges to 60 per peer per minute and
+600 total per minute. Only ephemeral keyed peer digests are kept in its bounded
+in-memory limiter. A future multi-process deployment needs a shared edge limiter.
+Native media/Range requests are deliberately outside that limiter, so ordinary
+seeking is not mistaken for repeated link exchange. Malformed/oversized token
+bodies and unavailable capabilities return generic errors without echoing tokens
+or private job metadata.
+
+Playback requires an explicit user action, with no autoplay. Fragment changes
+and page dismissal abort pending access and unload the old video; older responses
+cannot restore stale media. Back/forward-cache restoration revalidates access.
+The viewer unloads media at the advertised expiry and gives retry/recovery
+guidance for expired, revoked, removed or unplayable videos. WeChat users see
+browser-menu and copy-to-Safari/Chrome guidance. The fragment is preserved so that
+manual handoff and explicit copy retain access. Browser history and the clipboard
+may consequently retain the bearer link; forwarding it grants the same limited
+access. There is no fake button that claims to launch Safari or save into Photos.
+
+Regression coverage: `tests/python/test_video_shares.py` and
+`tests/frontend-video-share-viewer.test.mjs`. Browser DOM tests do not replace a
+physical WeChat/iPhone playback, browser-menu and native-download check.
+
+## WeChat iPhone video download handoff
+
+A WeChat download click opens recovery guidance, even when the first-visit notice
+has been dismissed. Ordinary browsers retain direct session-owned downloads and
+inline playback is unchanged. Opening the recovery dialog alone creates no link.
+The user explicitly chooses **建立 10 分鐘影片連結** after seeing the privacy notice.
+`POST /api/jobs/{job_id}/export-link` verifies the browser owns a completed render
+with an existing non-symlink MP4. It creates a 256-bit random capability for that
+single artifact; SQLite stores only its SHA-256 digest and expiration. A new link
+replaces the previous link for that job. Expiry is the earliest of ten minutes,
+ordinary retention (24 hours or configured shorter retention, completion age and
+file age), or an active share's extended retention deadline when applicable.
+A video retained by a live 72-hour share still supports a separate ten-minute
+export link. Export access rechecks the current retention lease; revoking that
+share invalidates exports that depended on its extension, while ordinary retained
+files keep their existing export behavior. Creating an export does not grant or
+renew a share lease, render another video, or transfer a session cookie.
+
+The returned relative URL uses `/export.html#job_id.token`. The fragment is not
+sent in HTTP requests or Referer headers; the landing page has no third-party
+resources, a restrictive CSP and no-referrer policy. The user copies the link to
+Safari/Chrome or manually uses WeChat's browser menu when available. There is no
+fake “Open Safari” button. The landing page preserves the fragment for that menu
+handoff and submits the token in a native form POST body to
+`/api/exports/{job_id}/download`. This streams an MP4 attachment without buffering
+a large video in JavaScript; FileResponse handles Range requests. Access logs
+must not record request bodies. Responses are private/no-store and noindex.
+
+Possession of the link authorizes downloading only this MP4, without history or
+other job access. The endpoint rechecks hash, expiry, completion, artifact type,
+file existence and retention. Owners can revoke via
+`DELETE /api/jobs/{job_id}/export-link`; deleting history also removes the
+capability, and normal cleanup prunes expired/orphaned capabilities. Revocation
+blocks subsequent requests, not an already-started download. Browser history and
+clipboard may retain the bearer link, so the UI warns against forwarding it.
+Create/revoke actions are serialized across dialog dismissal and reopening.
+
+Regression coverage: `tests/python/test_video_exports.py` and
+`tests/frontend-video-export.test.mjs`. A physical iPhone/WeChat-to-Safari download
+still needs on-device validation; DOM/API tests cannot verify OS download handling
+or promise that a video will save directly into Photos.

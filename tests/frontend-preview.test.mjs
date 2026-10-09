@@ -50,22 +50,19 @@ test('SVG, direct image, video, and history previews keep the image mounted acro
     assert.equal(imageContainer.querySelectorAll('svg').length, 1);
     assert.equal(hidden(imageContainer), false);
     historyView.click();
-    assertImage('/fixtures/history.svg');
+    assert.equal(document.querySelector('#detail-viewer img').getAttribute('src'), '/fixtures/history.svg');
+    document.getElementById('job-detail').close();
 
     await preview({ svg });
     await preview({ svg });
     assert.equal(imageContainer.querySelectorAll('svg').length, 1);
     historyPlay.click();
-    assert.equal(hidden(imageContainer), true);
-    assert.equal(hidden(videoContainer), false);
-    assert.equal(video.getAttribute('src'), '/fixtures/history.mp4');
-    assert.equal(document.getElementById('btn-video-dl').getAttribute('href'), '/fixtures/download.mp4');
-
-    document.getElementById('btn-close-export').click();
-    assert.equal(hidden(exportBox), true);
-    assert.equal(mediaEvents.at(-1).method, 'pause');
-    historyView.click();
-    assertImage('/fixtures/history.svg');
+    assert.equal(document.getElementById('job-detail').open, true);
+    assert.equal(document.querySelector('#detail-viewer video').getAttribute('src'), '/fixtures/history.mp4');
+    assert.equal(document.getElementById('detail-download').getAttribute('href'), '/fixtures/download.mp4');
+    document.getElementById('job-detail').close();
+    assert.equal(document.querySelector('#detail-viewer video'), null);
+    assert.equal(mediaEvents.some(e => e.method === 'pause'), true);
 
     historyPlay.click();
     await preview({ svg });

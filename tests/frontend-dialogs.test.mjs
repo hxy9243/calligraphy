@@ -31,5 +31,5 @@ test('font and playback dialogs dismiss outside, keep inside clicks, and pause p
     dialog.click();
     assert.equal(dialog.open, false);
   }
-  assert.ok(ui.mediaEvents.some(e => e.method === 'pause' && e.element.closest('#detail-viewer')));
+  assert.ok(ui.mediaEvents.some(e => e.method === 'pause' && e.element.tagName === 'VIDEO'));
 });

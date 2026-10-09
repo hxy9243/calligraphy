@@ -38,7 +38,7 @@ The backend API is unchanged.
 ## Live Stage & Result Framing
 - **Real-time stage (实时试写)**: Both `.stage-viewport` and `.stage-paper` automatically lengthen on the web page to fit the artwork naturally without nested inner scrollbox clamping.
 - Auto-fit only intervenes if manual canvas boundaries constrain text.
-- Result viewers fit by default with comfortable zoom-out framing (88% bounds, padded container) so long vertical scrolls and full video dimensions fit on screen without vertical clipping.
+- Completed works open in viewport-height modals rather than a latest-result tab. Video fits the full available media region without a fixed height ceiling; mobile metadata sits below the player. Playback requires an explicit user gesture. Completed videos offer copyable, revocable single-video sharing with a 72-hour per-video retention lease and an exact-expiry privacy notice on creation and copying.
 - History cards clamp text; the detail dialog shows full text, parameters, and download options.
 
 ## Persistence
@@ -49,3 +49,19 @@ Font selection and history detail/playback dialogs close when a click starts and
 ends outside their visible panel. Clicking inside or dragging out keeps the dialog
 open. Closing the detail dialog pauses its video; Escape and close buttons remain
 available.
+
+## Video modal and sharing validation (2026-10-09)
+
+The integrated change passed 125 JavaScript tests (`node --test
+--test-concurrency=1 tests/*.test.mjs`) and all 208 Python tests across 30 modules.
+Python modules ran in isolated processes with native math threads capped at one
+because a monolithic run exceeded this test environment's resource limit. The
+42 affected sharing, export and cleanup tests were rerun after the 72-hour lease
+change. Tests use synthetic media and do not publish real visitor content.
+
+Coverage includes modal focus/Escape/backdrop behavior, media disposal, preserving
+history navigation, stale preview/share responses, copy fallback and privacy
+notices, fresh-browser capability access, range/HEAD playback, expiry/revocation,
+per-video retention, and both share-issuance/cleanup race orderings. Browser DOM
+and API tests do not verify rendered browser pixels, an actual browser's native
+video decoder, or physical WeChat/iPhone handoff and download behavior.

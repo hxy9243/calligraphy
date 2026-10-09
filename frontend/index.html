@@ -183,10 +183,7 @@
       <!-- Right: canvas -->
       <div class="canvas">
         <div class="canvas-head">
-          <div class="seg" role="tablist" aria-label="畫布">
-            <button type="button" role="tab" class="seg-btn active" id="tab-live" data-canvas="live" aria-selected="true">排版預覽</button>
-            <button type="button" role="tab" class="seg-btn" id="tab-result" data-canvas="result" aria-selected="false">最新成品 <i class="dot" id="result-dot" hidden></i></button>
-          </div>
+          <strong>排版預覽</strong>
           <span class="canvas-meta" id="canvas-meta"></span>
         </div>
 
@@ -209,34 +206,7 @@
           <p class="stage-caption" id="stage-caption"></p>
         </div>
 
-        <!-- result viewer -->
-        <div id="pane-result" class="pane" hidden>
-          <div id="result-empty" class="empty">
-            <p>還沒有成品</p>
-            <small>點擊「導出靜圖」或「生成書寫視頻」，結果會出現在這裏；全部記錄可在「歷史」中查看。</small>
-          </div>
-          <div id="result-body" hidden>
-            <div id="export-output-box" class="export-output-box hidden">
-              <button type="button" id="btn-close-export" class="hidden">✕ 收起</button>
-              <div id="preview-image-container" class="preview-box hidden">
-                <img id="preview-img" src="" alt="Calligraphy Preview" class="hidden" />
-                <div id="preview-svg-container" class="preview-box hidden"></div>
-              </div>
-              <div id="video-container" class="preview-box hidden video-export-wrapper">
-                <video id="result-video" controls autoplay loop playsinline></video>
-                <div class="video-actions-row">
-                  <a id="btn-video-dl" class="btn btn-secondary btn-sm" href="#" download>⬇ 下載完整 MP4 視頻</a>
-                </div>
-              </div>
-            </div>
-            <div class="viewer" id="result-viewer"></div>
-            <div class="result-actions">
-              <button type="button" class="btn btn-ghost btn-sm" id="result-zoom">實際大小</button>
-              <a class="btn btn-secondary btn-sm" id="result-download" href="#" download>⬇ 下載</a>
-              <a class="btn btn-ghost btn-sm" href="#history">在歷史中查看</a>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   </section>
@@ -349,8 +319,35 @@
   </div>
 </dialog>
 
+<dialog id="result-dialog" class="sheet sheet-wide work-dialog" aria-labelledby="result-title">
+  <div class="sheet-inner">
+    <header class="sheet-head"><h2 id="result-title">成品預覽</h2><button type="button" id="btn-close-export" class="icon-btn" data-close aria-label="關閉" autofocus>✕</button></header>
+          <div id="result-body" hidden>
+            <div id="export-output-box" class="export-output-box hidden">
+
+              <div id="preview-image-container" class="preview-box hidden">
+                <img id="preview-img" src="" alt="Calligraphy Preview" class="hidden" />
+                <div id="preview-svg-container" class="preview-box hidden"></div>
+              </div>
+              <div id="video-container" class="preview-box hidden video-export-wrapper">
+                <video id="result-video" controls loop playsinline></video>
+                <div class="video-actions-row">
+                  <a id="btn-video-dl" class="btn btn-secondary btn-sm" href="#" download>⬇ 下載完整 MP4 視頻</a>
+                </div>
+              </div>
+            </div>
+
+            <div class="result-actions">
+              <button type="button" class="btn btn-ghost btn-sm" id="result-zoom">實際大小</button>
+              <a class="btn btn-secondary btn-sm" id="result-download" href="#" download>⬇ 下載</a>
+
+            </div>
+          </div>
+  </div>
+</dialog>
+
 <!-- ============ Job detail ============ -->
-<dialog id="job-detail" class="sheet sheet-wide" aria-labelledby="detail-title">
+<dialog id="job-detail" class="sheet sheet-wide work-dialog" aria-labelledby="detail-title">
   <div class="sheet-inner">
     <header class="sheet-head">
       <h2 id="detail-title">成品</h2>
@@ -361,6 +358,7 @@
         <div class="viewer" id="detail-viewer"></div>
         <div class="result-actions">
           <button type="button" class="btn btn-ghost btn-sm" id="detail-zoom">實際大小</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="detail-share" hidden>分享影片</button>
           <a class="btn btn-secondary btn-sm" id="detail-download" href="#" download>⬇ 下載</a>
         </div>
       </div>
@@ -414,6 +412,41 @@
     <div class="notice-actions">
       <button type="button" class="btn btn-primary" id="wechat-copy-link">複製網址</button>
       <button type="button" class="btn btn-secondary" data-close>知道了，繼續瀏覽</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="video-share-notice" class="sheet sheet-confirm" aria-labelledby="video-share-title" aria-describedby="video-share-description">
+  <div class="sheet-inner">
+    <header class="sheet-head"><h2 id="video-share-title">分享這部影片</h2><button type="button" class="icon-btn" data-close aria-label="關閉" autofocus>✕</button></header>
+    <div class="share-body">
+      <p id="video-share-description">建立後，任何持有連結的人都能觀看及下載這部影片。連結有效 72 小時，這部影片會保留至連結到期；刪除影片或停用分享會立即使連結失效。重新建立會取代舊連結。</p>
+      <p class="note">微信中如無法播放或下載，請複製連結，手動貼到 Safari／Chrome 開啟，無需重新生成影片。</p>
+      <input id="video-share-url" type="text" readonly hidden aria-label="影片分享連結" />
+      <p id="video-share-status" role="status" aria-live="polite"></p>
+      <div class="result-actions">
+        <button type="button" class="btn btn-primary" id="video-share-create">建立分享連結</button>
+        <button type="button" class="btn btn-primary" id="video-share-copy" hidden>複製連結</button>
+        <a class="btn btn-secondary" id="video-share-open" target="_blank" rel="noopener noreferrer" hidden>開啟觀看頁</a>
+        <button type="button" class="btn btn-ghost" id="video-share-revoke">停用分享連結</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="video-export-notice" class="sheet sheet-confirm" aria-labelledby="video-export-title">
+  <div class="sheet-inner notice-body">
+    <h2 id="video-export-title">在 iPhone 瀏覽器下載影片</h2>
+    <p>微信可能攔截 MP4 下載。建立這部已完成影片的臨時連結，複製並貼到 Safari／Chrome 網址列即可下載，無需重新生成。</p>
+    <p class="note">連結最長有效 10 分鐘，也可能隨影片清理提早到期。任何持有連結的人都可下載這一部影片；請勿轉傳。重新建立會停用上一個連結。其他作品和創作紀錄不會共享。</p>
+    <input id="video-export-url" type="text" readonly hidden aria-label="臨時影片下載連結" />
+    <p id="video-export-status" class="note" role="status" aria-live="polite"></p>
+    <div class="notice-actions">
+      <button type="button" class="btn btn-primary" id="video-export-create">建立 10 分鐘影片連結</button>
+      <button type="button" class="btn btn-primary" id="video-export-copy" hidden>複製影片連結</button>
+      <button type="button" class="btn btn-secondary" id="video-export-revoke" hidden>停用連結</button>
+      <a class="btn btn-secondary" id="video-export-direct" data-export-direct="true" download>仍在微信下載</a>
+      <button type="button" class="btn btn-secondary" data-close>關閉</button>
     </div>
   </div>
 </dialog>

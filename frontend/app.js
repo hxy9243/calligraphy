@@ -252,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openNotice(dialog) {
     if (dialog.open) return;
+    dialog._returnFocus = document.activeElement;
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
   }
@@ -396,42 +397,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultDownload = document.getElementById('result-download');
   const jobsList = document.getElementById('jobs-list');
 
-  const tabLive = document.getElementById('tab-live');
-  const tabResult = document.getElementById('tab-result');
-  const paneLive = document.getElementById('pane-live');
-  const paneResult = document.getElementById('pane-result');
-  const resultEmpty = document.getElementById('result-empty');
+  let previewPresentationVersion = 0;
+  const resultDialog = document.getElementById('result-dialog');
   const resultBody = document.getElementById('result-body');
-
-  function setCanvasTab(tab) {
-    const live = tab === 'live';
-    if (paneLive) paneLive.hidden = !live;
-    if (paneResult) paneResult.hidden = live;
-    if (tabLive) {
-      tabLive.classList.toggle('active', live);
-      tabLive.setAttribute('aria-selected', String(live));
-    }
-    if (tabResult) {
-      tabResult.classList.toggle('active', !live);
-      tabResult.setAttribute('aria-selected', String(!live));
-    }
-  }
-
   function revealResult() {
-    if (typeof updateRoute === 'function') {
-      if (location.hash && location.hash !== '#create') {
-        location.hash = '#create';
-      }
-      updateRoute('create');
-    }
-    setCanvasTab('result');
-    if (resultEmpty) resultEmpty.hidden = true;
-    if (resultBody) resultBody.hidden = false;
-    if (exportOutputBox) exportOutputBox.classList.remove('hidden');
+    if (jobDetail.open) closeNotice(jobDetail);
+    resultBody.hidden = false;
+    exportOutputBox.classList.remove('hidden');
+    exportOutputBox.classList.remove('actual');
+    openNotice(resultDialog);
   }
-
-  if (tabLive) tabLive.addEventListener('click', () => setCanvasTab('live'));
-  if (tabResult) tabResult.addEventListener('click', () => setCanvasTab('result'));
+  resultDialog.addEventListener('close', () => {
+    resultVideo.pause();
+    resultVideo.removeAttribute('src');
+    resultVideo.load();
+    exportOutputBox.classList.add('hidden');
+  });
 
   const charCountEl = document.getElementById('char-count');
   const charCounterEl = document.getElementById('char-counter');
@@ -1139,7 +1120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const svgEl = previewSvgContainer.querySelector('svg');
     if (svgEl) {
       svgEl.style.maxWidth = '88%';
-      svgEl.style.maxHeight = '420px';
+      svgEl.style.maxHeight = '100%';
       svgEl.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08)';
     }
     previewImageContainer.classList.remove('hidden');
@@ -1178,7 +1159,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (resultVideo && videoUrl) {
       resultVideo.src = videoUrl;
       resultVideo.load();
-      resultVideo.play().catch(e => console.log('Autoplay deferred by browser:', e));
     }
     videoContainer.classList.remove('hidden');
     exportOutputBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1233,6 +1213,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Preview action
   btnPreview.addEventListener('click', async () => {
+    if (btnPreview.disabled) return;
     const text = textInput.value.trim();
     if (!text) {
       showStatus('請輸入要書寫的文本', 'error');
@@ -1253,6 +1234,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const presentationVersion = ++previewPresentationVersion;
     btnPreview.disabled = true;
     showStatus('正在生成高精度靜圖預覽...', 'info');
 
@@ -1284,6 +1266,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const data = await res.json();
+      if (presentationVersion !== previewPresentationVersion) return;
       if (data.svg) {
         showPreviewSvg(data.svg);
       } else if (data.preview_url) {
@@ -1405,6 +1388,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openJobDetail(j) {
     if (!jobDetail) return;
+    previewPresentationVersion += 1;
+    if (resultDialog.open) closeNotice(resultDialog);
+    detailViewer.querySelectorAll('video').forEach(video => { video.pause(); video.removeAttribute('src'); video.load(); });
+    detailViewer.classList.remove('actual');
+    detailZoom.textContent = '實際大小';
+    detailZoom.hidden = j.job_type === 'render';
+    const share = document.getElementById('detail-share');
+    share.hidden = !(j.status === 'succeeded' && j.job_type === 'render');
+    share.onclick = () => openVideoShare(j.job_id);
     const isVideo = j.job_type === 'render';
     const videoSrc = j.video_url || `/api/jobs/${j.job_id}/video`;
     const imageSrc = j.download_url || `/api/jobs/${j.job_id}/image`;
@@ -1417,13 +1409,12 @@ document.addEventListener('DOMContentLoaded', () => {
           const vid = document.createElement('video');
           vid.src = videoSrc;
           vid.controls = true;
-          vid.autoplay = true;
+          vid.preload = 'metadata';
           vid.loop = true;
           vid.playsInline = true;
           vid.setAttribute('playsinline', '');
           detailViewer.appendChild(vid);
           vid.load();
-          vid.play().catch(e => console.log('Autoplay deferred by browser:', e));
         } else {
           const img = document.createElement('img');
           img.src = imageSrc;
@@ -1491,22 +1482,15 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    if (typeof jobDetail.showModal === 'function') {
-      try {
-        jobDetail.showModal();
-      } catch (_) {
-        jobDetail.setAttribute('open', '');
-      }
-    } else {
-      jobDetail.setAttribute('open', '');
-    }
+    openNotice(jobDetail);
   }
 
   if (jobDetail) {
     jobDetail.addEventListener('close', () => {
       if (detailViewer) {
         const vid = detailViewer.querySelector('video');
-        if (vid) vid.pause();
+        if (vid) { vid.pause(); vid.removeAttribute('src'); vid.load(); }
+        detailViewer.replaceChildren();
       }
     });
   }
@@ -1661,6 +1645,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${j.status === 'failed' && j.error_message ? `<span class="job-details job-error">${escapeHtml(j.error_message)}</span>` : ''}
           ${j.status === 'succeeded' ? `
             <div class="job-action">
+              ${isVideo ? '<button type="button" class="btn btn-secondary btn-sm btn-share-video">分享</button>' : ''}
               <button type="button" class="btn btn-secondary btn-sm btn-play-mini">${isVideo ? '▶ 播放' : '👁 查看'}</button>
               <a href="${dlSrc}" download="calligraphy_${j.job_id}.${isVideo ? 'mp4' : 'svg'}" class="btn btn-secondary btn-sm btn-download">${isVideo ? '下載 MP4' : '下載 SVG'}</a>
             </div>
@@ -1692,15 +1677,12 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmHistoryDeletion(j);
       });
 
+      item.querySelector('.btn-share-video')?.addEventListener('click', () => openVideoShare(j.job_id));
       const playBtn = item.querySelector('.btn-play-mini');
       if (playBtn) {
         playBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (isVideo) {
-            showVideo(videoSrc, dlSrc);
-          } else {
-            showPreviewImage(imageSrc);
-          }
+          openJobDetail(j);
         });
       }
 
@@ -2020,6 +2002,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const rawHash = (typeof targetHash === 'string' ? targetHash : location.hash) || '';
     const hash = rawHash.replace('#', '') || 'create';
     const view = ['create', 'history', 'fonts'].includes(hash) ? hash : 'create';
+    if (document.body.dataset.view && document.body.dataset.view !== view) {
+      previewPresentationVersion += 1;
+      document.querySelectorAll('.work-dialog[open], #video-share-notice[open]').forEach(closeNotice);
+    }
     document.body.dataset.view = view;
     document.querySelectorAll('.view').forEach(v => {
       v.hidden = v.id !== `view-${view}`;
@@ -2267,6 +2253,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // The transparent dialog fills the screen; only its inner panel is content.
   document.querySelectorAll('dialog.sheet').forEach(dialog => {
+    dialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); closeNotice(dialog); return; }
+      if (event.key !== 'Tab') return;
+      const controls = [...dialog.querySelectorAll('button, a[href], input, select, textarea, video[controls], [tabindex]')]
+        .filter(el => !el.disabled && !el.closest('[hidden], .hidden') && el.tabIndex >= 0);
+      const first = controls[0], last = controls.at(-1);
+      if (!first) { event.preventDefault(); return; }
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+    });
+    dialog.addEventListener('close', () => {
+      if (!dialog._returnFocus) return;
+      if (dialog._returnFocus.isConnected) dialog._returnFocus.focus();
+      else document.querySelector('a[data-nav="history"]')?.focus();
+    });
     let startedOutside = false;
     dialog.addEventListener('pointerdown', e => {
       startedOutside = e.target === dialog;
@@ -2305,6 +2306,182 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStyles();
   loadJobs();
   loadFontDatabase();
+
+  const shareNotice = document.getElementById('video-share-notice');
+  const shareCreate = document.getElementById('video-share-create');
+  const shareCopy = document.getElementById('video-share-copy');
+  const shareRevoke = document.getElementById('video-share-revoke');
+  const shareOpen = document.getElementById('video-share-open');
+  const shareURL = document.getElementById('video-share-url');
+  const shareStatus = document.getElementById('video-share-status');
+  let shareJob = null;
+  let shareVersion = 0;
+  let shareBusy = false;
+  let shareExpiresAt = null;
+  function sharePrivacyNotice() {
+    return `任何持有連結的人都能觀看及下載這部影片。連結有效至 ${new Date(shareExpiresAt * 1000).toLocaleString()}；你可以隨時停用。`;
+  }
+  function clearShareLink() {
+    shareExpiresAt = null;
+    shareURL.value = '';
+    shareURL.hidden = shareCopy.hidden = shareOpen.hidden = true;
+    shareOpen.removeAttribute('href');
+  }
+  function openVideoShare(jobId) {
+    shareVersion += 1;
+    shareJob = jobId;
+    clearShareLink();
+    shareStatus.textContent = '';
+    shareCreate.disabled = shareRevoke.disabled = shareBusy;
+    openNotice(shareNotice);
+  }
+  shareNotice.addEventListener('close', () => { shareVersion += 1; clearShareLink(); });
+  async function changeShareLink(method) {
+    if (!shareJob || shareBusy) return;
+    const job = shareJob;
+    const version = ++shareVersion;
+    shareBusy = true;
+    shareCreate.disabled = shareRevoke.disabled = true;
+    clearShareLink();
+    shareStatus.textContent = method === 'POST' ? '正在建立這部影片的分享連結…' : '正在停用分享連結…';
+    try {
+      const response = await fetch(`/api/jobs/${encodeURIComponent(job)}/share-link`, { method });
+      if (version !== shareVersion || !shareNotice.open) return;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || '操作失敗，請重試。');
+      }
+      if (method === 'DELETE') {
+        shareStatus.textContent = '分享連結已停用。已下載的影片不會被收回。';
+        return;
+      }
+      const data = await response.json();
+      if (version !== shareVersion || !shareNotice.open) return;
+      const url = new URL(data.url, location.origin);
+      if (url.origin !== location.origin || url.pathname !== '/watch.html' || !/^#[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(url.hash) || !Number.isFinite(data.expires_at) || data.expires_at * 1000 <= Date.now()) throw new Error('分享連結無效。');
+      shareExpiresAt = data.expires_at;
+      shareURL.value = url.href;
+      shareOpen.href = url.href;
+      shareURL.hidden = shareCopy.hidden = shareOpen.hidden = false;
+      shareStatus.textContent = sharePrivacyNotice();
+    } catch (error) {
+      if (version === shareVersion && shareNotice.open) shareStatus.textContent = error.message;
+    } finally {
+      shareBusy = false;
+      shareCreate.disabled = shareRevoke.disabled = false;
+    }
+  }
+  shareCreate.addEventListener('click', () => changeShareLink('POST'));
+  shareRevoke.addEventListener('click', () => changeShareLink('DELETE'));
+  shareCopy.addEventListener('click', async () => {
+    const version = shareVersion;
+    if (!shareURL.value) return;
+    try {
+      await navigator.clipboard.writeText(shareURL.value);
+      if (version === shareVersion) shareStatus.textContent = `影片連結已複製。${sharePrivacyNotice()} 可貼到 Safari／Chrome 觀看。`;
+    } catch (_) {
+      if (version !== shareVersion) return;
+      shareURL.focus(); shareURL.select();
+      shareStatus.textContent = `請長按上方已選取的影片連結，選擇「複製」。${sharePrivacyNotice()}`;
+    }
+  });
+
+  // Recovery is offered at download time, including after the first-visit notice.
+  const exportNotice = document.getElementById('video-export-notice');
+  const exportCreate = document.getElementById('video-export-create');
+  const exportCopy = document.getElementById('video-export-copy');
+  const exportRevoke = document.getElementById('video-export-revoke');
+  const exportURL = document.getElementById('video-export-url');
+  const exportStatus = document.getElementById('video-export-status');
+  let exportJob = null;
+  let exportVersion = 0;
+  let exportBusy = false;
+  exportNotice.addEventListener('close', () => { exportVersion += 1; });
+
+  document.addEventListener('click', event => {
+    if (!/MicroMessenger/i.test(navigator.userAgent || '')) return;
+    const anchor = event.target.closest('a[href]');
+    if (!anchor || anchor.dataset.exportDirect === 'true') return;
+    const url = new URL(anchor.href, location.href);
+    const match = url.pathname.match(/^\/api\/jobs\/([A-Za-z0-9_-]+)\/download$/);
+    if (url.origin !== location.origin || !match) return;
+    event.preventDefault();
+    event.stopPropagation();
+    exportVersion += 1;
+    exportJob = match[1];
+    exportURL.value = '';
+    exportURL.hidden = true;
+    exportCopy.hidden = true;
+    exportRevoke.hidden = true;
+    exportCreate.disabled = exportBusy;
+    exportStatus.textContent = '';
+    document.getElementById('video-export-direct').href = anchor.href;
+    openNotice(exportNotice);
+  }, true);
+
+  exportCreate.addEventListener('click', async () => {
+    if (!exportJob || exportBusy) return;
+    exportBusy = true;
+    const job = exportJob;
+    const version = ++exportVersion;
+    exportCreate.disabled = true;
+    exportCopy.hidden = true;
+    exportRevoke.hidden = true;
+    exportURL.hidden = true;
+    exportURL.value = '';
+    exportStatus.textContent = '正在建立這一部影片的下載連結…';
+    try {
+      const response = await fetch(`/api/jobs/${job}/export-link`, { method: 'POST' });
+      const data = await response.json();
+      if (version !== exportVersion || !exportNotice.open) return;
+      if (!response.ok) throw new Error(data.detail || '無法建立連結，請稍後重試。');
+      const url = new URL(data.url, location.origin);
+      if (url.origin !== location.origin || url.pathname !== '/export.html') throw new Error('下載連結無效。');
+      exportURL.value = url.href;
+      exportURL.hidden = false;
+      exportCopy.hidden = false;
+      exportRevoke.hidden = false;
+      exportStatus.textContent = `連結有效至 ${new Date(data.expires_at * 1000).toLocaleTimeString()}。請複製後貼到 Safari／Chrome 網址列，無需重新生成。`;
+    } catch (error) {
+      if (version === exportVersion && exportNotice.open) exportStatus.textContent = error.message;
+    } finally {
+      exportBusy = false;
+      exportCreate.disabled = false;
+    }
+  });
+  exportCopy.addEventListener('click', async () => {
+    const version = exportVersion;
+    try {
+      await navigator.clipboard.writeText(exportURL.value);
+      if (version === exportVersion) exportStatus.textContent = '影片連結已複製。請手動開啟 Safari／Chrome，貼到網址列後下載。';
+    } catch (_) {
+      if (version !== exportVersion) return;
+      exportURL.focus();
+      exportURL.select();
+      exportStatus.textContent = '請長按上方已選取的影片連結，選擇「複製」，再貼到 Safari／Chrome 網址列。';
+    }
+  });
+  exportRevoke.addEventListener('click', async () => {
+    if (exportBusy) return;
+    exportBusy = true;
+    exportCreate.disabled = true;
+    const version = exportVersion;
+    exportRevoke.disabled = true;
+    try {
+      const response = await fetch(`/api/jobs/${exportJob}/export-link`, { method: 'DELETE' });
+      if (version !== exportVersion) return;
+      if (!response.ok) throw new Error('無法停用連結，請重試；連結仍會自動到期。');
+      exportURL.value = '';
+      exportURL.hidden = exportCopy.hidden = exportRevoke.hidden = true;
+      exportStatus.textContent = '影片連結已停用。';
+    } catch (error) {
+      if (version === exportVersion) exportStatus.textContent = error.message;
+    } finally {
+      exportBusy = false;
+      exportCreate.disabled = false;
+      exportRevoke.disabled = false;
+    }
+  });
 
   // An advisory only: UA detection is imperfect, so never block creation/download.
   if (/MicroMessenger/i.test(navigator.userAgent || '')) {

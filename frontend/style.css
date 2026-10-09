@@ -500,3 +500,32 @@ textarea, .search, select, .font-current, .chip-row { min-width: 0; max-width: 1
 .font-raster-sample { display: block; width: 100%; height: 100%; max-height: 100px; object-fit: contain; }
 
 .creation-note, .stage-hint { color: var(--muted); font-size: 12px; margin: 8px 12px; }
+
+/* Work previews occupy the available viewport; media is never capped at 420px. */
+.work-dialog .sheet-inner { inset: 12px; width: min(1180px, calc(100% - 24px)); height: calc(100dvh - 24px); max-height: calc(100dvh - 24px); }
+.work-dialog .sheet-head { flex-shrink: 0; }
+.work-dialog .detail-body { grid-template-columns: minmax(0, 1fr) minmax(220px, 280px); overflow: hidden; }
+.work-dialog .detail-media, #result-body { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.work-dialog .detail-info { overflow-y: auto; }
+.work-dialog #detail-viewer, .work-dialog .export-output-box { flex: 1; width: 100%; height: 100%; min-height: 0; max-height: none; padding: 8px; }
+.work-dialog #detail-viewer > video, .work-dialog #result-video { width: 100%; height: 100%; max-width: 100%; max-height: 100%; min-height: 0; object-fit: contain; }
+.work-dialog #detail-viewer > img, .work-dialog #preview-img, .work-dialog #preview-svg-container svg { max-width: 100%; max-height: 100%; object-fit: contain; }
+.work-dialog #detail-viewer.actual > img, .work-dialog .export-output-box.actual #preview-img, .work-dialog .export-output-box.actual #preview-svg-container svg { max-width: none; max-height: none; }
+.work-dialog .result-actions { flex-shrink: 0; }
+#result-body { flex: 1; padding: 16px; }
+#result-body[hidden] { display: none; }
+.work-dialog .preview-box { height: 100%; min-height: 0; }
+.share-body { display: grid; gap: 16px; padding: 18px; overflow-y: auto; }
+#video-share-url { min-width: 0; width: 100%; font-size: 16px; }
+#video-share-status { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .work-dialog .sheet-inner { inset: 0; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .work-dialog .detail-body { display: flex; flex-direction: column; gap: 12px; padding: 10px; overflow-y: auto; }
+  .work-dialog .detail-media { flex: none; height: calc(100dvh - 76px - env(safe-area-inset-bottom)); min-height: 220px; }
+  .work-dialog .detail-info { overflow: visible; flex: none; }
+  .work-dialog .result-actions { justify-content: center; }
+}
+
+.job-action { flex-wrap: wrap; }
+.job-action .btn { min-width: 0; flex: 1 1 auto; }
+.work-dialog #detail-viewer.actual { overflow: auto; }
