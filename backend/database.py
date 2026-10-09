@@ -105,6 +105,8 @@ class Database:
                         ON jobs(status, created_at ASC);
                         """
                     )
+                    # One short-lived, revocable capability per finished video.
+                    conn.execute("CREATE TABLE IF NOT EXISTS video_exports (job_id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, expires_at REAL NOT NULL)")
                     conn.execute("CREATE TABLE IF NOT EXISTS creation_events (session_id TEXT NOT NULL, created_at REAL NOT NULL)")
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_creation_events ON creation_events(session_id, created_at)")
 
@@ -131,6 +133,8 @@ class Database:
         conn = self._get_sqlite_conn()
         with self._lock, conn:
             conn.execute("DELETE FROM jobs WHERE status IN ('succeeded', 'failed') AND completed_at < ?", (cutoff,))
+
+            conn.execute("DELETE FROM video_exports WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (time.time(),))
 
     def touch_session(self, session_id: str) -> None:
         now = now_utc_iso()
@@ -334,7 +338,30 @@ class Database:
                     "DELETE FROM jobs WHERE job_id = ? AND session_id = ?;",
                     (job_id, session_id),
                 )
+                conn.execute("DELETE FROM video_exports WHERE job_id = ?", (job_id,))
                 return "deleted"
+
+    def set_video_export(self, job_id, session_id, token_hash, expires_at):
+        conn = self._get_sqlite_conn()
+        with self._lock, conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            conn.execute("DELETE FROM video_exports WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (time.time(),))
+            job = conn.execute("SELECT status, job_type FROM jobs WHERE job_id = ? AND session_id = ?", (job_id, session_id)).fetchone()
+            if not job or job["status"] != "succeeded" or job["job_type"] != "render":
+                return False
+            conn.execute("INSERT INTO video_exports VALUES (?, ?, ?) ON CONFLICT(job_id) DO UPDATE SET token_hash = excluded.token_hash, expires_at = excluded.expires_at", (job_id, token_hash, expires_at))
+            return True
+
+    def get_video_export(self, job_id):
+        conn = self._get_sqlite_conn()
+        with self._lock:
+            row = conn.execute("SELECT * FROM video_exports WHERE job_id = ?", (job_id,)).fetchone()
+            return dict(row) if row else None
+
+    def revoke_video_export(self, job_id):
+        conn = self._get_sqlite_conn()
+        with self._lock, conn:
+            conn.execute("DELETE FROM video_exports WHERE job_id = ?", (job_id,))
 
     def claim_next_job(self) -> Optional[Dict[str, Any]]:
         """Atomically claim the oldest queued render across worker processes."""

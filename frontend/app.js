@@ -2296,6 +2296,103 @@ document.addEventListener('DOMContentLoaded', () => {
   loadJobs();
   loadFontDatabase();
 
+  // Recovery is offered at download time, including after the first-visit notice.
+  const exportNotice = document.getElementById('video-export-notice');
+  const exportCreate = document.getElementById('video-export-create');
+  const exportCopy = document.getElementById('video-export-copy');
+  const exportRevoke = document.getElementById('video-export-revoke');
+  const exportURL = document.getElementById('video-export-url');
+  const exportStatus = document.getElementById('video-export-status');
+  let exportJob = null;
+  let exportVersion = 0;
+  let exportBusy = false;
+  exportNotice.addEventListener('close', () => { exportVersion += 1; });
+
+  document.addEventListener('click', event => {
+    if (!/MicroMessenger/i.test(navigator.userAgent || '')) return;
+    const anchor = event.target.closest('a[href]');
+    if (!anchor || anchor.dataset.exportDirect === 'true') return;
+    const url = new URL(anchor.href, location.href);
+    const match = url.pathname.match(/^\/api\/jobs\/([A-Za-z0-9_-]+)\/download$/);
+    if (url.origin !== location.origin || !match) return;
+    event.preventDefault();
+    event.stopPropagation();
+    exportVersion += 1;
+    exportJob = match[1];
+    exportURL.value = '';
+    exportURL.hidden = true;
+    exportCopy.hidden = true;
+    exportRevoke.hidden = true;
+    exportCreate.disabled = exportBusy;
+    exportStatus.textContent = '';
+    document.getElementById('video-export-direct').href = anchor.href;
+    openNotice(exportNotice);
+  }, true);
+
+  exportCreate.addEventListener('click', async () => {
+    if (!exportJob || exportBusy) return;
+    exportBusy = true;
+    const job = exportJob;
+    const version = ++exportVersion;
+    exportCreate.disabled = true;
+    exportCopy.hidden = true;
+    exportRevoke.hidden = true;
+    exportURL.hidden = true;
+    exportURL.value = '';
+    exportStatus.textContent = '正在建立這一部影片的下載連結…';
+    try {
+      const response = await fetch(`/api/jobs/${job}/export-link`, { method: 'POST' });
+      const data = await response.json();
+      if (version !== exportVersion || !exportNotice.open) return;
+      if (!response.ok) throw new Error(data.detail || '無法建立連結，請稍後重試。');
+      const url = new URL(data.url, location.origin);
+      if (url.origin !== location.origin || url.pathname !== '/export.html') throw new Error('下載連結無效。');
+      exportURL.value = url.href;
+      exportURL.hidden = false;
+      exportCopy.hidden = false;
+      exportRevoke.hidden = false;
+      exportStatus.textContent = `連結有效至 ${new Date(data.expires_at * 1000).toLocaleTimeString()}。請複製後貼到 Safari／Chrome 網址列，無需重新生成。`;
+    } catch (error) {
+      if (version === exportVersion && exportNotice.open) exportStatus.textContent = error.message;
+    } finally {
+      exportBusy = false;
+      exportCreate.disabled = false;
+    }
+  });
+  exportCopy.addEventListener('click', async () => {
+    const version = exportVersion;
+    try {
+      await navigator.clipboard.writeText(exportURL.value);
+      if (version === exportVersion) exportStatus.textContent = '影片連結已複製。請手動開啟 Safari／Chrome，貼到網址列後下載。';
+    } catch (_) {
+      if (version !== exportVersion) return;
+      exportURL.focus();
+      exportURL.select();
+      exportStatus.textContent = '請長按上方已選取的影片連結，選擇「複製」，再貼到 Safari／Chrome 網址列。';
+    }
+  });
+  exportRevoke.addEventListener('click', async () => {
+    if (exportBusy) return;
+    exportBusy = true;
+    exportCreate.disabled = true;
+    const version = exportVersion;
+    exportRevoke.disabled = true;
+    try {
+      const response = await fetch(`/api/jobs/${exportJob}/export-link`, { method: 'DELETE' });
+      if (version !== exportVersion) return;
+      if (!response.ok) throw new Error('無法停用連結，請重試；連結仍會自動到期。');
+      exportURL.value = '';
+      exportURL.hidden = exportCopy.hidden = exportRevoke.hidden = true;
+      exportStatus.textContent = '影片連結已停用。';
+    } catch (error) {
+      if (version === exportVersion) exportStatus.textContent = error.message;
+    } finally {
+      exportBusy = false;
+      exportCreate.disabled = false;
+      exportRevoke.disabled = false;
+    }
+  });
+
   // An advisory only: UA detection is imperfect, so never block creation/download.
   if (/MicroMessenger/i.test(navigator.userAgent || '')) {
     const notice = document.getElementById('wechat-notice');

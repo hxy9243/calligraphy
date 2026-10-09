@@ -1,4 +1,9 @@
 import json
+import hashlib
+import secrets
+import time
+from datetime import datetime
+from urllib.parse import parse_qs
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -156,6 +161,11 @@ async def session_middleware(request: Request, call_next):
         from urllib.parse import urlsplit
         if urlsplit(origin).netloc != request.headers.get("host"):
             return JSONResponse(status_code=403, content={"detail": "Cross-origin request denied."})
+    # Capabilities never become browser sessions and never grant history access.
+    if request.url.path.startswith("/api/exports/") or request.url.path in ("/export.html", "/export.js", "/export.css"):
+        response = await call_next(request)
+        response.headers.update(EXPORT_HEADERS)
+        return response
     session_id = request.cookies.get(SESSION_COOKIE_NAME)
     is_new = False
     if not session_id or len(session_id) > 64:
@@ -509,6 +519,89 @@ def get_job_image(job_id: str, request: Request, response: Response):
         str(file_path),
         media_type=media_type,
     )
+
+
+EXPORT_HEADERS = {
+    "Cache-Control": "private, no-store",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Robots-Tag": "noindex, nofollow, noarchive",
+}
+EXPORT_TTL_SECONDS = 600
+
+
+def export_video_path(job):
+    """Validate the sole artifact a capability may release, including retention."""
+    if not job or job["job_type"] != "render" or job["status"] != "succeeded" or not job.get("output_path"):
+        raise HTTPException(404, "影片尚未完成或已移除 / Video unavailable")
+    path = Path(job["output_path"])
+    if path.suffix.lower() != ".mp4" or path.is_symlink() or not path.is_file():
+        raise HTTPException(404, "影片檔案已移除 / Video unavailable")
+    retention = min(86400, int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400")))
+    completed = datetime.fromisoformat(job["completed_at"] or job["created_at"]).timestamp()
+    deadline = min(completed, path.stat().st_mtime) + retention
+    if deadline <= time.time():
+        raise HTTPException(404, "影片已到期 / Video expired")
+    return path, deadline
+
+
+@app.post("/api/jobs/{job_id}/export-link")
+def create_video_export(job_id: str, request: Request):
+    db = get_db()
+    job = db.get_job(job_id)
+    if not job or job["session_id"] != request.state.session_id:
+        raise HTTPException(404, "Job not found")
+    _, deadline = export_video_path(job)
+    token = secrets.token_urlsafe(32)
+    expires = min(time.time() + EXPORT_TTL_SECONDS, deadline)
+    if not db.set_video_export(job_id, request.state.session_id, hashlib.sha256(token.encode()).hexdigest(), expires):
+        raise HTTPException(404, "Job not found")
+    # Fragment stays out of access logs and Referer headers. No cookie transfer.
+    return JSONResponse({"url": f"/export.html#{job_id}.{token}", "expires_at": expires}, headers=EXPORT_HEADERS)
+
+
+@app.delete("/api/jobs/{job_id}/export-link", status_code=204)
+def revoke_video_export(job_id: str, request: Request):
+    db = get_db()
+    job = db.get_job(job_id)
+    if not job or job["session_id"] != request.state.session_id:
+        raise HTTPException(404, "Job not found")
+    db.revoke_video_export(job_id)
+    return Response(status_code=204, headers=EXPORT_HEADERS)
+
+
+@app.post("/api/exports/{job_id}/download")
+async def download_video_export(job_id: str, request: Request):
+    # A native form download avoids buffering a large MP4 in iPhone JavaScript.
+    # Token is sent in the body, never a query/path that access logs record.
+    if request.headers.get("content-type", "").split(";")[0] != "application/x-www-form-urlencoded":
+        raise HTTPException(404, "下載連結無效或已到期 / Export link invalid or expired")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > 128:
+            raise HTTPException(404, "Export link invalid or expired")
+    try:
+        fields = parse_qs(body.decode("ascii"), strict_parsing=True)
+        token, = fields.get("token", [])
+    except (ValueError, UnicodeError):
+        raise HTTPException(404, "Export link invalid or expired")
+    db = get_db()
+    capability = db.get_video_export(job_id)
+    if not capability or capability["expires_at"] <= time.time() or not secrets.compare_digest(
+        capability["token_hash"], hashlib.sha256(token.encode()).hexdigest()
+    ):
+        raise HTTPException(404, "下載連結無效或已到期，請回微信重新建立 / Export link invalid or expired")
+    path, _ = export_video_path(db.get_job(job_id))
+    return FileResponse(path, media_type="video/mp4", filename="calligraphy_video.mp4", headers=EXPORT_HEADERS)
+
+
+@app.get("/export.html")
+def video_export_page():
+    return FileResponse(Path(__file__).resolve().parent.parent / "frontend" / "export.html", headers={
+        **EXPORT_HEADERS,
+        "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    })
 
 
 # Mount frontend static directory if exists
