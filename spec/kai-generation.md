@@ -17,9 +17,16 @@ with monotonic deposition and connected sampled prefixes still required. Keeping
 the higher fitting target avoids degrading successful existing fits merely to
 meet the lower rejection threshold. Producer provenance records both thresholds;
 per-stroke `targetReached` still reports whether the 95% target was achieved.
-A fit with unsupported topology (holes/disconnected ink), more
-than 64 strokes, or a failed gate raises an explicit error. There is no silent
-legacy fallback. Missing guide records follow the existing offline/explicit-fetch
+A fit with unsupported topology (holes/substantial disconnected ink), more
+than 64 strokes, or a failed gate raises an explicit error. A narrow rasterization
+exception permits satellites totaling at most 8 pixels, strictly less than 1% of
+the main component, with every satellite pixel within 3 pixels of that component
+at 480px. Only contour extraction ignores these tiny satellites; all IoU scores
+and subsequent smoothing checks use the full original target. Per-stroke reports
+record input component count, ignored pixel count and maximum distance. This
+handles detached antialiased tip pixels (such as 闕 stroke 10) without loosening
+single-brush connectivity or silently deleting substantial disconnected ink.
+There is no silent legacy fallback. Missing guide records follow the existing offline/explicit-fetch
 policy. The web backend enables guide fetching. Motion checks do not certify
 physical writing or guarantee artistic quality; final-terminal overlap is a
 recorded diagnostic rather than a gate because strokes can legitimately revisit

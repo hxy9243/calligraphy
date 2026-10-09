@@ -27,6 +27,16 @@ share dialog. Links last 72 hours from explicit creation, retaining only that
 shared video for that interval. Both creation and copy show the exact expiry and
 anyone-with-link privacy notice. The standalone viewer and capability boundary are in `studio-jobs.md`.
 
+## Dark-mode artwork contrast
+
+The rubbing theme keeps dark controls and surroundings, but font badges, picker
+and catalog samples, live editor paper, still-output viewers and history
+thumbnails/detail viewers use light display paper (`#faf7f0`). Source-font PNGs
+contain dark ink on transparent pixels, so they cannot inherit the near-black UI
+paper. Artwork is never inverted, brightened with filters, or recolored; changing
+the UI theme does not request new pixels or alter downloads. The standalone
+shared-video viewer already uses its own fixed light palette.
+
 ## Layout direction
 
 The vertical and horizontal buttons select `vertical-rl` (top to bottom, columns

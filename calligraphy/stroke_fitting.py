@@ -84,11 +84,35 @@ def fit_contact_stroke(target480: np.ndarray, guide_nx2: np.ndarray,
     if not np.isfinite(guide).all() or np.any((guide < 0) | (guide > 1)):
         raise ValueError("guide_nx2 must be finite and normalized to 0..1")
 
-    component_count, _ = cv2.connectedComponents(target.astype(np.uint8), connectivity=8)
-    contours_all, hierarchy = cv2.findContours(target.astype(np.uint8), cv2.RETR_CCOMP,
+    # Low-resolution outline sampling can detach a few antialiased tip pixels.
+    # Only ignore tiny, nearby satellites when extracting the main contour;
+    # scoring below ALWAYS uses the complete original target, including them.
+    # Substantial/distributed disconnected ink still needs a multi-part model.
+    component_count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        target.astype(np.uint8), connectivity=8)
+    if component_count < 2:
+        raise ValueError("target480 contains no ink")
+    contour_target = target
+    satellite_pixels = 0
+    satellite_distance = 0.0
+    if component_count > 2:
+        main_label = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+        main = labels == main_label
+        satellites = target & ~main
+        satellite_pixels = int(np.count_nonzero(satellites))
+        main_pixels = int(stats[main_label, cv2.CC_STAT_AREA])
+        if satellite_pixels > 8 or satellite_pixels >= main_pixels * .01:
+            raise ValueError("target480 must contain exactly one connected ink component; "
+                             "only tiny nearby rasterization satellites are tolerated")
+        distance = cv2.distanceTransform((~main).astype(np.uint8),
+                                         cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+        satellite_distance = float(distance[satellites].max())
+        if satellite_distance > 3.0:
+            raise ValueError("target480 must contain exactly one connected ink component; "
+                             "detached ink is too far from the main stroke")
+        contour_target = main
+    contours_all, hierarchy = cv2.findContours(contour_target.astype(np.uint8), cv2.RETR_CCOMP,
                                                 cv2.CHAIN_APPROX_NONE)
-    if component_count != 2:
-        raise ValueError("target480 must contain exactly one connected ink component")
     if hierarchy is not None and any(row[3] >= 0 for row in hierarchy[0]):
         raise ValueError("target480 holes are not supported by a two-rail contact stroke")
     contours = [c for c, row in zip(contours_all, hierarchy[0]) if row[3] < 0]
@@ -167,6 +191,10 @@ def fit_contact_stroke(target480: np.ndarray, guide_nx2: np.ndarray,
             "engine": engine_metadata('kai-fitted'),
             "algorithm": "subpixel boundary correction; ordered contour split; paired arc-length rails; adaptive 12..64 stations",
             "boundaryOffset480": 1 / 3,
+            "inputComponents": component_count - 1,
+            "ignoredSatellitePixels480": satellite_pixels,
+            "maxSatelliteDistance480": satellite_distance,
+            "scoredAgainstOriginalTarget": True,
             "correspondence": correspondence,
             "stations": stations,
             "maxContactWidth480": float(np.linalg.norm(contacts480[:, 1] - contacts480[:, 0], axis=1).max()),

@@ -97,6 +97,27 @@ class KaiSceneTests(unittest.TestCase):
         self.assertTrue(report['monotonic'])
         self.assertEqual(scene.frame(scene.duration).size, (128, 128))
 
+    def test_que_real_glyph_replays_in_kai_and_yan_without_legacy_fallback(self):
+        glyph = json.loads((Path(__file__).parent / 'fixtures/que-hanzi-writer-2.0.1.json').read_text())
+        for style in ('kai', 'yan'):
+            with self.subTest(style=style):
+                spec = SceneSpec(text='闕', style=style, layout={'width': 128, 'height': 128})
+                scene = create_scene(spec, glyphs={'闕': glyph})
+                self.assertIsInstance(scene, KaiScene)
+                self.assertEqual(len(scene.programs['闕']['strokes']), len(glyph['strokes']))
+                reports = scene.programs['闕']['provenance']['fitReports']
+                self.assertTrue(all(r['iou480'] >= .90 and r['prefixConnected'] and r['monotonic']
+                                    for r in reports))
+                if style == 'kai':
+                    self.assertEqual(reports[9]['ignoredSatellitePixels480'], 1)
+                partial = np.asarray(scene.frame(scene.duration * .55)).copy()
+                final = np.asarray(scene.frame(scene.duration)).copy()
+                self.assertFalse(np.array_equal(partial, final))
+                np.testing.assert_array_equal(scene.frame(scene.duration * .55), partial)
+                with patch('calligraphy.kai_scene.fit_contact_stroke', side_effect=AssertionError('cache miss')):
+                    cached = create_scene(spec, glyphs={'闕': glyph})
+                np.testing.assert_array_equal(cached.frame(cached.duration), final)
+
     def test_changed_guide_gets_a_new_cache_version(self):
         glyphs = resolve_glyphs('永')
         prepare_kai(glyphs, self.cache)
