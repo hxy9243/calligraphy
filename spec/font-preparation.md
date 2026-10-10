@@ -164,3 +164,12 @@ commit (when available), dirty state, source-code hash, package version and UTC
 preparation time. Extending an old bank does not relabel its existing geometry.
 See [geometry caching](geometry-cache.md) for explicit SQLite storage, startup
 snapshot import and JSON export. The existing font registry remains JSON-backed.
+
+## Preparation failures
+
+The studio worker preserves a preparation failure (including the font style and
+character/stroke cause) in the job error instead of attempting to render an
+unwritten bank and reporting it as an unknown font. Missing banks use
+`FontBankNotFoundError`, a `ValueError` subtype; invalid existing banks must not
+trigger first-use preparation. The scene API catches only that missing-bank
+condition when an explicit source font and glyph preparation were requested.

@@ -79,41 +79,32 @@ def cleanup_expired_outputs(db):
 
 def _auto_prepare_font(style: str, text: str) -> None:
     """If style is not registered but exists in data/fonts catalog, auto-prepare on demand."""
-    if style in ("kai", "yan"):
+    if style in ("kai", "yan", "lishu", "liu", "yan-contact"):
         return
     from calligraphy.font_pipeline import style_path, prepare_style
     from calligraphy.text.glyphs import resolve_glyphs
     import json
 
-    try:
-        spath = style_path(style)
-        if spath.exists():
-            return
-    except Exception:
+    spath = style_path(style)
+    if spath.exists():
         return
 
     catalog_path = Path(__file__).resolve().parent.parent / "data" / "calligraphy_fonts.json"
-    if not catalog_path.exists():
-        return
-
-    try:
-        with open(catalog_path, "r", encoding="utf-8") as f:
-            catalog = json.load(f)
-    except Exception:
-        return
+    with open(catalog_path, "r", encoding="utf-8") as f:
+        catalog = json.load(f)
 
     clean_style = style.strip()
     entry = downloaded_catalog_entry(catalog, clean_style)
     if not entry:
-        return
+        raise ValueError(f"Font is not registered or available in the catalog: {clean_style}")
 
     rel_path = entry.get("file_path")
     if not rel_path:
-        return
+        raise ValueError(f"Font catalog entry has no source file: {clean_style}")
 
     font_file = Path(__file__).resolve().parent.parent / rel_path
     if not font_file.exists():
-        return
+        raise FileNotFoundError(f"Font source file is missing for {clean_style}: {rel_path}")
 
     licenses_dir = Path(__file__).resolve().parent.parent / "data" / "licenses"
     license_type = (entry.get("license") or "").lower()
@@ -146,9 +137,9 @@ def _auto_prepare_font(style: str, text: str) -> None:
             license_path=str(license_path) if license_path.exists() else None,
             source=entry.get("source_url") or "",
         )
-        logger.info("Auto-prepared style %s for text %s", clean_style, text)
+        logger.info("Auto-prepared style %s", clean_style)
     except Exception as exc:
-        logger.warning("Auto-prepare failed for style %s: %s", clean_style, exc)
+        raise ValueError(f"字體筆畫準備失敗 / Font preparation failed for {clean_style}: {exc}") from exc
 
 
 def execute_job(job: Dict[str, Any], db: Database) -> bool:

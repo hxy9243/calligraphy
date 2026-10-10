@@ -14,7 +14,7 @@ from .contact_renderer import style_manifest, load_style
 from .styled_contact_scene import StyledContactScene
 from .contact_preparation import prepare_contacts
 from .font_layers import FontLayerScene, LayerStore, prepare_character_layers
-from .font_pipeline import style_path, load_bank, target_masks
+from .font_pipeline import FontBankNotFoundError, style_path, load_bank, target_masks
 from .spec import SceneSpec, RenderPlan, Appearance, Transforms
 from .text.glyphs import resolve_glyphs, load_bundled_glyphs
 from .text.plan import create_text_plan
@@ -307,7 +307,7 @@ def create_scene(
     # Registered font bank
     try:
         bank = load_bank(style)
-    except FileNotFoundError:
+    except FontBankNotFoundError:
         if font_path and (fetch_missing or glyphs):
             from .font_pipeline import prepare_style
             needed_glyphs = resolve_glyphs(

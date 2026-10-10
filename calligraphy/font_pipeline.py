@@ -28,6 +28,10 @@ RESERVED = {'kai', 'yan', 'lishu', 'liu', 'yan-contact'}
 TIGHTNESS_CANDIDATES = (0.3, 0.5, 0.15, 0.08)
 
 
+class FontBankNotFoundError(ValueError):
+    """The named bank is absent; distinct from invalid/corrupt bank contents."""
+
+
 def style_path(style):
     if not isinstance(style, str) or not re.fullmatch(r'[a-z][a-z0-9 -]{0,79}', style):
         raise ValueError('Font style names must start with a lowercase letter and contain letters, digits, spaces or hyphens')
@@ -52,7 +56,7 @@ def registered_styles():
 def load_bank(style):
     path = style_path(style)
     if not path.exists():
-        raise ValueError(f'Unknown contact style: {style}. Register a font with npm run prepare:font first.')
+        raise FontBankNotFoundError(f'Unknown contact style: {style}. Register a font with npm run prepare:font first.')
     bank = json.loads(path.read_text())
     if bank.get('schemaVersion') != 1 or bank.get('pipeline') != PIPELINE_VERSION:
         raise ValueError('Unsupported font bank version; prepare it with a compatible engine')

@@ -89,7 +89,7 @@ def layout_text(
     cell = min(available_width / col_denom, available_height / row_denom)
     if font_size is not None:
         if not fit and font_size > cell + 1e-6:
-            raise ValueError("文字超出画布，请开启自动适应、缩小字号或加大画布 / Text exceeds the canvas; enable fit, reduce font size or enlarge the canvas")
+            raise ValueError("文字超出畫布，請開啟自動適應、縮小字號或加大畫布 / Text exceeds the canvas; enable fit, reduce font size or enlarge the canvas")
         cell = min(font_size, cell) if fit else font_size
     if cell < (8 if font_size is not None else 16):
         raise ValueError("Text is too dense for this page; use a larger page or fewer characters")

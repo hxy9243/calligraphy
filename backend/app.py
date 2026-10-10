@@ -55,7 +55,7 @@ class PreviewRequest(BaseModel):
     @model_validator(mode="after")
     def bounded_canvas(self):
         if (self.width or 720) * (self.height or 960) > 2400 * 1280:
-            raise ValueError("画布面积过大 / Canvas must not exceed 3,072,000 pixels.")
+            raise ValueError("畫布面積過大 / Canvas must not exceed 3,072,000 pixels.")
         return self
 
     @field_validator("text")
@@ -93,7 +93,7 @@ class RenderRequest(BaseModel):
     @model_validator(mode="after")
     def bounded_canvas(self):
         if (self.width or 720) * (self.height or 960) > 2400 * 1280:
-            raise ValueError("画布面积过大 / Canvas must not exceed 3,072,000 pixels.")
+            raise ValueError("畫布面積過大 / Canvas must not exceed 3,072,000 pixels.")
         return self
 
     @field_validator("width", "height")
