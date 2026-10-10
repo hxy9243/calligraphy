@@ -4,6 +4,8 @@ body { margin: 0; line-height: 1.7; }
 main { width: min(100%, 52rem); margin: auto; padding: 2rem 1.25rem max(2rem, env(safe-area-inset-bottom)); }
 header { text-align: center; margin-bottom: 1.5rem; }
 .eyebrow { margin: 0; color: #8d5141; font-size: .8rem; letter-spacing: .2em; }
+.home-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 .35rem; color: inherit; text-underline-offset: .25em; border-radius: .25rem; }
+.home-link:hover { color: #312b24; }
 h1 { font-family: "Songti TC", "Noto Serif TC", serif; font-size: 2rem; font-weight: 500; letter-spacing: .15em; margin: .4rem 0; }
 .intro { color: #71675c; font-size: .95rem; margin: 0; }
 .viewer { min-width: 0; border: 1px solid #ddd5c7; border-radius: 1rem; background: #fffdf8; padding: 1.25rem; box-shadow: 0 8px 30px #5a402509; }

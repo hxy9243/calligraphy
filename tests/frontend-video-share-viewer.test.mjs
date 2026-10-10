@@ -36,6 +36,30 @@ for (const exportMode of [false, true]) {
     return { window, requests, media, get: id => window.document.getElementById(`watch-${id}`), document: window.document };
   }
 
+  test(`${pageName}: header links home without bearer or query in every access state`, async t => {
+    for (const options of [
+      {},
+      { hash: `?tracking=private${fragment}` },
+      { hash: '#broken' },
+      { fetch: () => response({}, 404) },
+      { fetch: () => response({}, 410) },
+      { fetch: () => new Promise(() => {}) },
+    ]) {
+      const ui = await viewer(t, options);
+      const home = ui.document.querySelector('header a.home-link');
+      assert.ok(home, 'header contains a native home link');
+      assert.equal(home.textContent, '墨韻');
+      assert.equal(home.getAttribute('aria-label'), '墨韻首頁');
+      assert.equal(home.getAttribute('href'), '/');
+      assert.equal(home.href, 'https://calligraphy.test/');
+      assert.equal(home.getAttribute('referrerpolicy'), 'no-referrer');
+      assert.equal(home.closest('[hidden]'), null);
+      assert.equal(home.tabIndex, 0);
+      home.focus();
+      assert.equal(ui.document.activeElement, home);
+    }
+  });
+
   test(`${pageName}: fresh standalone viewer exchanges body-only token and uses native cookie media without autoplay`, async t => {
     const ui = await viewer(t);
     assert.equal(ui.requests.length, 1);
@@ -236,3 +260,14 @@ for (const exportMode of [false, true]) {
   });
 
 }
+
+test('viewer home link keeps a touch-sized target and visible keyboard focus', async () => {
+  const css = await readFile(new URL('../frontend/watch.css', import.meta.url), 'utf8');
+  const dom = new JSDOM(`<style>${css}</style>`);
+  const rules = [...dom.window.document.styleSheets[0].cssRules];
+  const home = rules.find(rule => rule.selectorText === '.home-link');
+  assert.equal(home.style.getPropertyValue('min-height'), '44px');
+  const focus = rules.find(rule => rule.selectorText?.split(',').map(s => s.trim()).includes('a:focus-visible'));
+  assert.ok(focus.style.outline.includes('3px'));
+  dom.window.close();
+});

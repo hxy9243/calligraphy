@@ -237,6 +237,9 @@ their ordinary retention has passed. Explicit history deletion invalidates the
 share immediately and leaves the orphaned file for that same ordinary cleanup.
 
 The standalone viewer is public and does not require or create an owner session.
+Both the share and temporary-export viewers keep a keyboard-accessible 墨韻 header
+link to the same-origin `/` home page, including loading and unavailable states.
+The home link never carries the current query or bearer fragment.
 It uses only same-origin assets, no analytics or third-party resources, a
 restrictive CSP, no-referrer, private/no-store and noindex headers. Its fragment
 never enters an HTTP URL or Referer header. The viewer posts the bearer in a
