@@ -131,6 +131,41 @@ sharing extensions, and never invent a fresh 24-hour lifetime for older records.
 Regression coverage: `tests/python/test_job_retention.py` and
 `tests/frontend-retention.test.mjs`.
 
+## Reusing history
+
+The history detail dialog's Reuse action restores the saved text and font,
+canvas width/height, font size, fit, direction, spacing, punctuation, video speed
+and frame rate. It refreshes the labels, selected chips, direction accessibility
+state, stage and editor preview together. Saved pixel dimensions become a fixed
+canvas so the current adaptive layout cannot silently replace them. Selecting
+Adaptive again explicitly returns to text-dependent sizing.
+
+Restoration uses the saved text verbatim, without font-triggered script conversion,
+and invalidates pending conversions. Metadata arriving later does not rewrite it.
+Supported numeric values outside the ordinary UI presets remain exact: ranges
+expand and custom speed/frame-rate chips show the saved value. Reusing another
+job removes those temporary output chips. Unknown/unavailable fonts fall back to
+an available font with a persistent notice beside the layout controls.
+
+Missing legacy values use the worker defaults (720×960, vertical right-to-left,
+0.18 spacing, omitted punctuation, fit enabled, 1× speed, 24 fps), never unrelated
+values from the current draft. Legacy `gap` is accepted when `spacing` is absent.
+Old jobs that did not record a font size used whole-page layout; the UI loads
+68px and explicitly warns that the original sizing and appearance cannot be
+recovered exactly. Invalid/out-of-range settings use documented defaults with a
+notice. Missing optional controls are also disclosed.
+
+Non-default persisted settings with no editor/API control, such as paper/ink,
+transforms, per-stroke timing, line-count overrides or still format, are named in
+the notice as not applied. The normal implicit worker defaults need no warning.
+The page's paper-atmosphere theme is a browsing preference, not a persisted output
+paper setting; reuse never presents changing that theme as restoring export paper.
+The success message says all settings were loaded only when no caveat applies.
+
+Regression coverage: `tests/frontend-history-reuse.test.mjs`, including repeated
+reuse, legacy and malformed jobs, custom values, missing controls/storage,
+unavailable fonts, text preservation, late metadata and stale conversions.
+
 ## Regression checks
 
 - `tests/python/test_render_queue.py`: concurrent API submissions, independent

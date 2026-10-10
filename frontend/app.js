@@ -872,7 +872,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const len = isVert ? canvasHeight : canvasWidth;
 
     if (canvasLenAxis) canvasLenAxis.textContent = axis;
-    if (canvasLenSlider) canvasLenSlider.value = len;
+    if (canvasLenSlider) {
+      canvasLenSlider.min = Math.min(Number(canvasLenSlider.min), len);
+      canvasLenSlider.max = Math.max(Number(canvasLenSlider.max), len);
+      canvasLenSlider.value = len;
+    }
     if (canvasDimVal) canvasDimVal.textContent = `${canvasWidth} × ${canvasHeight}`;
     if (canvasLenVal) canvasLenVal.textContent = `${len}px`;
 
@@ -948,31 +952,28 @@ document.addEventListener('DOMContentLoaded', () => {
     fitToggle.addEventListener('change', fitStage);
   }
 
-  // Video speed and FPS segmented buttons
+  // Numeric matching also handles the standard speed button's "1" vs "1.0".
   const speedSeg = document.getElementById('speed-seg');
-  if (speedSeg) {
-    speedSeg.querySelectorAll('.seg-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        speedSeg.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        if (speedSelect) {
-          speedSelect.value = btn.dataset.speed;
-        }
-      });
+  const fpsSeg = document.getElementById('fps-seg');
+
+  function selectOutputValue(select, segment, key, value) {
+    if (select) {
+      const option = Array.from(select.options).find(o => Number(o.value) === value);
+      if (option) select.value = option.value;
+    }
+    segment?.querySelectorAll('.seg-btn').forEach(button => {
+      const active = Number(button.dataset[key]) === value;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
     });
   }
 
-  const fpsSeg = document.getElementById('fps-seg');
-  if (fpsSeg) {
-    fpsSeg.querySelectorAll('.seg-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        fpsSeg.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        if (fpsSelect) {
-          fpsSelect.value = btn.dataset.fps;
-        }
-      });
+  for (const [select, segment, key] of [[speedSelect, speedSeg, 'speed'], [fpsSelect, fpsSeg, 'fps']]) {
+    segment?.addEventListener('click', event => {
+      const button = event.target.closest('.seg-btn');
+      if (button && segment.contains(button)) selectOutputValue(select, segment, key, Number(button.dataset[key]));
     });
+    selectOutputValue(select, segment, key, Number(select?.value));
   }
 
   // Paper atmosphere theme buttons
@@ -986,7 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Apply selected font to live calligraphy stage and update badge
-  function applySelectedFont(styleId) {
+  function applySelectedFont(styleId, { preserveText = false } = {}) {
     if (!calligraphyText) return;
 
     // Check local font mapping
@@ -1007,9 +1008,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Automatically adapt example section and script toggle to font's support
     const activeSupport = getActiveFontCharSupport(styleId);
-    if (activeSupport === 'trad' && (currentScript !== 'trad' || getMissingCharacters(textInput.value, styleId).length > 0)) {
+    if (!preserveText && activeSupport === 'trad' && (currentScript !== 'trad' || getMissingCharacters(textInput.value, styleId).length > 0)) {
       performScriptConversion('trad');
-    } else if (activeSupport === 'simp' && (currentScript !== 'simp' || getMissingCharacters(textInput.value, styleId).length > 0)) {
+    } else if (!preserveText && activeSupport === 'simp' && (currentScript !== 'simp' || getMissingCharacters(textInput.value, styleId).length > 0)) {
       performScriptConversion('simp');
     } else {
       renderPresets();
@@ -1189,6 +1190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.styles && data.styles.length > 0) {
           availableStyleIds = new Set(data.styles.map(s => s.id));
           const currentVal = styleSelect.value;
+          const currentOption = styleSelect.selectedOptions[0]?.cloneNode(true);
           styleSelect.innerHTML = '';
           data.styles.forEach(s => {
             const opt = document.createElement('option');
@@ -1196,13 +1198,17 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.textContent = fallbackConvert(`${s.name} - ${s.description || ''}`, 'trad');
             styleSelect.appendChild(opt);
           });
+          // Catalog/history selections can precede the styles response.
+          if (currentOption && !Array.from(styleSelect.options).some(o => o.value === currentVal)) {
+            styleSelect.appendChild(currentOption);
+          }
           // Default to generic Kai; preserve an explicitly selected style.
           if (currentVal && Array.from(styleSelect.options).some(o => o.value === currentVal)) {
             styleSelect.value = currentVal;
           } else if (Array.from(styleSelect.options).some(o => o.value === 'kai')) {
             styleSelect.value = 'kai';
           }
-          applySelectedFont(styleSelect.value);
+          applySelectedFont(styleSelect.value, { preserveText: true });
           renderFontGrid();
         }
       }
@@ -1411,6 +1417,118 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function restoreJobSettings(job) {
+    const params = job.params && typeof job.params === 'object' && !Array.isArray(job.params) ? job.params : {};
+    const notices = [];
+    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps']);
+    const readNumber = (key, fallback, min, max, integer = false) => {
+      const value = params[key];
+      if (value === undefined || value === null) return fallback;
+      if (typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max && (!integer || Number.isInteger(value))) return value;
+      notices.push(`${key} 已超出目前支援範圍，改用 ${fallback}`);
+      return fallback;
+    };
+    const restoreRange = (control, value, label) => {
+      if (!control) { notices.push(`${label}控制項不可用`); return; }
+      control.min = Math.min(Number(control.min), value);
+      control.max = Math.max(Number(control.max), value);
+      // Range inputs must not round a valid API value to the UI preset step.
+      control.step = control === fontSizeSlider ? '1' : 'any';
+      control.value = String(value);
+    };
+    const restoreOutput = (select, segment, key, value, label) => {
+      if (!select || !segment) { notices.push(`${label}控制項不可用`); return; }
+      select.querySelectorAll('[data-history-value]').forEach(el => el.remove());
+      segment.querySelectorAll('[data-history-value]').forEach(el => el.remove());
+      if (!Array.from(select.options).some(o => Number(o.value) === value)) {
+        const option = document.createElement('option');
+        option.value = String(value);
+        option.textContent = String(value);
+        option.dataset.historyValue = '';
+        select.appendChild(option);
+      }
+      if (!Array.from(segment.querySelectorAll('.seg-btn')).some(b => Number(b.dataset[key]) === value)) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'seg-btn';
+        button.dataset[key] = String(value);
+        button.dataset.historyValue = '';
+        button.textContent = `${value}${key === 'fps' ? ' fps' : '×'}（歷史）`;
+        segment.appendChild(button);
+      }
+      selectOutputValue(select, segment, key, value);
+    };
+
+    invalidateScriptConversion();
+    textInput.value = job.text || '';
+    // Saved pixel dimensions are authoritative, even when the original draft was adaptive.
+    // Older jobs used the worker's 720×960 defaults, never the current draft's size.
+    canvasAutoLen = false;
+    canvasWidth = readNumber('width', 720, 64, 2400, true);
+    canvasHeight = readNumber('height', 960, 64, 2400, true);
+    if (canvasWidth * canvasHeight > 2400 * 1280) {
+      canvasWidth = 720;
+      canvasHeight = 960;
+      notices.push('歷史畫布超出目前支援面積，改用 720 × 960');
+    }
+    const format = Array.from(canvasFormats?.querySelectorAll('[data-w][data-h]') || [])
+      .find(button => Number(button.dataset.w) === canvasWidth && Number(button.dataset.h) === canvasHeight);
+    canvasFormat = format?.dataset.cf || 'custom';
+    if (canvasLenSlider) canvasLenSlider.step = '1';
+    const fontSize = readNumber('font_size', 68, 8, 160, true);
+    restoreRange(fontSizeSlider, fontSize, '字號');
+    if (params.font_size == null) notices.push('舊任務未記錄字號，原本採用整頁自動排版；現以 68px 載入，重製外觀可能不同');
+    if (fitToggle) fitToggle.checked = typeof params.fit === 'boolean' ? params.fit : true;
+    else notices.push('適應畫布控制項不可用');
+    if (params.fit != null && typeof params.fit !== 'boolean') notices.push('適應畫布設定無效，已啟用預設值');
+
+    const direction = params.direction ?? 'vertical-rl';
+    if (!['vertical-rl', 'horizontal-lr'].includes(direction)) notices.push('排版方向無效，改用豎排右起');
+    selectDirection(['vertical-rl', 'horizontal-lr'].includes(direction) ? direction : 'vertical-rl');
+    // Legacy worker rows may use gap instead of spacing.
+    const spacing = readNumber(params.spacing == null && params.gap != null ? 'gap' : 'spacing', 0.18, 0, 2);
+    restoreRange(spacingSlider, spacing, '字距');
+    if (spacingVal) spacingVal.textContent = `${spacing}em`;
+    if (calligraphyText) calligraphyText.style.letterSpacing = `${spacing}em`;
+    const punctuation = params.punctuation ?? 'omit';
+    if (!['omit', 'break'].includes(punctuation)) notices.push('標點設定無效，改用忽略標點');
+    if (punctuationSelect) punctuationSelect.value = ['omit', 'break'].includes(punctuation) ? punctuation : 'omit';
+    else notices.push('標點控制項不可用');
+    restoreOutput(speedSelect, speedSeg, 'speed', readNumber('speed', 1, 0.25, 4), '視頻速度');
+    restoreOutput(fpsSelect, fpsSeg, 'fps', readNumber('fps', 24, 1, 60, true), '幀率');
+
+    // These are implicit worker defaults. Non-default values have no editor/API
+    // control, so disclose them rather than pretending the page theme restores paper.
+    const implicitDefaults = { paper: '#f8f3e9', ink: '#1c1b18', stroke_seconds: 0.18,
+      character_gap: 0.15, intro: 0.5, outro: 1, scale: 1, stretch: 1, rotation: 0,
+      characters_per_line: null, format: 'auto' };
+    const unsupported = Object.keys(params).filter(key => !recognized.has(key) &&
+      !(Object.hasOwn(implicitDefaults, key) && params[key] === implicitDefaults[key]));
+    if (unsupported.length) notices.push(`目前無法套用的歷史設定：${unsupported.join('、')}。請核對成品；介面宣紙主題不會改變輸出紙色`);
+
+    const originalStyle = job.style || 'kai';
+    const meta = getFontMeta(originalStyle);
+    const isAvailable = availableStyleIds.has(originalStyle) || (meta && allFonts.some(font => font.id === meta.id));
+    const selectedStyle = isAvailable ? originalStyle : (availableStyleIds.has('kai') ? 'kai' : styleSelect.options[0]?.value || 'kai');
+    if (!isAvailable) notices.push(`原字體「${originalStyle}」目前不可用，已改用「${getActiveFontDisplayName(selectedStyle)}」`);
+    let option = Array.from(styleSelect.options).find(o => o.value === selectedStyle);
+    if (!option) {
+      option = document.createElement('option');
+      option.value = selectedStyle;
+      option.textContent = meta?.name_zh || selectedStyle;
+      styleSelect.appendChild(option);
+    }
+    styleSelect.value = selectedStyle;
+    // Reuse is not a request to convert the saved text into another script.
+    applySelectedFont(selectedStyle, { preserveText: true });
+    const notice = document.getElementById('history-reuse-notice');
+    if (notice) {
+      notice.textContent = notices.join('；');
+      notice.hidden = notices.length === 0;
+    }
+    return notices;
+  }
+
   function openJobDetail(j) {
     if (!jobDetail) return;
     jobDetail.dataset.jobId = j.job_id;
@@ -1488,24 +1606,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (detailReuse) {
       detailReuse.onclick = () => {
-        if (textInput) {
-          textInput.value = j.text || '';
-          updateText();
-        }
-        if (styleSelect) {
-          let opt = Array.from(styleSelect.options).find(o => o.value === j.style);
-          if (!opt && fontMeta) {
-            opt = document.createElement('option');
-            opt.value = j.style;
-            opt.textContent = `${fontMeta.name_zh} (${fontMeta.name_en || j.style})`;
-            styleSelect.appendChild(opt);
-          }
-          if (opt) styleSelect.value = j.style;
-        }
-        applySelectedFont(j.style);
-        jobDetail.close();
+        const notices = restoreJobSettings(j);
+        closeNotice(jobDetail);
         location.hash = '#create';
-        showStatus('已將歷史任務參數與文本載入創作臺', 'info');
+        showStatus(notices.length ? '已載入文本與可用設定，請查看版式區的還原提示' : '已將歷史任務設定與文本載入創作臺', 'info');
         setTimeout(hideStatus, 2500);
       };
     }
@@ -1800,8 +1904,8 @@ document.addEventListener('DOMContentLoaded', () => {
       updateHeaderCounts();
       setupCatalogFilters();
       renderFontGrid();
-      // Apply active font info for the initial style
-      applySelectedFont(styleSelect.value);
+      // Metadata arrival must not rewrite an existing draft or restored history.
+      applySelectedFont(styleSelect.value, { preserveText: true });
     } catch (e) {
       console.warn('Failed to load font database:', e);
     }
@@ -2332,8 +2436,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Hook applySelectedFont to update font card
   const origApplySelectedFont = applySelectedFont;
-  applySelectedFont = function(styleId) {
-    origApplySelectedFont(styleId);
+  applySelectedFont = function(styleId, options) {
+    origApplySelectedFont(styleId, options);
     const fontMeta = getFontMeta(styleId);
     if (fontCurrentName) fontCurrentName.textContent = fontMeta ? fontMeta.name_zh : getActiveFontDisplayName(styleId);
     if (fontCurrentSub) fontCurrentSub.textContent = fontMeta ? `${fontMeta.style_display} · ${fontMeta.artist} (${fontMeta.dynasty_era})` : '';
