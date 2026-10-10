@@ -52,7 +52,8 @@ class ContactSimplificationTests(unittest.TestCase):
                 return layers_fail, layers_fail, layers_fail
             return layers_ok, layers_ok, layers_ok
 
-        def mock_fit(layer, progress, name):
+        def mock_fit(layer, progress, name, fallback_direction=None):
+            self.assertIsNone(fallback_direction, "normal retry attempts must keep strict guide fitting")
             if len(calls) == 1:
                 raise ValueError('Empty inferred stroke: ' + name)
             return {'contacts': [[[10,10],[20,20]],[[10,15],[20,25]],[[10,20],[20,30]]], 'corners': []}

@@ -546,3 +546,5 @@ textarea, .search, select, .font-current, .chip-row { min-width: 0; max-width: 1
 .job-action { flex-wrap: wrap; }
 .job-action .btn { min-width: 0; flex: 1 1 auto; }
 .work-dialog #detail-viewer.actual { overflow: auto; }
+
+.job-warning { flex-shrink: 0; margin: .4rem 0; color: var(--ink); font-size: .85rem; line-height: 1.5; }

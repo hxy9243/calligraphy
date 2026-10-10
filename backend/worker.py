@@ -193,6 +193,7 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
             status="succeeded",
             progress=1.0,
             output_path=str(out_file),
+            warning_message=getattr(scene, "render_warning", None),
             completed=True,
         )
         logger.info("Job %s succeeded: %s", job_id, out_file)

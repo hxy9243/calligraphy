@@ -355,6 +355,11 @@ def create_scene(
             source={'style': style, 'font': bank['font']}, inferred_corners=True)
         scene = StyledContactScene(plan.to_dict(), prepared, scene_spec.appearance, scene_spec.transforms)
         scene.smoothing_reports = reports
+        # Read the source bank on both first preparation and warm-cache renders.
+        # Only requested glyphs with this specific fallback need the owner notice.
+        if any(bank.get('metrics', {}).get(char, {}).get('guide_fallback_strokes')
+               for char in scene_spec.unique_characters):
+            scene.render_warning = '部分細小筆畫使用推估筆路；請檢視成品。'
         return scene
 
     # Explicit compatibility mode for source font reconstruction

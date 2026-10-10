@@ -126,7 +126,7 @@ def validate_template(glyph):
             raise ValueError('Expected a nondegenerate finite median path')
 
 
-def fit_layer(layer, progress, name):
+def fit_layer(layer, progress, name, fallback_direction=None):
     # The old lab fitter selected the largest contour. Keep disconnected ink
     # under the SAME scheduled stroke, with per-piece phase intervals.
     from scipy.ndimage import gaussian_filter
@@ -139,9 +139,20 @@ def fit_layer(layer, progress, name):
         components = [i for i in range(1, count) if stats[i, cv2.CC_STAT_AREA] >= 2]
     if not components:
         raise ValueError(f'Empty inferred stroke: {name}')
-    guide = ordered_guide(layer, progress)
+    fallback = False
+    try:
+        guide = ordered_guide(layer, progress)
+    except ValueError as exc:
+        if fallback_direction is None or str(exc) != 'Cannot infer ordered guide for degenerate stroke':
+            raise
+        from .font_fitting import compact_dot_guide
+        guide = compact_dot_guide(layer, fallback_direction)
+        fallback = True
     if len(components) == 1:
-        return contacts_from_layer(layer, guide, name)
+        stroke = contacts_from_layer(layer, guide, name)
+        if fallback:
+            stroke['guide_inference'] = 'compact-dot-template-direction'
+        return stroke
     segments = []
     support = layer > .25
     if not support.any():
@@ -169,7 +180,10 @@ def fit_layer(layer, progress, name):
         start = float(np.clip((a - lo) / max(hi - lo, 1e-6), 0, .99))
         end = float(np.clip((b - lo) / max(hi - lo, 1e-6), start + .01, 1))
         segments.append({'start': start, 'end': end, 'stroke': fitted})
-    return {'name': name, 'segments': sorted(segments, key=lambda s: s['start'])}
+    stroke = {'name': name, 'segments': sorted(segments, key=lambda s: s['start'])}
+    if fallback:
+        stroke['guide_inference'] = 'compact-dot-template-direction'
+    return stroke
 
 
 def fit_glyph(character, target, glyph):
@@ -187,7 +201,9 @@ def fit_glyph(character, target, glyph):
         try:
             for index, (layer, progress) in enumerate(zip(layers, phases)):
                 try:
-                    stroke = fit_layer(layer, progress, f'{character} stroke {index + 1}')
+                    median = np.asarray(glyph['medians'][index], dtype=float)
+                    direction = (median[-1] - median[0]) * [1, -1]
+                    stroke = fit_layer(layer, progress, f'{character} stroke {index + 1}', fallback_direction=direction if attempt == len(tightness_candidates) - 1 else None)
                 except ValueError as error:
                     if attempt == len(tightness_candidates) - 1 and 'Empty inferred stroke' in str(error):
                         try:
@@ -221,7 +237,8 @@ def fit_glyph(character, target, glyph):
                'min_inferred_stroke_iou': min(scores), 'no_new_ink_strokes': [i + 1 for i, c in enumerate(contributions) if c < .01],
                'template_sha256': sha256(json.dumps(glyph, sort_keys=True, ensure_ascii=False).encode()).hexdigest()}
     # This flags shape/ownership problems; it is not historical motion validation.
-    metrics['review_required'] = metrics['silhouette_iou'] < .90 or min(scores) < .75 or bool(metrics['no_new_ink_strokes'])
+    metrics['guide_fallback_strokes'] = [i + 1 for i, stroke in enumerate(strokes) if stroke.get('guide_inference')]
+    metrics['review_required'] = bool(metrics['guide_fallback_strokes']) or metrics['silhouette_iou'] < .90 or min(scores) < .75 or bool(metrics['no_new_ink_strokes'])
     return strokes, metrics
 
 

@@ -173,3 +173,25 @@ unwritten bank and reporting it as an unknown font. Missing banks use
 `FontBankNotFoundError`, a `ValueError` subtype; invalid existing banks must not
 trigger first-use preparation. The scene API catches only that missing-bank
 condition when an explicit source font and glyph preparation were requested.
+
+## Compact collapsed-phase strokes
+
+After all normal registration tightness attempts, a surviving compact dot may
+use a template-directed principal-axis guide if its progress field collapsed.
+This is a bounded relaxation of inferred traversal, not a replacement font or
+a dropped stroke: it retains the source-derived contour and schedule position.
+Only at least three supported ink pixels spanning no more than 5% of the canvas
+dimension qualify; empty/non-finite fields, missing direction, and larger
+ambiguous shapes still fail. Disconnected ink keeps separate segments.
+
+Affected strokes carry `guide_inference: compact-dot-template-direction`; their
+1-based indices are recorded in `metrics.guide_fallback_strokes` and force
+`review_required`. Inferred movement is not certified historical brush motion.
+Successful ordinary fits retain their existing geometry and retry ordering.
+
+Successful studio jobs using this compact-dot fallback persist a nonblocking
+`warning_message`: 部分細小筆畫使用推估筆路；請檢視成品。 It appears in owner
+history, job details and the immediate still-export result, separate from errors. Only requested fallback-marked
+glyphs trigger it; loading a previously prepared bank or geometry cache preserves
+the warning. A nullable additive database column keeps historical jobs readable
+and records the warning from the scene that actually produced that artifact.

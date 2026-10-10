@@ -65,6 +65,8 @@ class Database:
             conn = self._get_sqlite_conn()
             with self._lock:
                 with conn:
+                    # Serialize additive schema upgrades across worker processes.
+                    conn.execute("BEGIN IMMEDIATE;")
                     conn.execute(
                         """
                         CREATE TABLE IF NOT EXISTS sessions (
@@ -86,6 +88,7 @@ class Database:
                             params_json TEXT NOT NULL,
                             output_path TEXT,
                             error_message TEXT,
+                            warning_message TEXT,
                             progress REAL DEFAULT 0.0,
                             created_at TEXT NOT NULL,
                             updated_at TEXT NOT NULL,
@@ -95,6 +98,9 @@ class Database:
                         );
                         """
                     )
+                    columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
+                    if "warning_message" not in columns:
+                        conn.execute("ALTER TABLE jobs ADD COLUMN warning_message TEXT")
                     conn.execute(
                         """
                         CREATE INDEX IF NOT EXISTS idx_jobs_session
@@ -282,6 +288,7 @@ class Database:
         progress: Optional[float] = None,
         output_path: Optional[str] = None,
         error_message: Optional[str] = None,
+        warning_message: Optional[str] = None,
         completed: bool = False,
     ) -> Optional[Dict[str, Any]]:
         now = now_utc_iso()
@@ -299,6 +306,9 @@ class Database:
         if error_message is not None:
             updates.append("error_message = ?")
             values.append(error_message)
+        if warning_message is not None:
+            updates.append("warning_message = ?")
+            values.append(warning_message)
         if completed:
             updates.append("completed_at = ?")
             values.append(now)

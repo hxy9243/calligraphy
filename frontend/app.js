@@ -450,7 +450,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let previewPresentationVersion = 0;
   const resultDialog = document.getElementById('result-dialog');
   const resultBody = document.getElementById('result-body');
+  const resultWarning = document.getElementById('result-warning');
+  function clearResultWarning() {
+    if (resultWarning) { resultWarning.textContent = ''; resultWarning.hidden = true; }
+  }
   function revealResult() {
+    clearResultWarning();
     if (jobDetail.open) closeNotice(jobDetail);
     resultBody.hidden = false;
     exportOutputBox.classList.remove('hidden');
@@ -458,6 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
     openNotice(resultDialog);
   }
   resultDialog.addEventListener('close', () => {
+    clearResultWarning();
     resultVideo.pause();
     resultVideo.removeAttribute('src');
     resultVideo.load();
@@ -1319,6 +1325,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (data.preview_url) {
         showPreviewImage(data.preview_url);
       }
+      if (resultWarning) {
+        resultWarning.textContent = data.warning_message || '';
+        resultWarning.hidden = !data.warning_message;
+      }
       showStatus('矢量靜圖生成完畢', 'success');
       setTimeout(hideStatus, 3000);
     } catch (e) {
@@ -1633,6 +1643,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <dt>任務類型</dt><dd>${isVideo ? '書寫視頻' : '矢量靜圖'}</dd>
         <dt>所用字庫</dt><dd>${escapeHtml(fontName)} (${escapeHtml(j.style)})</dd>
         <dt>任務狀態</dt><dd>${statusLabel}</dd>
+        ${j.status === 'succeeded' && j.warning_message ? `<dt>成品提醒</dt><dd class="job-warning">${escapeHtml(j.warning_message)}</dd>` : ''}
         <dt>創建時間</dt><dd>${timeStr}</dd>
         <dt>保留期限</dt><dd data-detail-retention>${escapeHtml(jobRetentionNotice(j))}</dd>
         <dt data-detail-share-label ${j.retention?.share_expires_at ? '' : 'hidden'}>分享連結期限</dt><dd data-detail-share-expiry ${j.retention?.share_expires_at ? '' : 'hidden'}>${j.retention?.share_expires_at ? `有效至 ${escapeHtml(expiryDateTime(j.retention.share_expires_at))}；停用分享會取消延長保留` : ''}</dd>
@@ -1815,6 +1826,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="status ${j.status} job-status-badge">${statusLabel}</span>
           </div>
           <p class="job-retention">${escapeHtml(jobRetentionNotice(j))}</p>
+          ${j.status === 'succeeded' && j.warning_message ? `<p class="job-warning">${escapeHtml(j.warning_message)}</p>` : ''}
           ${activeJobStatuses.has(j.status) ? `<div class="mini-bar"><i style="width:${pct}%"></i></div>` : ''}
           ${j.status === 'failed' && j.error_message ? `<span class="job-details job-error">${escapeHtml(j.error_message)}</span>` : ''}
           ${j.status === 'succeeded' ? `

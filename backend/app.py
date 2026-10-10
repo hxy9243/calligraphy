@@ -359,6 +359,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         "job_id": job_id,
         "svg": svg_content,
         "preview_url": f"/api/jobs/{job_id}/image",
+        "warning_message": finished.get("warning_message") if finished else None,
     }
 
 
@@ -512,6 +513,7 @@ def get_job_status(job_id: str, request: Request, response: Response):
         "text": job["text"],
         "style": job["style"],
         "error_message": job.get("error_message"),
+        "warning_message": job.get("warning_message"),
         "download_url": download_url,
         "video_url": video_url,
         "created_at": job["created_at"],

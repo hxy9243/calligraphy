@@ -236,7 +236,48 @@ def contacts_from_layer(layer,guide,name):
  return dict(name=name,contacts=pairs.tolist(),corners=corners,tension=.5,
   features=[dict(station=1,kind='entry-press')]+[dict(station=k,kind='square-fold') for k in corners]+[dict(station=len(pairs)-2,kind='lift')])
 
+def compact_dot_guide(layer, direction):
+    """Infer direction on a small surviving dot when registration phase collapses.
+
+    Keep the source-derived ink contour. Only its traversal direction is inferred
+    from the template median, with a principal axis for this compact ink patch.
+    Large/empty/non-finite shapes are not eligible for this bounded relaxation.
+    """
+    layer = np.asarray(layer)
+    direction = np.asarray(direction, dtype=float)
+    if (layer.ndim != 2 or not np.isfinite(layer).all()
+            or direction.shape != (2,) or not np.isfinite(direction).all()
+            or np.linalg.norm(direction) < 1e-6):
+        raise ValueError('Cannot infer compact dot guide from invalid ink or template direction')
+    yy, xx = np.where(layer > .25)
+    if not len(yy):
+        yy, xx = np.where(layer > .10)
+    points = np.column_stack([xx, yy]).astype(float)
+    if len(points) < 3 or np.max(np.ptp(points, axis=0)) > .05 * max(layer.shape):
+        raise ValueError('Degenerate stroke is not a compact dot; refusing arbitrary guide')
+    weights = layer[yy, xx]
+    center = np.average(points, axis=0, weights=weights)
+    centered = points - center
+    covariance = (centered * weights[:, None]).T @ centered / weights.sum()
+    values, vectors = np.linalg.eigh(covariance)
+    if values[-1] < 1e-6:
+        raise ValueError('Compact dot has no measurable extent')
+    # A nearly circular dot has no preferred major axis: retain template direction.
+    axis = vectors[:, -1] if values[-1] > 1.25 * values[0] else direction / np.linalg.norm(direction)
+    if np.dot(axis, direction) < 0:
+        axis = -axis
+    projection = centered @ axis
+    first, last = points[np.argmin(projection)], points[np.argmax(projection)]
+    if np.linalg.norm(last - first) < 1:
+        raise ValueError('Compact dot guide has no measurable length')
+    return np.stack([first, center, last])
+
+
 def ordered_guide(layer,phase):
+ layer,phase=np.asarray(layer),np.asarray(phase)
+ if (layer.ndim!=2 or phase.shape!=layer.shape
+     or not np.isfinite(layer).all() or not np.isfinite(phase).all()):
+  raise ValueError('Expected finite matching ink and phase fields')
  yy,xx=np.where(layer>.25)
  if not len(yy):
   yy,xx=np.where(layer>.10)
