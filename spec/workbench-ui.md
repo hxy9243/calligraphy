@@ -42,7 +42,25 @@ The backend supplies owner-only retention metadata for history expiry labels.
 - History cards clamp text and show the server-reported retention deadline, including active sharing extensions. The detail dialog shows full text, parameters, retention and separate share-link deadlines, and download options. Policy notes distinguish unshared 24-hour retention, 72-hour sharing, and a ten-minute self-handoff link that does not extend retention.
 
 ## Persistence
-`localStorage` keys `calligraphy.direction` and `calligraphy.favorites` retain writing direction and favourite font IDs. Draft text and other controls remain in the current page; changing the default script does not rewrite saved preferences or history text.
+`localStorage` keys `calligraphy.direction` and `calligraphy.favorites` retain
+writing direction and favourite font IDs. The versioned `calligraphy.preferences`
+record stores only the selected font/calligraphy style ID (`style`, the single
+font picker/export selection) and paper/background theme (`theme`). Those choices
+survive refreshes and switching Create, History and Fonts panels. Selecting from
+the picker, catalog, recent chips or history reuse updates the same preference;
+the theme selector stays synchronized and does not change exported paper colors.
+
+Saved fonts are validated against `/api/styles` and `/api/font-catalog` as those
+requests arrive. A catalog-only font is not overwritten by the earlier styles
+response. An explicit new choice always wins over late startup responses. Once
+both lists load successfully, a removed font falls back to Kai (or the first
+available font). A failed metadata request preserves the saved ID for a later
+reload rather than treating it as removed. Restoring preferences never converts
+or saves draft text. Missing, malformed, unsupported-version or invalid fields
+use normal defaults; blocked reads/writes keep the editor usable in memory.
+Other controls remain in the current page, and share-link capabilities stay in
+sessionStorage only. Changing the default script does not rewrite saved
+preferences or history text.
 
 
 Font selection and history detail/playback dialogs close when a click starts and

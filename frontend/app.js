@@ -242,6 +242,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const textInput = document.getElementById('text-input');
   const styleSelect = document.getElementById('style-select');
+  // Persist only UI choices, never draft text, history, or share capabilities.
+  // Font and calligraphy style are the same selection in this workbench.
+  const preferencesStorageKey = 'calligraphy.preferences';
+  const themeIds = ['theme-xuan', 'theme-gold', 'theme-rubbing'];
+  let preferences = { version: 1 };
+  try {
+    const saved = JSON.parse(localStorage.getItem(preferencesStorageKey));
+    if (saved && !Array.isArray(saved) && saved.version === 1) {
+      if (typeof saved.style === 'string' && saved.style.trim() && saved.style.length <= 200) preferences.style = saved.style;
+      if (themeIds.includes(saved.theme)) preferences.theme = saved.theme;
+    }
+  } catch (_) {
+    // Malformed JSON or unavailable storage must not stop the editor.
+  }
+  let pendingSavedStyle = preferences.style || null;
+  let stylesLoaded = false, catalogLoaded = false;
+
+  function savePreferences(changes) {
+    preferences = { ...preferences, ...changes };
+    try { localStorage.setItem(preferencesStorageKey, JSON.stringify(preferences)); }
+    catch (_) { /* The current page still keeps choices when storage is blocked. */ }
+  }
+
+  function restoreSavedStyle() {
+    if (!pendingSavedStyle) return;
+    const meta = getFontMeta(pendingSavedStyle);
+    const available = (stylesLoaded && availableStyleIds.has(pendingSavedStyle)) ||
+      (catalogLoaded && meta && allFonts.some(font => font.id === meta.id));
+    // A catalog-only font must survive the earlier /api/styles response. Failed
+    // metadata requests cannot prove a font was removed: keep its saved ID.
+    if (!available && !(stylesLoaded && catalogLoaded)) return;
+    const styleId = available ? pendingSavedStyle :
+      (availableStyleIds.has('kai') ? 'kai' : styleSelect.options[0]?.value || allFonts[0]?.id || 'kai');
+    pendingSavedStyle = null;
+    let option = Array.from(styleSelect.options).find(option => option.value === styleId);
+    if (!option) {
+      option = document.createElement('option');
+      option.value = styleId;
+      option.textContent = getFontMeta(styleId)?.name_zh || styleId;
+      styleSelect.appendChild(option);
+    }
+    styleSelect.value = styleId;
+    savePreferences({ style: styleId });
+    applySelectedFont(styleId, { preserveText: true, persist: false });
+  }
   const speedSelect = document.getElementById('speed-select');
   const fpsSelect = document.getElementById('fps-select');
   const punctuationSelect = document.getElementById('punctuation-select');
@@ -981,16 +1026,6 @@ document.addEventListener('DOMContentLoaded', () => {
     selectOutputValue(select, segment, key, Number(select?.value));
   }
 
-  // Paper atmosphere theme buttons
-  document.querySelectorAll('.theme-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const theme = btn.dataset.theme;
-      document.body.className = theme;
-    });
-  });
-
   // Apply selected font to live calligraphy stage and update badge
   function applySelectedFont(styleId, { preserveText = false } = {}) {
     if (!calligraphyText) return;
@@ -1192,8 +1227,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/styles');
       if (res.ok) {
         const data = await res.json();
-        if (data.styles && data.styles.length > 0) {
+        if (Array.isArray(data.styles)) {
           availableStyleIds = new Set(data.styles.map(s => s.id));
+          stylesLoaded = true;
           const currentVal = styleSelect.value;
           const currentOption = styleSelect.selectedOptions[0]?.cloneNode(true);
           styleSelect.innerHTML = '';
@@ -1213,7 +1249,8 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (Array.from(styleSelect.options).some(o => o.value === 'kai')) {
             styleSelect.value = 'kai';
           }
-          applySelectedFont(styleSelect.value, { preserveText: true });
+          restoreSavedStyle();
+          applySelectedFont(styleSelect.value, { preserveText: true, persist: false });
           renderFontGrid();
         }
       }
@@ -1904,11 +1941,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return localized;
       });
+      catalogLoaded = true;
       updateHeaderCounts();
       setupCatalogFilters();
       renderFontGrid();
-      // Metadata arrival must not rewrite an existing draft or restored history.
-      applySelectedFont(styleSelect.value, { preserveText: true });
+      restoreSavedStyle();
+      // Metadata arrival must not rewrite a draft or overwrite a saved choice.
+      applySelectedFont(styleSelect.value, { preserveText: true, persist: false });
     } catch (e) {
       console.warn('Failed to load font database:', e);
     }
@@ -2211,14 +2250,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
   });
 
-  // Theme selector
+  // The paper/background theme is display-only and independent of font/style.
   const themeSelect = document.getElementById('theme-select');
-  if (themeSelect) {
-    themeSelect.addEventListener('change', () => {
-      document.body.classList.remove('theme-xuan', 'theme-gold', 'theme-rubbing');
-      document.body.classList.add(themeSelect.value);
+  function selectTheme(theme, { persist = true } = {}) {
+    if (!themeIds.includes(theme)) return;
+    document.body.classList.remove(...themeIds);
+    document.body.classList.add(theme);
+    if (themeSelect) themeSelect.value = theme;
+    document.querySelectorAll('.theme-btn').forEach(button => {
+      button.classList.toggle('active', button.dataset.theme === theme);
     });
+    if (persist) savePreferences({ theme });
   }
+  selectTheme(preferences.theme || 'theme-xuan', { persist: false });
+  themeSelect?.addEventListener('change', () => selectTheme(themeSelect.value));
+  document.querySelectorAll('.theme-btn').forEach(button => {
+    button.addEventListener('click', () => selectTheme(button.dataset.theme));
+  });
 
   // Font picker modal
   const fontPicker = document.getElementById('font-picker');
@@ -2439,7 +2487,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Hook applySelectedFont to update font card
   const origApplySelectedFont = applySelectedFont;
-  applySelectedFont = function(styleId, options) {
+  applySelectedFont = function(styleId, options = {}) {
+    if (options.persist !== false && styleId && styleSelect.value === styleId) {
+      // An explicit picker, recent, catalog or history choice beats late startup
+      // metadata, even if the previously saved font has not arrived yet.
+      pendingSavedStyle = null;
+      savePreferences({ style: styleId });
+    }
     origApplySelectedFont(styleId, options);
     const fontMeta = getFontMeta(styleId);
     if (fontCurrentName) fontCurrentName.textContent = fontMeta ? fontMeta.name_zh : getActiveFontDisplayName(styleId);
