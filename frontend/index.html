@@ -173,7 +173,7 @@
           </div>
         </section>
 
-        <p class="creation-note">每分鐘最多創建 3 次 · 成品保留 24 小時 · 清除瀏覽器數據後無法找回記錄</p>
+        <p class="creation-note">每分鐘最多創建 3 次 · 未分享作品保留 <span data-retention-duration>24 小時</span> · 清除瀏覽器資料後無法找回記錄</p>
         <div class="action-bar">
           <button type="button" id="btn-preview" class="btn btn-secondary">▢ 導出靜圖</button>
           <button type="button" id="btn-render" class="btn btn-primary">▶ 生成書寫視頻</button>
@@ -229,6 +229,7 @@
         <input type="search" id="history-search" class="search" placeholder="搜索文字或字體" aria-label="搜索歷史">
       </div>
     </div>
+    <p class="note retention-guide">未分享作品與記錄保留 <span data-retention-duration>24 小時</span>。分享給朋友的連結有效 72 小時，並延長該影片的保留期限；給自己換瀏覽器用的臨時連結最長 10 分鐘，不延長作品保留期限。請在下方期限前下載，到期後會清理。</p>
     <div id="jobs-list" class="history-grid jobs-list"></div>
     <div id="history-empty" class="empty" hidden>
       <p>暫無記錄</p>
@@ -418,9 +419,9 @@
 
 <dialog id="video-share-notice" class="sheet sheet-confirm" aria-labelledby="video-share-title" aria-describedby="video-share-description">
   <div class="sheet-inner">
-    <header class="sheet-head"><h2 id="video-share-title">分享這部影片</h2><button type="button" class="icon-btn" data-close aria-label="關閉" autofocus>✕</button></header>
+    <header class="sheet-head"><h2 id="video-share-title">分享給朋友</h2><button type="button" class="icon-btn" data-close aria-label="關閉" autofocus>✕</button></header>
     <div class="share-body">
-      <p id="video-share-description">建立後，任何持有連結的人都能觀看及下載這部影片。連結有效 72 小時，這部影片會保留至連結到期；刪除影片或停用分享會立即使連結失效。複製原連結不會延長期限；只有明確取代才會使舊連結失效。</p>
+      <p id="video-share-description">分享連結有效 72 小時，這部影片至少會保留至連結到期。任何持有連結的人都能觀看及下載這部影片；請只交給你願意分享的人。刪除影片或停用分享會立即使連結失效，並取消延長保留。複製原連結不會延長期限；只有明確取代才會使舊連結失效。</p>
       <p class="note">微信中如無法播放或下載，請複製連結，手動貼到 Safari／Chrome 開啟，無需重新生成影片。</p>
       <input id="video-share-url" type="text" readonly hidden aria-label="影片分享連結" />
       <p id="video-share-status" role="status" aria-live="polite"></p>
@@ -436,9 +437,9 @@
 
 <dialog id="video-export-notice" class="sheet sheet-confirm" aria-labelledby="video-export-title">
   <div class="sheet-inner notice-body">
-    <h2 id="video-export-title">在 iPhone 瀏覽器下載影片</h2>
+    <h2 id="video-export-title">給自己換瀏覽器下載</h2>
     <p>微信可能攔截 MP4 下載。建立這部已完成影片的臨時連結，複製並貼到 Safari／Chrome 網址列即可下載，無需重新生成。</p>
-    <p class="note">連結最長有效 10 分鐘，也可能隨影片清理提早到期。任何持有連結的人都可下載這一部影片；請勿轉傳。重新建立會停用上一個連結。其他作品和創作紀錄不會共享。</p>
+    <p class="note">這是給自己換到 Safari／Chrome 使用的臨時連結，最長有效 10 分鐘，也可能隨作品到期而提早失效；不會延長作品的保留期限。任何持有連結的人都能觀看及下載這一部影片，請勿轉傳。重新建立會停用上一個連結。其他作品和創作記錄不會共享。</p>
     <input id="video-export-url" type="text" readonly hidden aria-label="臨時影片下載連結" />
     <p id="video-export-status" class="note" role="status" aria-live="polite"></p>
     <div class="notice-actions">

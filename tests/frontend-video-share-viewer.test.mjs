@@ -188,6 +188,10 @@ for (const exportMode of [false, true]) {
     assert.match(ui.get('copy-status').textContent, /持有連結的人皆可觀看及下載/);
     assert.match(ui.get('copy-status').textContent, /到期時間/);
     assert.match(ui.document.querySelector('footer').textContent, exportMode ? /10 分鐘/ : /72 小時/);
+    if (exportMode) {
+      assert.match(ui.document.querySelector('footer').textContent, /不延長作品保留期限/);
+      assert.match(ui.get('copy-status').textContent, /不延長作品保留期限/);
+    }
     Object.defineProperty(ui.window.navigator, 'clipboard', { value: undefined });
     ui.get('copy').click();
     await flush();

@@ -103,6 +103,34 @@ failed. Polling stops after a successful refresh sees no active jobs. An older
 response cannot overwrite a newer submission's refresh, and repeated clicks do
 not create extra poll loops or duplicate cards for the same server job ID.
 
+## Retention shown to owners
+
+The creation and history notes distinguish unshared retention (24 hours by
+default), a friends-sharing link (72 hours plus a lease for that video), and a
+self-handoff link (at most ten minutes with no retention extension). Both link
+types remain bearer capabilities: “for yourself” describes the intended use,
+not an authenticated self-only restriction. Exact capability expiry, including
+the date and local time zone, remains visible after copying or manual-copy fallback.
+
+Owner job list/detail responses include a `retention` object with Unix timestamps:
+`ordinary_expires_at` is the earlier of terminal completion age and existing output
+file age plus configured cleanup retention; `expires_at` also includes a live
+successful-video sharing lease. `share_expires_at` is only the current live share
+lease, and `output_available` distinguishes a missing artifact from a retained
+record. Active jobs have no expiry yet; failed records use completion age. The
+summary exposes no capability token or digest. `/api/jobs` also reports
+`retention_seconds`, so policy notes follow a configured duration.
+
+This reports the worker's actual cleanup eligibility, not an access token's
+expiry or a guarantee of immediate physical deletion. The legacy nullable
+`jobs.expires_at` field only constrains new share issuance and is not presented as
+the cleanup deadline. Cleanup is asynchronous; history labels elapsed deadlines
+as due for cleanup. History cards and details show the server deadline, identify
+sharing extensions, and never invent a fresh 24-hour lifetime for older records.
+
+Regression coverage: `tests/python/test_job_retention.py` and
+`tests/frontend-retention.test.mjs`.
+
 ## Regression checks
 
 - `tests/python/test_render_queue.py`: concurrent API submissions, independent

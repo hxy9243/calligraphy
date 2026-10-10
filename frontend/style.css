@@ -346,6 +346,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 .status.running, .status.queued { color: var(--accent); }
 .mini-bar { height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-top: 4px; }
 .mini-bar i { display: block; height: 100%; background: var(--accent); }
+.job-retention { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 3px 0; overflow-wrap: anywhere; }
+.retention-guide { margin-bottom: 14px; }
 .job-error { color: var(--seal); font-size: 12px; margin-top: 2px; word-break: break-all; }
 .job-action { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
 .job-action .btn, .job-action .btn-play-mini, .job-action .btn-download { flex: 1; font-size: 12px; padding: 4px 8px; border-radius: 6px; text-align: center; text-decoration: none; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }

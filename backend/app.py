@@ -408,19 +408,51 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
     }
 
 
+def job_retention_summary(job, db, retention_seconds):
+    """Describe cleanup timing, never the lifetime of an access capability.
+
+    History and files age independently; the earlier deadline limits the work.
+    A live share lease protects both. Export capabilities do not retain either.
+    The worker cleans asynchronously, so this is a cleanup eligibility deadline,
+    not a promise that every owner URL becomes unavailable at this instant.
+    """
+    summary = {"expires_at": None, "ordinary_expires_at": None,
+               "share_expires_at": None, "output_available": None}
+    if job["status"] not in ("succeeded", "failed"):
+        return summary
+    completed = datetime.fromisoformat(job.get("completed_at") or job["created_at"]).timestamp()
+    ordinary = completed + retention_seconds
+    if job["status"] == "succeeded":
+        path = Path(job["output_path"]) if job.get("output_path") else None
+        try:
+            available = path is not None and not path.is_symlink() and path.is_file()
+            if available:
+                ordinary = min(ordinary, path.stat().st_mtime + retention_seconds)
+        except OSError:
+            available = False
+        summary["output_available"] = available
+    share = db.get_video_share(job["job_id"]) if job["status"] == "succeeded" and job["job_type"] == "render" else None
+    lease = share["expires_at"] if share and share["expires_at"] > time.time() else None
+    summary.update(ordinary_expires_at=ordinary, share_expires_at=lease,
+                   expires_at=max(ordinary, lease) if lease is not None else ordinary)
+    return summary
+
+
 @app.get("/api/jobs")
 def list_session_jobs(request: Request, response: Response):
     """List all jobs for current browser session."""
     session_id = request.state.session_id
     db = get_db()
     jobs = db.list_jobs(session_id)
+    retention_seconds = int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400"))
     for j in jobs:
+        j["retention"] = job_retention_summary(j, db, retention_seconds)
         if j.get("status") == "succeeded" and j.get("job_type") == "render":
             j["download_url"] = f"/api/jobs/{j['job_id']}/download"
             j["video_url"] = f"/api/jobs/{j['job_id']}/video"
         elif j.get("status") == "succeeded" and j.get("job_type") == "preview":
             j["download_url"] = f"/api/jobs/{j['job_id']}/image"
-    return {"jobs": jobs}
+    return {"jobs": jobs, "retention_seconds": retention_seconds}
 
 
 @app.delete("/api/jobs/{job_id}", status_code=204)
@@ -462,6 +494,7 @@ def get_job_status(job_id: str, request: Request, response: Response):
         "video_url": video_url,
         "created_at": job["created_at"],
         "updated_at": job["updated_at"],
+        "retention": job_retention_summary(job, db, int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400"))),
     }
 
 

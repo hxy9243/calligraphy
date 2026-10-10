@@ -1368,6 +1368,31 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#39;');
   }
 
+  function expiryDateTime(timestamp) {
+    const date = new Date(timestamp * 1000);
+    return Number.isFinite(timestamp) && Number.isFinite(date.getTime())
+      ? date.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZoneName: 'short' }) : '';
+  }
+
+  function jobRetentionNotice(job) {
+    if (activeJobStatuses.has(job.status)) return '完成後顯示保留期限';
+    const retention = job.retention;
+    if (job.status === 'succeeded' && retention?.output_available === false) return '作品檔案已移除，無法下載';
+    const deadline = expiryDateTime(retention?.expires_at);
+    if (!deadline) return job.status === 'succeeded' ? '保留期限暫未提供，請儘早下載作品' : '保留期限暫未提供';
+    const subject = job.status === 'failed' ? '記錄' : '作品';
+    if (retention.expires_at * 1000 <= Date.now()) return `${subject}已到保留期限（${deadline}），即將清理`;
+    const extended = retention.share_expires_at > retention.ordinary_expires_at;
+    return `${subject}保留至 ${deadline}${extended ? '（分享延長）' : ''}`;
+  }
+
+  function updateRetentionDuration(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return;
+    const duration = seconds % 3600 === 0 ? `${seconds / 3600} 小時`
+      : seconds % 60 === 0 ? `${seconds / 60} 分鐘` : `${seconds} 秒`;
+    document.querySelectorAll('[data-retention-duration]').forEach(element => { element.textContent = duration; });
+  }
+
   // Job detail dialog controls
   const jobDetail = document.getElementById('job-detail');
   const detailViewer = document.getElementById('detail-viewer');
@@ -1388,6 +1413,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openJobDetail(j) {
     if (!jobDetail) return;
+    jobDetail.dataset.jobId = j.job_id;
     previewPresentationVersion += 1;
     if (resultDialog.open) closeNotice(resultDialog);
     detailViewer.querySelectorAll('video').forEach(video => { video.pause(); video.removeAttribute('src'); video.load(); });
@@ -1450,6 +1476,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <dt>所用字庫</dt><dd>${escapeHtml(fontName)} (${escapeHtml(j.style)})</dd>
         <dt>任務狀態</dt><dd>${statusLabel}</dd>
         <dt>創建時間</dt><dd>${timeStr}</dd>
+        <dt>保留期限</dt><dd data-detail-retention>${escapeHtml(jobRetentionNotice(j))}</dd>
+        <dt data-detail-share-label ${j.retention?.share_expires_at ? '' : 'hidden'}>分享連結期限</dt><dd data-detail-share-expiry ${j.retention?.share_expires_at ? '' : 'hidden'}>${j.retention?.share_expires_at ? `有效至 ${escapeHtml(expiryDateTime(j.retention.share_expires_at))}；停用分享會取消延長保留` : ''}</dd>
         <dt>任務編號</dt><dd>${escapeHtml(j.job_id)}</dd>
       `;
     }
@@ -1642,6 +1670,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="job-details">${escapeHtml(fontName)} · ${timeStr}</span>
             <span class="status ${j.status} job-status-badge">${statusLabel}</span>
           </div>
+          <p class="job-retention">${escapeHtml(jobRetentionNotice(j))}</p>
           ${activeJobStatuses.has(j.status) ? `<div class="mini-bar"><i style="width:${pct}%"></i></div>` : ''}
           ${j.status === 'failed' && j.error_message ? `<span class="job-details job-error">${escapeHtml(j.error_message)}</span>` : ''}
           ${j.status === 'succeeded' ? `
@@ -1709,7 +1738,22 @@ document.addEventListener('DOMContentLoaded', () => {
       // Ignore an older refresh that finishes after a new submission/refresh.
       if (version !== jobsLoadVersion) return;
 
+      updateRetentionDuration(data.retention_seconds);
       cachedJobs = data.jobs || [];
+      if (jobDetail?.open) {
+        const current = cachedJobs.find(job => job.job_id === jobDetail.dataset.jobId);
+        if (current) {
+          const retentionText = detailMeta.querySelector('[data-detail-retention]');
+          if (retentionText) retentionText.textContent = jobRetentionNotice(current);
+          const expiry = current.retention?.share_expires_at;
+          const label = detailMeta.querySelector('[data-detail-share-label]');
+          const value = detailMeta.querySelector('[data-detail-share-expiry]');
+          if (label && value) {
+            label.hidden = value.hidden = !expiry;
+            value.textContent = expiry ? `有效至 ${expiryDateTime(expiry)}；停用分享會取消延長保留` : '';
+          }
+        }
+      }
       hasActiveJobs = cachedJobs.some(j => activeJobStatuses.has(j.status));
 
       const historyCountBadge = document.querySelector('[data-history-count]');
@@ -2349,7 +2393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return link;
   }
   function sharePrivacyNotice() {
-    return `任何持有連結的人都能觀看及下載這部影片。連結有效至 ${new Date(shareExpiresAt * 1000).toLocaleString()}；你可以隨時停用。`;
+    return `任何持有連結的人都能觀看及下載這部影片。分享連結有效至 ${expiryDateTime(shareExpiresAt)}，這部影片至少會保留至此時；你可以隨時停用，取消延長保留。`;
   }
   function updateShareButtons() {
     shareCreate.disabled = shareRevoke.disabled = shareBusy || shareChecking || !shareReady;
@@ -2491,6 +2535,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let exportJob = null;
   let exportVersion = 0;
   let exportBusy = false;
+  let exportExpiresAt = null;
+  function exportExpiryNotice() {
+    return `臨時連結有效至 ${expiryDateTime(exportExpiresAt)}，不延長作品保留期限。任何持有連結的人都能觀看及下載這部影片，請勿轉傳。`;
+  }
   exportNotice.addEventListener('close', () => { exportVersion += 1; });
 
   document.addEventListener('click', event => {
@@ -2504,6 +2552,7 @@ document.addEventListener('DOMContentLoaded', () => {
     event.stopPropagation();
     exportVersion += 1;
     exportJob = match[1];
+    exportExpiresAt = null;
     exportURL.value = '';
     exportURL.hidden = true;
     exportCopy.hidden = true;
@@ -2531,12 +2580,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (version !== exportVersion || !exportNotice.open) return;
       if (!response.ok) throw new Error(data.detail || '無法建立連結，請稍後重試。');
       const url = new URL(data.url, location.origin);
-      if (url.origin !== location.origin || url.pathname !== '/export.html') throw new Error('下載連結無效。');
+      if (url.origin !== location.origin || url.pathname !== '/export.html' || !Number.isFinite(data.expires_at) || data.expires_at * 1000 <= Date.now()) throw new Error('下載連結無效。');
+      exportExpiresAt = data.expires_at;
       exportURL.value = url.href;
       exportURL.hidden = false;
       exportCopy.hidden = false;
       exportRevoke.hidden = false;
-      exportStatus.textContent = `連結有效至 ${new Date(data.expires_at * 1000).toLocaleTimeString()}。請複製後貼到 Safari／Chrome 網址列，無需重新生成。`;
+      exportStatus.textContent = `${exportExpiryNotice()} 請複製後貼到 Safari／Chrome 網址列，無需重新生成。`;
     } catch (error) {
       if (version === exportVersion && exportNotice.open) exportStatus.textContent = error.message;
     } finally {
@@ -2548,12 +2598,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const version = exportVersion;
     try {
       await navigator.clipboard.writeText(exportURL.value);
-      if (version === exportVersion) exportStatus.textContent = '影片連結已複製。請手動開啟 Safari／Chrome，貼到網址列後下載。';
+      if (version === exportVersion) exportStatus.textContent = `影片連結已複製。${exportExpiryNotice()} 請手動開啟 Safari／Chrome，貼到網址列後下載。`;
     } catch (_) {
       if (version !== exportVersion) return;
       exportURL.focus();
       exportURL.select();
-      exportStatus.textContent = '請長按上方已選取的影片連結，選擇「複製」，再貼到 Safari／Chrome 網址列。';
+      exportStatus.textContent = `請長按上方已選取的影片連結，選擇「複製」，再貼到 Safari／Chrome 網址列。${exportExpiryNotice()}`;
     }
   });
   exportRevoke.addEventListener('click', async () => {

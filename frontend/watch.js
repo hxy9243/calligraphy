@@ -21,9 +21,13 @@ let expiresTimer;
 let mediaUrl = '';
 let shareExpiresAt = null;
 
+function expiryDateTime(timestamp) {
+  return new Date(timestamp * 1000).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZoneName: 'short' });
+}
+
 function copyNotice() {
-  const expiry = shareExpiresAt ? `到期時間：${new Date(shareExpiresAt * 1000).toLocaleString('zh-Hant')}。` : isExport ? '臨時連結最長有效 10 分鐘。' : '連結自建立起有效 72 小時。';
-  return `持有連結的人皆可觀看及下載這部影片。${expiry}${isExport ? "臨時瀏覽器連結，請勿轉傳。" : ""}分享者停用或移除影片後會提早失效。`;
+  const expiry = shareExpiresAt ? `到期時間：${expiryDateTime(shareExpiresAt)}。` : isExport ? '臨時連結最長有效 10 分鐘。' : '連結自建立起有效 72 小時。';
+  return `持有連結的人皆可觀看及下載這部影片。${expiry}${isExport ? "臨時瀏覽器連結，不延長作品保留期限，請勿轉傳。" : ""}分享者停用或移除影片後會提早失效。`;
 }
 
 document.getElementById('watch-wechat').hidden = !/MicroMessenger/i.test(navigator.userAgent);
@@ -95,7 +99,7 @@ async function loadShare() {
     video.hidden = false;
     download.href = `${mediaUrl}?download=1`;
     download.hidden = false;
-    status.textContent = `點選播放即可觀看。連結有效至 ${new Date(data.expires_at * 1000).toLocaleString('zh-Hant')}。`;
+    status.textContent = `點選播放即可觀看。連結有效至 ${expiryDateTime(data.expires_at)}。`;
     expiresTimer = setTimeout(() => { if (current === generation) showUnavailable(); }, Math.min(data.expires_at * 1000 - Date.now(), ttlMilliseconds));
   } catch (error) {
     if (current !== generation || error.name === 'AbortError') return;
