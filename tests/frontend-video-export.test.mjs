@@ -1,7 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { JSDOM } from 'jsdom';
 import { createFrontend, flush, jsonResponse } from './helpers/frontend.mjs';
 
 const job = { job_id: 'vid_one', job_type: 'render', status: 'succeeded', text: '永', style: 'kai', created_at: new Date().toISOString(), params: {}, download_url: '/api/jobs/vid_one/download' };
@@ -107,32 +105,4 @@ test('creation failure remains retryable; normal browser direct download is unch
   assert.equal(event.defaultPrevented, false);
   assert.equal(byId(ordinary, 'notice').open, false);
   assert.equal(ordinary.requests.some(r => r.url.endsWith('/export-link')), false);
-});
-
-test('landing page posts token only in native form body and preserves menu handoff fragment', async t => {
-  const html = await readFile(new URL('../frontend/export.html', import.meta.url), 'utf8');
-  const script = await readFile(new URL('../frontend/export.js', import.meta.url), 'utf8');
-  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://calligraphy.test' + result.url });
-  t.after(() => dom.window.close());
-  dom.window.eval(script);
-  const form = dom.window.document.getElementById('export-form');
-  assert.equal(form.method, 'post');
-  assert.equal(form.action, 'http://calligraphy.test/api/exports/vid_one/download');
-  assert.equal(form.hidden, false);
-  assert.equal(dom.window.document.getElementById('export-token').value, token);
-  assert.equal(dom.window.location.hash, '#vid_one.' + token);
-  assert.equal(dom.window.document.querySelector('meta[name=referrer]').content, 'no-referrer');
-  dom.window.location.hash = '#vid_two.' + 'b'.repeat(43);
-  dom.window.dispatchEvent(new dom.window.HashChangeEvent('hashchange'));
-  assert.equal(form.action, 'http://calligraphy.test/api/exports/vid_two/download');
-  assert.equal(dom.window.document.getElementById('export-token').value, 'b'.repeat(43));
-  dom.window.location.hash = '#bad';
-  dom.window.dispatchEvent(new dom.window.HashChangeEvent('hashchange'));
-  assert.equal(form.hidden, true);
-  assert.equal(form.hasAttribute('action'), false);
-  assert.equal(dom.window.document.getElementById('export-token').value, '');
-  dom.window.location.hash = '#vid_one.' + token;
-  dom.window.dispatchEvent(new dom.window.PageTransitionEvent('pageshow'));
-  assert.equal(form.action, 'http://calligraphy.test/api/exports/vid_one/download');
-  assert.equal(form.hidden, false);
 });

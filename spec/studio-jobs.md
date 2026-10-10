@@ -222,15 +222,29 @@ renew a share lease, render another video, or transfer a session cookie.
 
 The returned relative URL uses `/export.html#job_id.token`. The fragment is not
 sent in HTTP requests or Referer headers; the landing page has no third-party
-resources, a restrictive CSP and no-referrer policy. The user copies the link to
+resources, a restrictive CSP and no-referrer policy. It opens a standalone artwork
+page with native playback and download controls, using the same player code and
+styles as the 72-hour shared viewer; its copy notice and expiry remain ten minutes. The user copies the link to
 Safari/Chrome or manually uses WeChat's browser menu when available. There is no
 fake “Open Safari” button. The landing page preserves the fragment for that menu
-handoff and submits the token in a native form POST body to
-`/api/exports/{job_id}/download`. This streams an MP4 attachment without buffering
-a large video in JavaScript; FileResponse handles Range requests. Access logs
-must not record request bodies. Responses are private/no-store and noindex.
+handoff. A same-origin fetch posts the fragment token in a bounded URL-encoded
+body to `/api/exports/{job_id}/access`. Valid access sets a separate HttpOnly,
+SameSite=Strict cookie scoped to `/api/exports/{job_id}`, Secure on HTTPS or when
+configured, and bounded by the original export capability and retention deadline.
+Native GET/HEAD `/api/exports/{job_id}/video` handles playback and Range requests;
+`?download=1` streams an attachment without buffering the MP4 in JavaScript.
+Every media request rechecks the original export digest, expiry and artifact.
+The export cookie never authorizes a 72-hour share, another video, or owner APIs.
+Opening the page neither creates a share lease nor extends export retention.
+The older body-token POST `/api/exports/{job_id}/download` remains available to
+API clients, but the browser page no longer submits a native form. Under
+no-referrer, native form navigation can send `Origin: null`, which the existing
+same-origin guard correctly rejects. Fetch exchange keeps a verifiable origin;
+null and foreign origins remain rejected. No CORS or origin exception is added.
+Access logs must not record request bodies or Cookie/Set-Cookie headers.
+Responses remain private/no-store, no-referrer and noindex.
 
-Possession of the link authorizes downloading only this MP4, without history or
+Possession of the link authorizes watching and downloading only this MP4, without history or
 other job access. The endpoint rechecks hash, expiry, completion, artifact type,
 file existence and retention. Owners can revoke via
 `DELETE /api/jobs/{job_id}/export-link`; deleting history also removes the
@@ -240,6 +254,7 @@ clipboard may retain the bearer link, so the UI warns against forwarding it.
 Create/revoke actions are serialized across dialog dismissal and reopening.
 
 Regression coverage: `tests/python/test_video_exports.py` and
-`tests/frontend-video-export.test.mjs`. A physical iPhone/WeChat-to-Safari download
+`tests/frontend-video-export.test.mjs`; the shared viewer DOM suite runs
+for both 10-minute export and 72-hour share pages. A physical iPhone/WeChat-to-Safari download
 still needs on-device validation; DOM/API tests cannot verify OS download handling
 or promise that a video will save directly into Photos.

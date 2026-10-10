@@ -5,19 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex, nofollow, noarchive">
-  <title>下載書法影片</title>
-  <link rel="stylesheet" href="/export.css">
-  <script src="/export.js" defer></script>
+  <title>書法影片 · 墨韻</title>
+  <link rel="stylesheet" href="/watch.css">
+  <script src="/watch.js" defer></script>
 </head>
-<body><main>
-  <h1>下載書法影片</h1>
-  <p>這個臨時連結只提供一部已完成的影片，無需重新生成。持有連結的人皆可下載，請勿轉傳。</p>
-  <p>如仍在微信內，請用右上角「⋯」選擇「在瀏覽器中開啟」（如有），或複製完整連結，手動貼到 Safari／Chrome 網址列。</p>
-  <p id="export-message" role="status">連結最長有效 10 分鐘。到期或影片已刪除時，請回原來的微信頁面重新建立。</p>
-  <form id="export-form" method="post" hidden>
-    <input id="export-token" name="token" type="hidden">
-    <button type="submit">下載 MP4</button>
-  </form>
-  <p>Safari 下載後，可從下載項目或「檔案」App 開啟；如系統提供「儲存影片」，可再存入「照片」。</p>
-  <noscript>請啟用 JavaScript 以讀取下載連結。</noscript>
-</main></body></html>
+<body data-video-kind="export">
+  <main>
+    <header>
+      <p class="eyebrow">墨韻 · 瀏覽器觀看</p>
+      <h1>書法影片</h1>
+      <p class="intro">一筆一畫，隨時欣賞。</p>
+    </header>
+    <section class="viewer" aria-label="書法影片">
+      <p id="watch-status" role="status" aria-live="polite">正在讀取影片…</p>
+      <video id="watch-video" controls playsinline preload="metadata" aria-label="播放書法影片" hidden></video>
+      <div class="actions">
+        <a id="watch-download" class="primary" download="calligraphy_video.mp4" hidden>下載 MP4</a>
+        <button id="watch-retry" type="button" hidden>重新載入</button>
+        <button id="watch-copy" type="button" hidden>複製影片連結</button>
+      </div>
+      <p id="watch-copy-status" class="hint" role="status" aria-live="polite"></p>
+      <label id="watch-link-label" class="hint" for="watch-link" hidden>長按下方連結以複製</label>
+      <input id="watch-link" type="text" readonly spellcheck="false" aria-label="完整影片連結" hidden>
+    </section>
+    <aside id="watch-wechat" class="handoff" hidden>
+      <h2>在微信內開啟？</h2>
+      <p>若無法播放或下載，請用右上角「⋯」選擇「在瀏覽器中開啟」（如有），或複製完整連結，手動貼到 Safari／Chrome 網址列。</p>
+    </aside>
+    <footer>
+      <p>持有此連結的人皆可觀看及下載這一部影片。這是最長有效 10 分鐘的臨時瀏覽器連結，請勿轉傳。到期後請回原來的微信頁面重新建立；作品移除或連結停用後會提早失效。</p>
+      <p>iPhone 下載後可從下載項目或「檔案」App 開啟；如系統提供「儲存影片」，可再存入「照片」。</p>
+    </footer>
+    <noscript>請啟用 JavaScript 以讀取影片連結。</noscript>
+  </main>
+</body>
+</html>

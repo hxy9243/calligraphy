@@ -585,38 +585,55 @@ def revoke_video_export(job_id: str, request: Request):
     return Response(status_code=204, headers=EXPORT_HEADERS)
 
 
-@app.post("/api/exports/{job_id}/download")
-async def download_video_export(job_id: str, request: Request):
-    # A native form download avoids buffering a large MP4 in iPhone JavaScript.
-    # Token is sent in the body, never a query/path that access logs record.
-    if request.headers.get("content-type", "").split(";")[0] != "application/x-www-form-urlencoded":
-        raise HTTPException(404, "下載連結無效或已到期 / Export link invalid or expired")
-    body = bytearray()
-    async for chunk in request.stream():
-        body.extend(chunk)
-        if len(body) > 128:
-            raise HTTPException(404, "Export link invalid or expired")
-    try:
-        fields = parse_qs(body.decode("ascii"), strict_parsing=True)
-        token, = fields.get("token", [])
-    except (ValueError, UnicodeError):
-        raise HTTPException(404, "Export link invalid or expired")
+EXPORT_COOKIE_NAME = "calligraphy_video_export"
+
+
+def checked_video_export(job_id, token):
+    if not SHARE_ID.fullmatch(job_id) or not isinstance(token, str) or not SHARE_TOKEN.fullmatch(token):
+        raise HTTPException(404, SHARE_UNAVAILABLE)
     db = get_db()
     capability = db.get_video_export(job_id)
     if not capability or capability["expires_at"] <= time.time() or not secrets.compare_digest(
-        capability["token_hash"], hashlib.sha256(token.encode()).hexdigest()
+        capability["token_hash"], hashlib.sha256(token.encode("ascii")).hexdigest()
     ):
-        raise HTTPException(404, "下載連結無效或已到期，請回微信重新建立 / Export link invalid or expired")
+        raise HTTPException(404, SHARE_UNAVAILABLE)
     share = db.get_video_share(job_id)
-    path, _ = export_video_path(db.get_job(job_id), share["expires_at"] if share else None)
+    try:
+        path, deadline = export_video_path(db.get_job(job_id), share["expires_at"] if share else None)
+    except (HTTPException, OSError, ValueError, TypeError):
+        raise HTTPException(404, SHARE_UNAVAILABLE) from None
+    return path, min(capability["expires_at"], deadline)
+
+
+@app.post("/api/exports/{job_id}/download")
+async def download_video_export(job_id: str, request: Request):
+    # Legacy body-token API. Browser viewers use access + native GET instead:
+    # no-referrer native form POSTs can carry Origin: null and must stay denied.
+    token = await read_video_token(request)
+    path, _ = checked_video_export(job_id, token)
     return FileResponse(path, media_type="video/mp4", filename="calligraphy_video.mp4", headers=EXPORT_HEADERS)
 
 
-@app.get("/export.html")
+@app.post("/api/exports/{job_id}/access")
+async def access_video_export(job_id: str, request: Request):
+    _share_access_limiter.admit(request.client.host if request.client else "unknown")
+    token = await read_video_token(request)
+    _, expires = checked_video_export(job_id, token)
+    return video_access_response(request, "exports", job_id, token, expires, EXPORT_COOKIE_NAME)
+
+
+@app.api_route("/api/exports/{job_id}/video", methods=["GET", "HEAD"])
+def exported_video(job_id: str, request: Request):
+    path, _ = checked_video_export(job_id, request.cookies.get(EXPORT_COOKIE_NAME))
+    filename = "calligraphy_video.mp4" if request.query_params.get("download") == "1" else None
+    return FileResponse(path, media_type="video/mp4", filename=filename, headers=EXPORT_HEADERS)
+
+
+@app.api_route("/export.html", methods=["GET", "HEAD"])
 def video_export_page():
     return FileResponse(Path(__file__).resolve().parent.parent / "frontend" / "export.html", headers={
-        **EXPORT_HEADERS,
-        "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+        **EXPORT_HEADERS, "Content-Security-Policy": SHARE_CSP,
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=(), autoplay=()",
     })
 
 
@@ -715,12 +732,9 @@ def revoke_video_share(job_id: str, request: Request):
     return Response(status_code=204, headers=EXPORT_HEADERS)
 
 
-@app.post("/api/shares/{job_id}/access")
-async def access_video_share(job_id: str, request: Request):
-    # Only this bounded exchange receives the fragment bearer in its body.
-    # Never accept URL tokens, log request bodies, or fall back to owner cookies.
-    _share_access_limiter.admit(request.client.host if request.client else "unknown")
-    if not SHARE_ID.fullmatch(job_id) or request.headers.get("content-type", "").split(";")[0].strip() != "application/x-www-form-urlencoded":
+async def read_video_token(request):
+    # Fragment bearers belong only in this bounded body, never request URLs.
+    if request.headers.get("content-type", "").split(";")[0].strip() != "application/x-www-form-urlencoded":
         raise HTTPException(404, SHARE_UNAVAILABLE)
     body = bytearray()
     async for chunk in request.stream():
@@ -732,15 +746,28 @@ async def access_video_share(job_id: str, request: Request):
         token, = fields["token"]
     except (KeyError, ValueError, UnicodeError):
         raise HTTPException(404, SHARE_UNAVAILABLE) from None
-    _, expires = checked_video_share(job_id, token)
-    response = JSONResponse({"video_url": f"/api/shares/{job_id}/video", "expires_at": expires}, headers=EXPORT_HEADERS)
+    return token
+
+
+def video_access_response(request, kind, job_id, token, expires, cookie_name):
+    path = f"/api/{kind}/{job_id}"
+    response = JSONResponse({"video_url": f"{path}/video", "expires_at": expires}, headers=EXPORT_HEADERS)
     response.set_cookie(
-        SHARE_COOKIE_NAME, token, httponly=True, samesite="strict",
+        cookie_name, token, httponly=True, samesite="strict",
         secure=request.url.scheme == "https" or os.environ.get("CALLIGRAPHY_SECURE_COOKIES") == "1",
-        path=f"/api/shares/{job_id}", max_age=max(1, math.ceil(expires - time.time())),
+        path=path, max_age=max(1, math.ceil(expires - time.time())),
         expires=datetime.fromtimestamp(expires, timezone.utc),
     )
     return response
+
+
+@app.post("/api/shares/{job_id}/access")
+async def access_video_share(job_id: str, request: Request):
+    # Never accept URL tokens, log request bodies, or fall back to owner cookies.
+    _share_access_limiter.admit(request.client.host if request.client else "unknown")
+    token = await read_video_token(request)
+    _, expires = checked_video_share(job_id, token)
+    return video_access_response(request, "shares", job_id, token, expires, SHARE_COOKIE_NAME)
 
 
 @app.api_route("/api/shares/{job_id}/video", methods=["GET", "HEAD"])
