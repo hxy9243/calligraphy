@@ -162,7 +162,7 @@ async def session_middleware(request: Request, call_next):
     public_capability = request.url.path.startswith(("/api/exports/", "/api/shares/")) or request.url.path in (
         "/export.html", "/export.js", "/export.css", "/watch.html", "/watch.js", "/watch.css",
     )
-    capability_response = public_capability or request.url.path.endswith(("/export-link", "/share-link"))
+    capability_response = public_capability or request.url.path.endswith(("/export-link", "/share-link", "/share-link/status"))
     # Browser mutations are same-origin. Railway terminates TLS before forwarding.
     origin = request.headers.get("origin")
     if request.method not in ("GET", "HEAD", "OPTIONS") and origin:
@@ -710,16 +710,60 @@ def checked_video_share(job_id, token):
     return path, min(capability["expires_at"], deadline)
 
 
+@app.post("/api/jobs/{job_id}/share-link/status")
+async def video_share_status(job_id: str, request: Request):
+    """Owner-only read: validate a tab-held bearer without recovering secrets.
+
+    Tokens travel in a bounded body, never a request URL. The database remains
+    hash-only and reading/copying cannot rotate a link or renew its lease.
+    """
+    db = get_db()
+    job = db.get_job(job_id) if SHARE_ID.fullmatch(job_id) else None
+    if not job or job["session_id"] != request.state.session_id:
+        raise HTTPException(404, SHARE_UNAVAILABLE)
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > 128:
+            raise HTTPException(404, SHARE_UNAVAILABLE)
+        body.extend(chunk)
+    try:
+        data = json.loads(body or b'{}')
+        if not isinstance(data, dict) or set(data) - {"token"}:
+            raise ValueError()
+        token = data.get("token", "")
+        if not isinstance(token, str) or (token and not SHARE_TOKEN.fullmatch(token)):
+            raise ValueError()
+    except (ValueError, UnicodeError):
+        raise HTTPException(404, SHARE_UNAVAILABLE) from None
+    capability = db.get_video_share(job_id)
+    if not capability or capability["expires_at"] <= time.time():
+        return JSONResponse({"active": False}, headers=EXPORT_HEADERS)
+    shared_video_path(job, capability["expires_at"])
+    result = {"active": True, "expires_at": capability["expires_at"]}
+    if token and secrets.compare_digest(capability["token_hash"], hashlib.sha256(token.encode("ascii")).hexdigest()):
+        result["url"] = f"/watch.html#{job_id}.{token}"
+    return JSONResponse(result, headers=EXPORT_HEADERS)
+
+
+class ShareLinkRequest(BaseModel):
+    replace: bool = False
+
+
 @app.post("/api/jobs/{job_id}/share-link")
-def create_video_share(job_id: str, request: Request):
+def create_video_share(job_id: str, request: Request, options: Optional[ShareLinkRequest] = None):
     db = get_db()
     if not SHARE_ID.fullmatch(job_id):
         raise HTTPException(404, SHARE_UNAVAILABLE)
     token = secrets.token_urlsafe(32)
     expires = time.time() + SHARE_TTL_SECONDS
+    def validate(job, previous):
+        shared_video_path(job, previous["expires_at"] if previous else None)
+        if previous and not (options and options.replace):
+            raise HTTPException(409, "已有有效分享連結；請複製原連結，或明確選擇取代。")
+
     if not db.set_video_share(
         job_id, request.state.session_id, hashlib.sha256(token.encode("ascii")).hexdigest(), expires,
-        validate_artifact=lambda job, previous: shared_video_path(job, previous["expires_at"] if previous else None),
+        validate_artifact=validate,
     ):
         raise HTTPException(404, SHARE_UNAVAILABLE)
     return JSONResponse({"url": f"/watch.html#{job_id}.{token}", "expires_at": expires}, headers=EXPORT_HEADERS)

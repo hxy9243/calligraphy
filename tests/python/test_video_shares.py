@@ -45,7 +45,7 @@ class VideoShareTests(unittest.TestCase):
         return self.db.create_job(job_id, self.session, kwargs.get('job_type', 'render'), 'private text', 'kai', {}, output_path=str(kwargs.get('path', self.path)), status=kwargs.get('status', 'succeeded'))
 
     def issue(self, job_id='one'):
-        response = self.owner.post(f'/api/jobs/{job_id}/share-link')
+        response = self.owner.post(f'/api/jobs/{job_id}/share-link', json={'replace': True})
         self.assertEqual(response.status_code, 200, response.text)
         data = response.json()
         url = urlsplit(data['url'])
@@ -70,6 +70,46 @@ class VideoShareTests(unittest.TestCase):
         self.assertIn('no-store', response.headers['cache-control'])
         self.assertEqual(response.headers['referrer-policy'], 'no-referrer')
         self.assertNotIn('private text', response.text)
+
+    def test_owner_revalidates_tab_link_without_rotation_or_renewal(self):
+        token, issued = self.issue()
+        before = self.db.get_video_share('one')
+        for _ in range(3):
+            response = self.owner.post('/api/jobs/one/share-link/status', json={'token': token})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), {'active': True, **issued})
+            self.assertIn('no-store', response.headers['cache-control'])
+            self.assertEqual(response.headers['referrer-policy'], 'no-referrer')
+        self.assertEqual(self.db.get_video_share('one'), before)
+        self.assertEqual(self.access(token).status_code, 200)
+        metadata = self.owner.post('/api/jobs/one/share-link/status', json={}).json()
+        self.assertEqual(metadata, {'active': True, 'expires_at': issued['expires_at']})
+        self.assertNotIn('token_hash', metadata)
+        self.assertEqual(self.owner.post('/api/jobs/one/share-link').status_code, 409)
+        self.assertEqual(self.db.get_video_share('one'), before)
+        self.assertEqual(self.access(token).status_code, 200)
+
+    def test_status_requires_owner_and_current_token_and_does_not_leak(self):
+        token, issued = self.issue()
+        path = '/api/jobs/one/share-link/status'
+        self.assertUnavailable(self.viewer.post(path, json={'token': token}))
+        for body in ({'token': '!' * 43}, {'token': token, 'extra': True}, {'token': 'a' * 1000}, []):
+            response = self.owner.post(path, json=body)
+            self.assertUnavailable(response)
+            self.assertNotIn(token, response.text)
+        response = self.owner.post(path, json={'token': token}, headers={'Origin': 'https://evil.test'})
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('no-store', response.headers['cache-control'])
+        new, _ = self.issue()
+        self.assertNotIn('url', self.owner.post(path, json={'token': token}).json())
+        self.assertIn('url', self.owner.post(path, json={'token': new}).json())
+        self.owner.delete('/api/jobs/one/share-link')
+        self.assertEqual(self.owner.post(path, json={'token': new}).json(), {'active': False})
+        new, _ = self.issue()
+        with patch('backend.app.time.time', return_value=time.time() + 73 * 3600):
+            self.assertEqual(self.owner.post(path, json={'token': new}).json(), {'active': False})
+        self.owner.delete('/api/jobs/one')
+        self.assertUnavailable(self.owner.post(path, json={'token': new}))
 
     def test_fresh_viewer_plays_and_downloads_only_the_shared_video(self):
         token, data = self.issue()

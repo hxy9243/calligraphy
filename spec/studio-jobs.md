@@ -139,7 +139,17 @@ the actual expiry date/time and repeat that privacy notice.
 `POST /api/jobs/{job_id}/share-link` requires the owning browser session and an
 existing, completed, non-symlink MP4. It returns `/watch.html#job_id.token` and an
 `expires_at` Unix timestamp. The bearer has 256 bits of entropy. SQLite's separate
-`video_shares` table stores only the SHA-256 digest and expiry. A new share link
+`video_shares` table stores only the SHA-256 digest and expiry. Creation defaults
+to refusing an existing active link (409); explicit `{ "replace": true }` is
+required to rotate it, including when another tab created it between reads.
+`POST /api/jobs/{job_id}/share-link/status` is an owner-only, no-store read. Its
+bounded JSON body accepts an optional tab-held token; a match returns the same
+URL/expiry, otherwise only active status and expiry. Tokens never enter request
+URLs, and the read cannot renew, create or replace a lease. Foreign owners,
+malformed token bodies and unavailable artifacts get generic errors without
+revealing content or token values. The frontend clears cached tokens on
+revocation, expiry, invalid owner validation or explicit history deletion.
+An explicitly requested replacement
 replaces the old one, immediately invalidating its subsequent access and media
 requests. The link lasts 72 hours from creation and grants a retention lease for
 that one completed job and MP4. Unshared jobs retain ordinary 24-hour/configured

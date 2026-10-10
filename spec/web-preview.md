@@ -22,8 +22,14 @@ controls are supported; dismissal restores focus to the opener when still mounte
 Every completed history video and its detail modal offers an explicit share
 control. Creating a link discloses that anyone holding it can view/download that
 single video; creating a replacement invalidates its predecessor. Copy fallback
-selects the URL for manual copy. Revocation remains available after reopening the
-share dialog. Links last 72 hours from explicit creation, retaining only that
+selects the URL for manual copy. Reopening or reloading the same tab validates
+and reuses its existing link, preserving the original expiry. The bearer is kept
+in sessionStorage (memory-only if storage is denied), never durable localStorage;
+it is never displayed until an owner-only status read verifies it. A closed tab
+or another browser cannot recover a server-stored secret: the dialog explains
+that limitation and labels replacement separately from copying. Explicit
+replacement warns that recipients' old links immediately stop working.
+Revocation remains available after reopening the share dialog. Links last 72 hours from explicit creation, retaining only that
 shared video for that interval. Both creation and copy show the exact expiry and
 anyone-with-link privacy notice. The standalone viewer and capability boundary are in `studio-jobs.md`.
 

@@ -420,13 +420,13 @@
   <div class="sheet-inner">
     <header class="sheet-head"><h2 id="video-share-title">分享這部影片</h2><button type="button" class="icon-btn" data-close aria-label="關閉" autofocus>✕</button></header>
     <div class="share-body">
-      <p id="video-share-description">建立後，任何持有連結的人都能觀看及下載這部影片。連結有效 72 小時，這部影片會保留至連結到期；刪除影片或停用分享會立即使連結失效。重新建立會取代舊連結。</p>
+      <p id="video-share-description">建立後，任何持有連結的人都能觀看及下載這部影片。連結有效 72 小時，這部影片會保留至連結到期；刪除影片或停用分享會立即使連結失效。複製原連結不會延長期限；只有明確取代才會使舊連結失效。</p>
       <p class="note">微信中如無法播放或下載，請複製連結，手動貼到 Safari／Chrome 開啟，無需重新生成影片。</p>
       <input id="video-share-url" type="text" readonly hidden aria-label="影片分享連結" />
       <p id="video-share-status" role="status" aria-live="polite"></p>
       <div class="result-actions">
         <button type="button" class="btn btn-primary" id="video-share-create">建立分享連結</button>
-        <button type="button" class="btn btn-primary" id="video-share-copy" hidden>複製連結</button>
+        <button type="button" class="btn btn-primary" id="video-share-copy" hidden>複製現有連結</button>
         <a class="btn btn-secondary" id="video-share-open" target="_blank" rel="noopener noreferrer" hidden>開啟觀看頁</a>
         <button type="button" class="btn btn-ghost" id="video-share-revoke">停用分享連結</button>
       </div>

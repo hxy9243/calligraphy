@@ -1527,6 +1527,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Invalidate any list response captured before the deletion.
         ++jobsLoadVersion;
+        forgetShareLink(job.job_id);
         cachedJobs = cachedJobs.filter(j => j.job_id !== job.job_id);
         renderJobList();
         deleteHistory.close();
@@ -2317,9 +2318,46 @@ document.addEventListener('DOMContentLoaded', () => {
   let shareJob = null;
   let shareVersion = 0;
   let shareBusy = false;
+  let shareChecking = false;
+  let shareReady = false;
+  let shareActive = false;
   let shareExpiresAt = null;
+  const shareLinks = new Map();
+  const shareStoragePrefix = 'calligraphy-share:';
+  function forgetShareLink(job) {
+    shareLinks.delete(job);
+    try { sessionStorage.removeItem(shareStoragePrefix + job); } catch (_) { /* Private browsing may deny storage. */ }
+  }
+  function checkedShareLink(job, data) {
+    const url = new URL(data.url, location.origin);
+    if (url.origin !== location.origin || url.pathname !== '/watch.html' || url.search ||
+        !/^#[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(url.hash) ||
+        url.hash.slice(1).split('.')[0] !== job || !Number.isFinite(data.expires_at) ||
+        data.expires_at * 1000 <= Date.now()) throw new Error('分享連結無效或已到期。');
+    return { url: url.href, expires_at: data.expires_at };
+  }
+  function cachedShareLink(job) {
+    try {
+      const data = shareLinks.get(job) || JSON.parse(sessionStorage.getItem(shareStoragePrefix + job));
+      return data ? checkedShareLink(job, data) : null;
+    } catch (_) { forgetShareLink(job); return null; }
+  }
+  function rememberShareLink(job, data) {
+    const link = checkedShareLink(job, data);
+    shareLinks.set(job, link);
+    try { sessionStorage.setItem(shareStoragePrefix + job, JSON.stringify(link)); } catch (_) { /* Reopen still works in memory. */ }
+    return link;
+  }
   function sharePrivacyNotice() {
     return `任何持有連結的人都能觀看及下載這部影片。連結有效至 ${new Date(shareExpiresAt * 1000).toLocaleString()}；你可以隨時停用。`;
+  }
+  function updateShareButtons() {
+    shareCreate.disabled = shareRevoke.disabled = shareBusy || shareChecking || !shareReady;
+    shareCopy.disabled = shareBusy || shareChecking;
+    shareCreate.textContent = shareActive ? '取代舊連結（舊連結將失效）' : '建立分享連結';
+    shareCreate.classList.toggle('btn-primary', !shareActive);
+    shareCreate.classList.toggle('btn-secondary', shareActive);
+    shareRevoke.hidden = !shareActive;
   }
   function clearShareLink() {
     shareExpiresAt = null;
@@ -2327,57 +2365,114 @@ document.addEventListener('DOMContentLoaded', () => {
     shareURL.hidden = shareCopy.hidden = shareOpen.hidden = true;
     shareOpen.removeAttribute('href');
   }
-  function openVideoShare(jobId) {
-    shareVersion += 1;
-    shareJob = jobId;
-    clearShareLink();
-    shareStatus.textContent = '';
-    shareCreate.disabled = shareRevoke.disabled = shareBusy;
-    openNotice(shareNotice);
+  function showShareLink(link) {
+    shareExpiresAt = link.expires_at;
+    shareURL.value = link.url;
+    shareOpen.href = link.url;
+    shareURL.hidden = shareCopy.hidden = shareOpen.hidden = false;
+    shareStatus.textContent = `可再次複製原連結；不會延長到期時間。${sharePrivacyNotice()}`;
   }
-  shareNotice.addEventListener('close', () => { shareVersion += 1; clearShareLink(); });
-  async function changeShareLink(method) {
-    if (!shareJob || shareBusy) return;
+  async function refreshShareLink() {
     const job = shareJob;
     const version = ++shareVersion;
-    shareBusy = true;
-    shareCreate.disabled = shareRevoke.disabled = true;
+    shareChecking = true;
+    shareReady = false;
+    shareActive = false;
     clearShareLink();
+    updateShareButtons();
+    shareStatus.textContent = '正在檢查現有分享連結…';
+    try {
+      const cached = cachedShareLink(job);
+      const token = cached ? new URL(cached.url).hash.slice(1).split('.')[1] : '';
+      const response = await fetch(`/api/jobs/${encodeURIComponent(job)}/share-link/status`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({token}),
+      });
+      if (!response.ok) {
+        if (response.status === 404) forgetShareLink(job);
+        throw new Error('無法確認分享狀態，請關閉後重試。');
+      }
+      const data = await response.json();
+      if (version !== shareVersion || !shareNotice.open) return;
+      shareReady = true;
+      shareActive = data.active === true;
+      let validatedLink = null;
+      if (shareActive && data.url) {
+        validatedLink = rememberShareLink(job, data);
+        showShareLink(validatedLink);
+      }
+      else {
+        forgetShareLink(job);
+        if (shareActive) {
+          shareExpiresAt = data.expires_at;
+          shareStatus.textContent = `已有分享連結，有效至 ${new Date(data.expires_at * 1000).toLocaleString()}。此分頁未保留原連結；請使用之前複製的連結，或明確取代。取代後，朋友手上的舊連結會立即失效。`;
+        } else shareStatus.textContent = '尚無有效分享連結。建立後才會開放持有連結的人觀看。';
+      }
+      return validatedLink;
+    } catch (error) {
+      if (version === shareVersion && shareNotice.open) {
+        shareStatus.textContent = error.message;
+        // Do not enable an unverified create/replace operation after a failed read.
+        return;
+      }
+    } finally {
+      if (version === shareVersion && shareNotice.open) {
+        shareChecking = false;
+        updateShareButtons();
+      }
+    }
+  }
+  function openVideoShare(jobId) {
+    shareJob = jobId;
+    openNotice(shareNotice);
+    refreshShareLink();
+  }
+  shareNotice.addEventListener('close', () => { shareVersion += 1; shareChecking = false; clearShareLink(); });
+  async function changeShareLink(method) {
+    if (!shareJob || shareBusy || shareChecking || !shareReady) return;
+    const job = shareJob;
+    const replacing = shareActive;
+    let needsRefresh = false;
+    const version = ++shareVersion;
+    shareBusy = true;
+    updateShareButtons();
     shareStatus.textContent = method === 'POST' ? '正在建立這部影片的分享連結…' : '正在停用分享連結…';
     try {
-      const response = await fetch(`/api/jobs/${encodeURIComponent(job)}/share-link`, { method });
-      if (version !== shareVersion || !shareNotice.open) return;
+      const response = await fetch(`/api/jobs/${encodeURIComponent(job)}/share-link`, {
+        method, ...(method === 'POST' ? {headers: {'Content-Type': 'application/json'}, body: JSON.stringify({replace: replacing})} : {}),
+      });
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || '操作失敗，請重試。');
       }
-      if (method === 'DELETE') {
-        shareStatus.textContent = '分享連結已停用。已下載的影片不會被收回。';
-        return;
-      }
-      const data = await response.json();
+      let link;
+      if (method === 'DELETE') forgetShareLink(job);
+      else link = rememberShareLink(job, await response.json());
+      loadJobs();
       if (version !== shareVersion || !shareNotice.open) return;
-      const url = new URL(data.url, location.origin);
-      if (url.origin !== location.origin || url.pathname !== '/watch.html' || !/^#[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(url.hash) || !Number.isFinite(data.expires_at) || data.expires_at * 1000 <= Date.now()) throw new Error('分享連結無效。');
-      shareExpiresAt = data.expires_at;
-      shareURL.value = url.href;
-      shareOpen.href = url.href;
-      shareURL.hidden = shareCopy.hidden = shareOpen.hidden = false;
-      shareStatus.textContent = sharePrivacyNotice();
+      shareActive = method !== 'DELETE';
+      clearShareLink();
+      if (link) showShareLink(link);
+      else shareStatus.textContent = '分享連結已停用。已下載的影片不會被收回。';
     } catch (error) {
+      needsRefresh = true;
       if (version === shareVersion && shareNotice.open) shareStatus.textContent = error.message;
     } finally {
       shareBusy = false;
-      shareCreate.disabled = shareRevoke.disabled = false;
+      updateShareButtons();
+      // A read in a newly opened dialog may have raced the completed mutation.
+      if ((needsRefresh || version !== shareVersion) && shareNotice.open) refreshShareLink();
     }
   }
   shareCreate.addEventListener('click', () => changeShareLink('POST'));
   shareRevoke.addEventListener('click', () => changeShareLink('DELETE'));
   shareCopy.addEventListener('click', async () => {
+    if (shareBusy || shareChecking || !shareURL.value) return;
+    const job = shareJob;
+    const link = await refreshShareLink();
+    if (!link || job !== shareJob || !shareNotice.open) return;
     const version = shareVersion;
-    if (!shareURL.value) return;
     try {
-      await navigator.clipboard.writeText(shareURL.value);
+      await navigator.clipboard.writeText(link.url);
       if (version === shareVersion) shareStatus.textContent = `影片連結已複製。${sharePrivacyNotice()} 可貼到 Safari／Chrome 觀看。`;
     } catch (_) {
       if (version !== shareVersion) return;
