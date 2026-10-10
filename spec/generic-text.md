@@ -136,3 +136,14 @@ text API and rendered its bundled glyphs. A live explicit fetch prepared
 `春眠不觉晓`; a horizontal PNG was visually inspected and the vertical MP4 was
 verified as 320 × 480, 10 frames, 2.5 seconds at 4 fps and speed 4. These smoke
 outputs are ignored under `outputs/`; no Python brush algorithms changed.
+
+## Python explicit-size composition
+
+The Python layout contract additionally accepts optional `font_size` and `fit`
+(default true), used by all studio rendering paths. A supplied size preserves
+explicit lines rather than applying the single-line aspect-ratio wrap heuristic.
+Fit shrinks that size only as required by the available page; disabling fit
+reports overflow instead of clipping. Explicit-size cells below 8 pixels are
+rejected. Omitting `font_size` preserves the existing 16-pixel minimum,
+whole-page fitting and wrapping behavior. These are Python/studio extensions;
+the legacy JavaScript plan API is unchanged.

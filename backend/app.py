@@ -19,7 +19,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from calligraphy.font_pipeline import registered_styles
 from calligraphy.text.converter import ConversionUnavailableError, convert_text
@@ -46,8 +46,17 @@ class PreviewRequest(BaseModel):
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
     punctuation: str = Field(default="omit")
-    width: Optional[int] = Field(default=None, ge=64, le=1280)
-    height: Optional[int] = Field(default=None, ge=64, le=1280)
+    width: Optional[int] = Field(default=None, ge=64, le=2400)
+    height: Optional[int] = Field(default=None, ge=64, le=2400)
+    # None retains legacy whole-page fitting for older clients and saved jobs.
+    font_size: Optional[int] = Field(default=None, ge=8, le=160)
+    fit: bool = True
+
+    @model_validator(mode="after")
+    def bounded_canvas(self):
+        if (self.width or 720) * (self.height or 960) > 2400 * 1280:
+            raise ValueError("画布面积过大 / Canvas must not exceed 3,072,000 pixels.")
+        return self
 
     @field_validator("text")
     @classmethod
@@ -61,8 +70,8 @@ class PreviewRequest(BaseModel):
 
 
 class EditorPreviewRequest(PreviewRequest):
-    width: int = Field(default=480, ge=64, le=640)
-    height: int = Field(default=640, ge=64, le=640)
+    width: int = Field(default=480, ge=64, le=2400)
+    height: int = Field(default=640, ge=64, le=2400)
     font_size: int = Field(default=48, ge=8, le=160)
     fit: bool = True
 
@@ -75,8 +84,17 @@ class RenderRequest(BaseModel):
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
     punctuation: str = Field(default="omit")
-    width: Optional[int] = Field(default=None, ge=64, le=1280)
-    height: Optional[int] = Field(default=None, ge=64, le=1280)
+    width: Optional[int] = Field(default=None, ge=64, le=2400)
+    height: Optional[int] = Field(default=None, ge=64, le=2400)
+    # None retains legacy whole-page fitting for older clients and saved jobs.
+    font_size: Optional[int] = Field(default=None, ge=8, le=160)
+    fit: bool = True
+
+    @model_validator(mode="after")
+    def bounded_canvas(self):
+        if (self.width or 720) * (self.height or 960) > 2400 * 1280:
+            raise ValueError("画布面积过大 / Canvas must not exceed 3,072,000 pixels.")
+        return self
 
     @field_validator("width", "height")
     @classmethod
@@ -300,6 +318,8 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         "format": req.format,
         "spacing": req.spacing,
         "direction": req.direction,
+        "font_size": req.font_size,
+        "fit": req.fit,
         "punctuation": chosen_punct,
     }
     if req.width:
@@ -383,6 +403,8 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         "speed": req.speed,
         "spacing": req.spacing,
         "direction": req.direction,
+        "font_size": req.font_size,
+        "fit": req.fit,
         "punctuation": chosen_punct,
     }
     if req.width:

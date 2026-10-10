@@ -122,7 +122,10 @@ test('the editor requests raster previews after edits and ignores obsolete respo
   const first = ui.requests.find(r => r.url === '/api/editor-preview');
   assert.equal(first.body.text, '永');
   assert.equal(first.body.direction, 'vertical-rl');
-  assert.ok(first.body.width <= 640 && first.body.height <= 640);
+  // Logical dimensions stay unscaled; only the returned PNG is downsampled.
+  assert.ok(first.body.width <= 2400 && first.body.height <= 2400);
+  assert.ok(first.body.width * first.body.height <= 2400 * 1280);
+  assert.equal(first.body.font_size, 68);
   input.value = '明月';
   input.dispatchEvent(new window.Event('input'));
   release({ ok: true, blob: async () => new window.Blob(['old']) });

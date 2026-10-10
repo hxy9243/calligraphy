@@ -8,6 +8,13 @@ from .font_layers import FontLayerScene
 from .spec import Appearance, Transforms
 
 
+def paste_patch(page, entry, patch):
+    """Place a normalized glyph patch identically for editor and contact frames."""
+    x = round(entry['x'] + entry['size'] / 2 - patch.width / 2)
+    y = round(entry['y'] + entry['size'] / 2 - patch.height / 2)
+    page.paste(patch, (x, y), patch)
+
+
 class StyledContactScene(ContactScene):
     parallel_frames = False
     engine_type = 'smoothed-contact'
@@ -42,9 +49,7 @@ class StyledContactScene(ContactScene):
                     self._active = None
             else:
                 patch = self._create_patch(self._partial(index, entry, time), entry['size'])
-            x = round(entry['x'] + entry['size'] / 2 - patch.width / 2)
-            y = round(entry['y'] + entry['size'] / 2 - patch.height / 2)
-            page.paste(patch, (x, y), patch)
+            paste_patch(page, entry, patch)
         return page
 
     def frame_svg(self, time):

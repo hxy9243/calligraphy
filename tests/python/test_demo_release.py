@@ -145,7 +145,7 @@ class DemoReleaseTests(unittest.TestCase):
                 self.assertEqual(response.headers['content-type'], 'image/png')
         self.assertEqual(self.db.list_jobs('user-a'), [])
         for i in range(3): self.create(self.db, f'export-{i}')
-        self.assertEqual(self.client.post('/api/editor-preview', json={**params, 'width': 641}).status_code, 422)
+        self.assertEqual(self.client.post('/api/editor-preview', json={**params, 'width': 2401}).status_code, 422)
 
     def test_private_volume_fonts_are_verified_and_missing_sources_fail_startup(self):
         root = Path(self.temp.name) / 'app'

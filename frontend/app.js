@@ -309,6 +309,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let verifiedGlyphKey = '';
   let editorTimer, editorRevision = 0, editorInFlight = false, editorURL = null;
 
+  // One logical page contract for editor pixels, stills and videos. Display size
+  // never changes composition; the editor endpoint only downsamples the image.
+  function compositionSettings() {
+    return { width: canvasWidth, height: canvasHeight,
+      font_size: Number(fontSizeSlider?.value || 68),
+      spacing: Number(spacingSlider?.value || 0.18), fit: fitToggle?.checked ?? true };
+  }
+
   function scheduleEditorPreview() {
     editorRevision += 1;
     clearTimeout(editorTimer);
@@ -329,14 +337,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const revision = editorRevision;
     editorInFlight = true;
     try {
-      const scale = Math.min(1, 640 / Math.max(canvasWidth, canvasHeight));
       const res = await fetch('/api/editor-preview', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: textInput.value.trim(), style: styleSelect.value || 'kai',
           direction: currentDirection, punctuation: punctuationSelect?.value || 'omit',
-          width: Math.max(64, Math.round(canvasWidth * scale)), height: Math.max(64, Math.round(canvasHeight * scale)),
-          font_size: Math.max(8, Math.round(Number(fontSizeSlider?.value || 68) * scale)),
-          spacing: Number(spacingSlider?.value || 0.18), fit: fitToggle?.checked ?? true }),
+          ...compositionSettings() }),
       });
       if (revision !== editorRevision) return;
       if (!res.ok) {
@@ -1245,12 +1250,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showStatus('正在生成高精度靜圖預覽...', 'info');
 
     try {
-      const spacing = spacingSlider ? parseFloat(spacingSlider.value) : 0.18;
       const punctuation = punctuationSelect ? punctuationSelect.value : 'omit';
       const res = await fetch('/api/previews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, style, format: 'auto', spacing, direction: currentDirection, punctuation })
+        body: JSON.stringify({ text, style, format: 'auto', ...compositionSettings(), direction: currentDirection, punctuation })
       });
 
       if (!res.ok) {
@@ -1317,12 +1321,11 @@ document.addEventListener('DOMContentLoaded', () => {
     hideStatus();
 
     try {
-      const spacing = spacingSlider ? parseFloat(spacingSlider.value) : 0.18;
       const punctuation = punctuationSelect ? punctuationSelect.value : 'omit';
       const res = await fetch('/api/renders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, style, speed, fps, spacing, direction: currentDirection, punctuation })
+        body: JSON.stringify({ text, style, speed, fps, ...compositionSettings(), direction: currentDirection, punctuation })
       });
 
       if (!res.ok) {

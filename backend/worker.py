@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from calligraphy.renderer import create_scene, export_still, export_svg, export_video
-from calligraphy.spec import Appearance, SceneSpec, Transforms
+from .composition import scene_spec_from_params
 from .database import Database, get_db
 from .style_catalog import downloaded_catalog_entry
 
@@ -162,39 +162,7 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
     db.update_job(job_id, status="rendering", progress=0.1)
 
     try:
-        # Default geometry & timing
-        layout_dict = {
-            "width": params.get("width", 720),
-            "height": params.get("height", 960),
-            "direction": params.get("direction", "vertical-rl"),
-            "characters_per_line": params.get("characters_per_line", None),
-            "gap": float(params.get("spacing", params.get("gap", 0.18))),
-        }
-        timing_dict = {
-            "stroke_seconds": params.get("stroke_seconds", 0.18),
-            "character_gap": params.get("character_gap", 0.15),
-            "intro": params.get("intro", 0.5),
-            "outro": params.get("outro", 1.0),
-        }
-        appearance = Appearance.from_dict({
-            "paper": params.get("paper", "#f8f3e9"),
-            "ink": params.get("ink", "#1c1b18"),
-        })
-        transforms = Transforms(
-            scale=params.get("scale", 1.0),
-            stretch=params.get("stretch", 1.0),
-            rotation=params.get("rotation", 0.0),
-        )
-
-        scene_spec = SceneSpec(
-            text=text,
-            style=style,
-            layout=layout_dict,
-            timing=timing_dict,
-            punctuation=params.get("punctuation", "omit"),
-            appearance=appearance,
-            transforms=transforms,
-        )
+        scene_spec = scene_spec_from_params(text, style, params)
 
         db.update_job(job_id, progress=0.3)
 

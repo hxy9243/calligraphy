@@ -19,10 +19,12 @@ submits work; video rendering runs in the worker.
 Within the same existing `calligraphy_session` browser session, an identical
 active render is reused rather than creating another job. Identity includes the
 exact submitted text, canonical style, and the entire validated parameter mapping
-including frame rate, speed, spacing and layout direction. JSON key order and
+including frame rate, speed, spacing, layout direction, logical canvas dimensions,
+font size and fit mode. JSON key order and
 equivalent numeric representations do not create different identities. Known
 render defaults are filled before comparison, including the legacy vertical-rl
-direction for older jobs that omitted it. Unknown parameter keys are preserved
+direction, missing-size whole-page fitting and `fit=true` for older jobs that
+omitted them. Unknown parameter keys are preserved
 in the identity rather than ignored. Changing any output parameter creates a
 separate render. Distinct sessions never merge jobs or gain access to each other's
 status, history or outputs. Concurrent first-ever requests without an established

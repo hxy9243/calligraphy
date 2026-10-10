@@ -55,6 +55,10 @@ def create_text_plan(
     if "gap" in layout:
         layout_args["gap"] = layout["gap"]
 
+    for name in ("font_size", "fit"):
+        if name in layout:
+            layout_args[name] = layout[name]
+
     page = layout_text(parsed["lines"], **layout_args)
 
     timing = timing or {}

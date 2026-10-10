@@ -28,6 +28,8 @@ def layout_text(
     characters_per_line: Optional[int] = None,
     margin: Optional[float] = None,
     gap: float = 0.18,
+    font_size: Optional[float] = None,
+    fit: bool = True,
 ) -> Dict[str, Any]:
     """Fit lines of characters into page cell placements.
     
@@ -52,13 +54,18 @@ def layout_text(
     if available_width <= 0 or available_height <= 0:
         raise ValueError("Margins leave no space for writing")
 
+    if font_size is not None:
+        font_size = _finite_number(font_size, "font_size", minimum=8, maximum=8192)
+    if not isinstance(fit, bool):
+        raise TypeError("fit must be a boolean")
+
     vertical = direction == "vertical-rl"
     count = sum(len(line) for line in lines)
     if count == 0:
         raise ValueError("No characters to lay out")
 
     if characters_per_line is None:
-        if len(lines) > 1:
+        if font_size is not None or len(lines) > 1:
             per_line = max(len(line) for line in lines)
         else:
             ratio = (available_height / available_width) if vertical else (available_width / available_height)
@@ -80,7 +87,11 @@ def layout_text(
     col_denom = columns + (columns - 1) * gap
     row_denom = rows + (rows - 1) * gap
     cell = min(available_width / col_denom, available_height / row_denom)
-    if cell < 16:
+    if font_size is not None:
+        if not fit and font_size > cell + 1e-6:
+            raise ValueError("文字超出画布，请开启自动适应、缩小字号或加大画布 / Text exceeds the canvas; enable fit, reduce font size or enlarge the canvas")
+        cell = min(font_size, cell) if fit else font_size
+    if cell < (8 if font_size is not None else 16):
         raise ValueError("Text is too dense for this page; use a larger page or fewer characters")
 
     left = (width - cell * col_denom) / 2

@@ -60,9 +60,38 @@ shared worker passes it into `SceneSpec.layout.direction` for SVG, PNG and video
 Existing jobs without a direction retain the vertical default. Direction changes
 create distinct render requests even when their text and style match.
 
-The live font stage is an editing aid, not a pixel-identical export. Server page
-fitting and line wrapping continue to use the shared scene plan, and choosing
-horizontal writing does not rotate the page or swap its dimensions.
+## Editor and export composition
+
+The editor, still and video requests carry the same logical `width`, `height`,
+`font_size`, `fit`, spacing, direction and punctuation. Viewport changes only
+resize the display. The editor rasterizes the logical page first and downsamples
+the completed image to at most 640 pixels per axis, so scaling cannot alter line
+breaks, margins, glyph size or brush rounding. Selecting horizontal writing does
+not rotate the page or swap its dimensions.
+
+`backend/composition.py` builds the shared `SceneSpec`. Explicit font size keeps
+explicit text lines (including punctuation breaks), with no heuristic wrapping
+of a single line. All glyph cells use the chosen size; `fit=true` shrinks only
+when needed to keep that grid within the shared 7% margin. `fit=false` reports
+an actionable overflow error instead of silently clipping or rearranging text.
+Requests and older jobs without `font_size` retain the former whole-page fitting
+and single-line wrapping. Still/video dimensions continue to default to 720×960.
+
+All studio canvases are bounded to 64–2400 pixels per axis and 3,072,000 total
+pixels, covering the existing long-canvas controls. Videos additionally require
+even dimensions. This increases the maximum RGB page buffer from 4.9 MB to
+9.2 MB; editor transport remains bounded to 640×640 and existing single-job
+admission, deadlines, frame counts and video-duration limits remain in force.
+
+Kai/Yan editor pixels use the same completed contact frame as exports. The
+lightweight source-font preview keeps source silhouettes, normalized with the
+same 480-pixel glyph masks, patch scale, ink/paper colors and placement as the
+font export pipeline. It does not fit or register contact strokes on every edit;
+inferred stroke-edge texture can still differ from the final still/video.
+Cold contact preparation for a 20-character font poem exceeds the editor's
+30-second deadline in the serial benchmark, so forcing contact rendering for
+this path would regress usable previews. Cached preview identity and active-job
+deduplication include logical dimensions, font size and fit.
 
 ## Regression checks
 
@@ -87,7 +116,7 @@ metadata omits filesystem paths and download URLs. Font tiles and picker glyphs
 use fixed server-rasterized PNG samples from `/api/font-samples/{style}`. This
 endpoint accepts no arbitrary text or asset paths. `POST /api/editor-preview`
 accepts bounded text/layout settings and returns PNG pixels, never font bytes.
-Catalog fonts use their source glyphs; Kai/Yan use the scene renderer. The browser
+Catalog fonts use normalized source glyphs on the shared scene plan; Kai/Yan use the scene renderer. The browser
 debounces edits by 800 ms, keeps at most one request in flight and ignores stale
 responses. Pending/error status sits outside the artwork viewport. Font cards,
 the picker and the selected-font badge use precomputed backend PNG samples of
@@ -95,7 +124,7 @@ the picker and the selected-font badge use precomputed backend PNG samples of
 missing characters in an alert near the input and blocks exports until the
 text/font changes. These transient previews do not create export jobs or
 consume the three-creations-per-minute budget. Exported stills/videos remain
-authoritative for inferred brush texture and final layout.
+authoritative for inferred brush texture; all paths share logical page layout.
 
 Viewport resizing only adjusts the displayed paper and keeps the current PNG
 visible. Mobile browser chrome can resize the viewport while scrolling; this
@@ -126,8 +155,8 @@ processes. The parent retains deterministic input order, stroke order, final
 composition and cache identity; duplicate characters are still prepared once.
 Only sufficiently large cold work (at least 64 uncached strokes across multiple
 glyphs) starts a pool. Warm geometry and smaller requests stay serial to avoid
-process-import overhead. Source-font previews retain their lightweight Pillow
-path. This changes preparation scheduling, not glyph geometry or animation.
+process-import overhead. Source-font previews retain their lightweight raster
+path without contact fitting. This changes preparation scheduling, not glyph geometry or animation.
 
 `CALLIGRAPHY_PREVIEW_WORKERS=1` disables the pool; the default/hard maximum is two.
 The editor also reduces this budget for CPU affinity, Linux cgroup CPU quotas,
@@ -147,3 +176,9 @@ cleanup, serial/warm fallback, duplicate reuse and partial/final pixel equality.
 
 See [measured preview validation](../docs/validation-parallel-preview.md) for
 cold/warm timings, equivalence checks and environment limits.
+
+`tests/frontend-composition.test.mjs` checks identical editor/still/video logical
+payloads, both directions, explicit size/fit and long automatic canvases.
+`test_studio_composition.py` verifies actual PNG dimensions, downsampled Kai
+pixel equality, source-font/export ink overlap and placement, decoded MP4 partial
+and final frames, overflow/area bounds, cache identity and legacy compatibility.

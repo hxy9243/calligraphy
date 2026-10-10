@@ -1,7 +1,6 @@
 """Short-lived, bounded raster typesetting for the editor, without export jobs."""
 import io
 import json
-import math
 import os
 from pathlib import Path
 import signal
@@ -11,10 +10,11 @@ import tempfile
 import threading
 from functools import lru_cache
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 from .public_fonts import ROOT, private_catalog, validate_style
 from .style_catalog import downloaded_catalog_entry
+from .composition import scene_spec_from_params
 
 _SLOT = threading.Lock()
 
@@ -86,13 +86,10 @@ def glyph_worker_count():
 
 def render_pixels(params):
     style = validate_style(params['style'])
-    width, height = params['width'], params['height']
+    spec = scene_spec_from_params(params['text'], style, params)
     if style in {'kai', 'yan'}:
         from calligraphy.renderer import create_scene
-        from calligraphy.spec import SceneSpec
-        scene = create_scene(SceneSpec(text=params['text'], style=style,
-            layout={'width': width, 'height': height, 'direction': params['direction'], 'gap': params['spacing']},
-            punctuation=params['punctuation']), fetch_missing=True, glyph_workers=glyph_worker_count())
+        scene = create_scene(spec, fetch_missing=True, glyph_workers=glyph_worker_count())
         duration = scene.duration if hasattr(scene, 'duration') else scene.plan.duration
         image = scene.frame(duration)
     else:
@@ -102,41 +99,25 @@ def render_pixels(params):
         path = (ROOT / entry['file_path']).resolve()
         if not path.is_relative_to(ROOT / 'data/fonts'):
             raise ValueError('Invalid font asset')
-        # Explicit lines are columns in vertical writing; punctuation can break lines.
-        lines = params.get('lines')
-        if lines is None:
-            from calligraphy.text.input import parse_text
-            lines = parse_text(params['text'], punctuation=params['punctuation'])['lines']
-        lines = [line for line in lines if line]
-        if not lines:
-            raise ValueError('请输入汉字 / Please enter Chinese characters.')
-        from fontTools.ttLib import TTFont
-        with TTFont(str(path), fontNumber=0, lazy=True) as source:
-            cmap = source.getBestCmap() or {}
-            missing = sorted({char for line in lines for char in line if ord(char) not in cmap})
-        if missing:
-            raise ValueError('当前字体缺少字符 / Missing font glyphs: ' + ' '.join(missing))
-        vertical = params['direction'] == 'vertical-rl'
-        max_chars = max(len(line) for line in lines)
-        columns, rows = (len(lines), max_chars) if vertical else (max_chars, len(lines))
-        size = params['font_size']
-        step = 1 + params['spacing']
-        if params['fit']:
-            size = min(size, (width - 40) / (1 + (columns - 1) * step),
-                       (height - 40) / (1 + (rows - 1) * step))
-        size = max(1, math.floor(size))
-        font = ImageFont.truetype(str(path), size)
-        image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(image)
-        x0 = (width - size * (1 + (columns - 1) * step)) / 2
-        y0 = (height - size * (1 + (rows - 1) * step)) / 2
-        for line_no, line in enumerate(lines):
-            for char_no, char in enumerate(line):
-                col, row = (columns - 1 - line_no, char_no) if vertical else (char_no, line_no)
-                box = font.getbbox(char)
-                x = x0 + col * size * step + (size - box[2] + box[0]) / 2 - box[0]
-                y = y0 + row * size * step + (size - box[3] + box[1]) / 2 - box[1]
-                draw.text((x, y), char, font=font, fill='#1c1b18')
+        # Keep this path lightweight: do not fit/register font strokes on edits.
+        # Use the export plan, normalized source masks, ink and patch placement;
+        # the inferred brush texture of the eventual export may still differ.
+        from types import SimpleNamespace
+        from calligraphy.font_pipeline import target_masks
+        from calligraphy.font_layers import FontLayerScene
+        from calligraphy.spec import RenderPlan
+        from calligraphy.styled_contact_scene import paste_patch
+        plan = RenderPlan.create(spec, {char: 1 for char in spec.unique_characters})
+        painter = SimpleNamespace(appearance=spec.appearance, transforms=spec.transforms)
+        size = plan.schedule[0]['size']
+        patches = {char: FontLayerScene._create_patch(painter, mask, size)
+                   for char, mask in target_masks(path, spec.unique_characters)}
+        image = Image.new('RGB', (plan.width, plan.height), spec.appearance.paper_color)
+        for placement in plan.schedule:
+            paste_patch(image, placement, patches[placement['character']])
+    # Rasterize the same logical page as exports, then downsample for transport.
+    # Scaling geometry first changes wrapping, rounding, margins and brush ink.
+    image.thumbnail((640, 640), Image.Resampling.LANCZOS)
     output = io.BytesIO()
     image.save(output, format='PNG')
     return output.getvalue()
