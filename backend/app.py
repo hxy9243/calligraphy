@@ -43,6 +43,7 @@ class PreviewRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
+    palette: Literal["light", "dark"] = "light"
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
     punctuation: str = Field(default="omit")
@@ -80,6 +81,7 @@ class RenderRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
+    palette: Literal["light", "dark"] = "light"
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
@@ -318,6 +320,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         "format": req.format,
         "spacing": req.spacing,
         "direction": req.direction,
+        "palette": req.palette,
         "font_size": req.font_size,
         "fit": req.fit,
         "punctuation": chosen_punct,
@@ -404,6 +407,7 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         "speed": req.speed,
         "spacing": req.spacing,
         "direction": req.direction,
+        "palette": req.palette,
         "font_size": req.font_size,
         "fit": req.fit,
         "punctuation": chosen_punct,

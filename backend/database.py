@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 # was explicit in the API. Unknown/new keys remain part of the render identity.
 RENDER_PARAMETER_DEFAULTS = {
     "fps": 24, "speed": 1.0, "spacing": 0.18, "direction": "vertical-rl",
-    "font_size": None, "fit": True,
+    "font_size": None, "fit": True, "palette": "light",
 }
 
 

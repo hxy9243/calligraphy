@@ -48,7 +48,9 @@ record stores only the selected font/calligraphy style ID (`style`, the single
 font picker/export selection) and paper/background theme (`theme`). Those choices
 survive refreshes and switching Create, History and Fonts panels. Selecting from
 the picker, catalog, recent chips or history reuse updates the same preference;
-the theme selector stays synchronized and does not change exported paper colors.
+the theme selector stays synchronized. Rubbing selects dark artwork paper and
+white ink in editor/still/video requests; the two light themes retain the
+original export colors. This palette remains independent of the selected font.
 
 Saved fonts are validated against `/api/styles` and `/api/font-catalog` as those
 requests arrive. A catalog-only font is not overwritten by the earlier styles

@@ -36,20 +36,23 @@ body.theme-rubbing {
   --shadow: 0 2px 10px rgba(0, 0, 0, .35);
 }
 
-/* Raster samples contain dark ink on transparent pixels. Keep their display
-   paper light in the dark UI; never invert/filter the artwork or export pixels. */
+/* Fixed catalog reference swatches retain their source dark ink. Actual artwork
+   receives its paper and ink colors from the renderer, never CSS filters. */
 body.theme-rubbing .font-current-glyph,
 body.theme-rubbing .picker-sample,
-body.theme-rubbing .glyph-sample,
+body.theme-rubbing .glyph-sample {
+  background: #faf7f0;
+  color: #1c1b18;
+}
 body.theme-rubbing .stage-paper,
 body.theme-rubbing .viewer,
 body.theme-rubbing .export-output-box,
 body.theme-rubbing .job-thumb,
 body.theme-rubbing #detail-viewer {
-  background: #faf7f0;
-  color: #1c1b18;
+  background: #141414;
+  color: #ffffff;
 }
-body.theme-rubbing .job-thumb .placeholder { color: #6e6b64; }
+body.theme-rubbing .job-thumb .placeholder { color: #aaa69f; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 [hidden] { display: none !important; }

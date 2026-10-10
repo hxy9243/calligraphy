@@ -5,66 +5,80 @@ import { JSDOM } from 'jsdom';
 import { createFrontend, flush, jsonResponse } from './helpers/frontend.mjs';
 
 const css = await readFile(new URL('../frontend/style.css', import.meta.url), 'utf8');
-const artworkSelectors = ['.font-current-glyph', '.picker-sample', '.glyph-sample',
-  '.stage-paper', '.viewer', '.export-output-box', '.job-thumb', '#detail-viewer'];
+const changeTheme = (ui, value) => {
+  const theme = ui.document.getElementById('theme-select');
+  theme.value = value;
+  theme.dispatchEvent(new ui.window.Event('change'));
+};
+const endpoints = ['/api/editor-preview', '/api/previews', '/api/renders'];
+const response = ({ url }) => {
+  if (url === '/api/previews') return jsonResponse({ svg: '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="#141414"/><path fill="#ffffff"/></svg>' });
+  if (url === '/api/renders') return jsonResponse({ job_id: 'palette-render', status: 'queued' }, 202);
+};
 
-function luminance(hex) {
-  const channels = hex.match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16) / 255)
-    .map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
-  return channels.reduce((sum, value, i) => sum + value * [.2126, .7152, .0722][i], 0);
-}
-const contrast = (light, dark) => (luminance(light) + .05) / (luminance(dark) + .05);
-
-test('dark artwork surfaces use light paper with readable dark ink, not dark UI paper', () => {
-  // CSS contract, not a browser rasterization test. Match actual selector rules
-  // because jsdom does not resolve custom properties or implement layout.
+test('dark artwork surfaces match rendered paper while fixed font references stay legible', () => {
   const dom = new JSDOM(`<style>${css}</style>`);
   const rules = [...dom.window.document.styleSheets[0].cssRules];
-  for (const selector of artworkSelectors) {
-    const rule = rules.find(rule => rule.selectorText?.split(',').map(s => s.trim())
-      .includes(`body.theme-rubbing ${selector}`));
-    assert.ok(rule, `${selector} has an explicit dark-theme artwork surface`);
-    assert.equal(rule.style.background, '#faf7f0');
-    assert.ok(contrast(rule.style.background, '#1c1b18') >= 12, `${selector} source-font ink contrast`);
-    assert.ok(contrast(rule.style.background, rule.style.color) >= 12, `${selector} fallback text contrast`);
-    assert.equal(rule.style.getPropertyValue('filter'), '');
-    assert.equal(rule.style.getPropertyValue('opacity'), '');
-    assert.equal(rule.style.getPropertyValue('mix-blend-mode'), '');
+  for (const [selectors, paper, ink] of [
+    [['.font-current-glyph', '.picker-sample', '.glyph-sample'], '#faf7f0', '#1c1b18'],
+    [['.stage-paper', '.viewer', '.export-output-box', '.job-thumb', '#detail-viewer'], '#141414', '#ffffff'],
+  ]) {
+    for (const selector of selectors) {
+      const rule = rules.find(rule => rule.selectorText?.split(',').map(s => s.trim()).includes(`body.theme-rubbing ${selector}`));
+      assert.ok(rule, selector);
+      assert.equal(rule.style.background, paper);
+      assert.equal(rule.style.color, ink);
+      for (const property of ['filter', 'opacity', 'mix-blend-mode']) assert.equal(rule.style.getPropertyValue(property), '');
+    }
   }
-  const theme = rules.find(rule => rule.selectorText === 'body.theme-rubbing');
-  assert.equal(theme.style.getPropertyValue('--paper'), '#141414', 'non-artwork UI keeps dark paper');
-  assert.equal(theme.style.getPropertyValue('--surface'), '#242424');
-  const placeholder = rules.find(rule => rule.selectorText === 'body.theme-rubbing .job-thumb .placeholder');
-  assert.ok(contrast('#faf7f0', placeholder.style.color) >= 4.5);
   dom.window.close();
 });
 
-test('switching themes repeatedly preserves preview URLs, inline artwork and download targets', async t => {
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path fill="#1c1b18" d="M10 10h40v60H10z"/></svg>';
-  const ui = await createFrontend({ fetch: ({ url }) => url === '/api/previews' ? jsonResponse({ svg }) : undefined });
-  t.after(ui.close);
-  await ui.tickTimeouts(800);
-  ui.document.getElementById('btn-preview').click();
-  await flush();
-  await ui.tickTimeouts(800);
-  const image = ui.document.getElementById('editor-preview');
-  const source = image.src;
-  const artwork = ui.document.querySelector('#preview-svg-container svg');
-  const original = artwork.outerHTML;
-  const download = ui.document.getElementById('result-download').href;
-  const pixelRequests = () => ui.requests.filter(r => ['/api/editor-preview', '/api/previews', '/api/renders'].includes(r.url)).length;
-  const requests = pixelRequests();
-  const theme = ui.document.getElementById('theme-select');
-  for (const value of ['theme-rubbing', 'theme-gold', 'theme-xuan', 'theme-rubbing']) {
-    theme.value = value;
-    theme.dispatchEvent(new ui.window.Event('change'));
+for (const style of ['kai', 'yan', 'tw-sung']) {
+  test(`${style}: dark selection and reload submit the same palette for editor, still and video`, async t => {
+    const ui = await createFrontend({ fetch: response, setup(window) {
+      window.localStorage.setItem('calligraphy.preferences', JSON.stringify({version: 1, theme: 'theme-rubbing'}));
+    } });
+    t.after(ui.close);
+    const select = ui.document.getElementById('style-select');
+    select.add(new ui.window.Option(style, style)); select.value = style;
+    select.dispatchEvent(new ui.window.Event('change'));
     await ui.tickTimeouts(800);
-    assert.ok(ui.document.body.classList.contains(value));
-    assert.equal(image.src, source);
-    assert.equal(image.hidden, false);
-    assert.equal(ui.document.querySelector('#preview-svg-container svg'), artwork);
-    assert.equal(artwork.outerHTML, original);
-    assert.equal(ui.document.getElementById('result-download').href, download);
-    assert.equal(pixelRequests(), requests, 'theme is display-only');
-  }
+    ui.document.getElementById('btn-preview').click(); await flush();
+    ui.document.getElementById('btn-render').click(); await flush();
+    for (const url of endpoints) {
+      const body = ui.requests.filter(r => r.url === url).at(-1).body;
+      assert.equal(body.palette, 'dark', url);
+      assert.equal(body.style, style, url);
+    }
+    const artwork = ui.document.querySelector('#preview-svg-container svg');
+    const original = artwork.outerHTML;
+    const download = ui.document.getElementById('result-download').href;
+    for (const theme of ['theme-gold', 'theme-xuan', 'theme-rubbing']) {
+      changeTheme(ui, theme);
+      await ui.tickTimeouts(800);
+      assert.equal(ui.requests.filter(r => r.url === endpoints[0]).at(-1).body.palette, theme === 'theme-rubbing' ? 'dark' : 'light');
+      assert.equal(artwork.outerHTML, original, 'completed artwork is never recolored');
+      assert.equal(ui.document.getElementById('result-download').href, download);
+    }
+  });
+}
+
+test('a late light response cannot replace the dark editor after switching backgrounds', async t => {
+  let finishLight;
+  const ui = await createFrontend({ fetch: ({url, body}) => {
+    if (url === '/api/editor-preview' && body.palette === 'light') return new Promise(resolve => { finishLight = resolve; });
+  } });
+  t.after(ui.close);
+  const pending = ui.tickTimeouts(800);
+  await flush();
+  assert.ok(finishLight);
+  changeTheme(ui, 'theme-rubbing');
+  const image = ui.document.getElementById('editor-preview');
+  finishLight({ok: true, blob: async () => new ui.window.Blob(['old'])});
+  await pending;
+  assert.equal(image.hidden, true);
+  await ui.tickTimeouts(800);
+  assert.equal(ui.requests.filter(r => r.url === endpoints[0]).at(-1).body.palette, 'dark');
+  assert.equal(image.hidden, false);
 });

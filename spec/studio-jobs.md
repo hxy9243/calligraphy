@@ -150,7 +150,7 @@ job removes those temporary output chips. Unknown/unavailable fonts fall back to
 an available font with a persistent notice beside the layout controls.
 
 Missing legacy values use the worker defaults (720×960, vertical right-to-left,
-0.18 spacing, omitted punctuation, fit enabled, 1× speed, 24 fps), never unrelated
+0.18 spacing, omitted punctuation, fit enabled, 1× speed, 24 fps, light palette), never unrelated
 values from the current draft. Legacy `gap` is accepted when `spacing` is absent.
 Old jobs that did not record a font size used whole-page layout; the UI loads
 68px and explicitly warns that the original sizing and appearance cannot be
@@ -160,8 +160,10 @@ notice. Missing optional controls are also disclosed.
 Non-default persisted settings with no editor/API control, such as paper/ink,
 transforms, per-stroke timing, line-count overrides or still format, are named in
 the notice as not applied. The normal implicit worker defaults need no warning.
-The page's paper-atmosphere theme is a browsing preference, not a persisted output
-paper setting; reuse never presents changing that theme as restoring export paper.
+The artwork palette is stored in job params: `dark` restores the rubbing
+background and white ink; `light` or missing legacy values restore light artwork.
+Custom legacy paper/ink colors remain unsupported by the two-palette UI and are
+reported explicitly rather than claiming an exact restoration.
 The success message says all settings were loaded only when no caveat applies.
 
 Regression coverage: `tests/frontend-history-reuse.test.mjs`, including repeated

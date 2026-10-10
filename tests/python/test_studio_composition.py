@@ -1,4 +1,5 @@
 """Real page pixels and decoded frames keep the editor's logical composition."""
+import base64
 import io
 import json
 import math
@@ -7,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import patch
 
@@ -216,3 +218,89 @@ class StudioCompositionTests(unittest.TestCase):
                 editor_preview({**params, **changes})
         self.assertEqual(len(set(payloads)), 5)
         self.assertEqual(json.loads(payloads[0])['width'], 240)
+
+    def palette_ink(self, image, palette):
+        red = np.asarray(image)[:, :, 0]
+        return red > 137 if palette == 'dark' else red < 138
+
+    def assert_palette_pixels(self, image, palette):
+        paper, ink = ((20, 20, 20), (255, 255, 255)) if palette == 'dark' else (
+            (248, 243, 233), (28, 27, 24))
+        pixels = np.asarray(image)
+        np.testing.assert_array_equal(pixels[0, 0], paper)
+        self.assertGreater(np.all(pixels == ink, axis=2).sum(), 20)
+
+    def test_light_and_dark_editor_png_still_png_and_svg_have_real_palette_pixels(self):
+        for style in ('kai', 'yan', 'fixture'):
+            palette_masks = []
+            for palette in ('light', 'dark'):
+                with self.subTest(style=style, palette=palette):
+                    self.client.cookies.set('calligraphy_session', f'{style}-{palette}')
+                    params = {**self.params(), 'style': style, 'palette': palette}
+                    preview = Image.open(io.BytesIO(
+                        self.submit('/api/editor-preview', params).content)).convert('RGB')
+                    still, job = self.still(params)
+                    self.assertEqual(job['params']['palette'], palette)
+                    # A fresh connection confirms the palette survives job persistence.
+                    self.assertEqual(Database(self.db.db_url).get_job(job['job_id'])['params']['palette'], palette)
+                    svg = self.submit('/api/previews', {**params, 'format': 'auto'}).json()
+                    svg_image = ET.fromstring(svg['svg']).find('{http://www.w3.org/2000/svg}image')
+                    svg_pixels = Image.open(io.BytesIO(base64.b64decode(
+                        svg_image.attrib['href'].split(',', 1)[1]))).convert('RGB')
+                    for output in (preview, still, svg_pixels):
+                        self.assert_palette_pixels(output, palette)
+                    np.testing.assert_array_equal(svg_pixels, still)
+                    if style in ('kai', 'yan'):
+                        np.testing.assert_array_equal(preview, still)
+                    else:
+                        a, b = self.palette_ink(preview, palette), self.palette_ink(still, palette)
+                        self.assertGreater((a & b).sum() / (a | b).sum(), .85)
+                    palette_masks.append(self.palette_ink(still, palette))
+            # Switching palette recolors the same geometry; it cannot invert or
+            # replace glyph masks, placement, texture, or writing order.
+            np.testing.assert_array_equal(*palette_masks)
+
+    @unittest.skipUnless(shutil.which('ffmpeg'), 'FFmpeg is required for decoded-frame integration')
+    def test_both_palettes_survive_decoded_partial_and_final_video_for_all_styles(self):
+        for style in ('kai', 'yan', 'fixture'):
+            for palette in ('light', 'dark'):
+                with self.subTest(style=style, palette=palette):
+                    self.client.cookies.set('calligraphy_session', f'video-{style}-{palette}')
+                    params = {**self.params(), 'style': style, 'palette': palette,
+                              'text': '十十', 'width': 240, 'height': 160,
+                              'direction': 'horizontal-lr', 'font_size': 72,
+                              'fit': False, 'fps': 8, 'speed': 1}
+                    still, _ = self.still(params)
+                    response = self.submit('/api/renders', params)
+                    job = self.db.get_job(response.json()['job_id'])
+                    self.assertEqual(job['params']['palette'], palette)
+                    self.assertTrue(execute_job(job, self.db))
+                    job = self.db.get_job(job['job_id'])
+                    raw = subprocess.check_output(['ffmpeg', '-v', 'error', '-i', job['output_path'],
+                        '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-threads', '1', '-'])
+                    frames = np.frombuffer(raw, dtype=np.uint8).reshape((-1, 160, 240, 3))
+                    scene = self.create_scene(scene_spec_from_params(params['text'], style, params))
+                    self.assertEqual(len(frames), math.ceil(scene.duration * params['fps']))
+                    paper = scene.appearance.paper_color
+                    self.assertLess(np.abs(frames[0].astype(float) - paper).max(), 5)
+                    for index in (6, 10, len(frames) - 1):
+                        time = scene.duration if index == len(frames) - 1 else index / params['fps']
+                        expected = np.asarray(scene.frame(time))
+                        self.assertLess(np.abs(frames[index].astype(float) - expected).mean(), 2)
+                        np.testing.assert_allclose(frames[index, 0, 0], paper, atol=5)
+                        a, b = self.palette_ink(frames[index], palette), self.palette_ink(expected, palette)
+                        self.assertTrue(a.any())
+                        self.assertGreater((a & b).sum() / (a | b).sum(), .90)
+                    np.testing.assert_array_equal(scene.frame(scene.duration), still)
+                    self.assertLess(self.palette_ink(frames[6], palette).sum(),
+                                    self.palette_ink(frames[-1], palette).sum())
+
+    def test_old_jobs_without_palette_keep_custom_paper_and_ink_pixels(self):
+        params = {**self.params(), 'format': 'png', 'paper': '#f0e0d0', 'ink': '#123456'}
+        job = self.db.create_job('legacy-colors', 'legacy-user', 'preview', '十十\n十', 'kai', params)
+        self.assertTrue(execute_job(job, self.db))
+        job = self.db.get_job(job['job_id'])
+        still = np.asarray(Image.open(job['output_path']).convert('RGB'))
+        np.testing.assert_array_equal(still[0, 0], (240, 224, 208))
+        self.assertGreater(np.all(still == (18, 52, 86), axis=2).sum(), 20)
+        np.testing.assert_array_equal(Image.open(io.BytesIO(render_pixels(params))), still)

@@ -165,8 +165,8 @@ test('invalid/unavailable settings and custom paper are disclosed without retain
   assert.match(notice.textContent, /removed-font.*目前不可用/);
   assert.match(notice.textContent, /無法套用.*paper.*scale.*<b>extra<\/b>/);
   assert.equal(notice.querySelector('b'), null);
-  assert.match(notice.textContent, /主題不會改變輸出紙色/);
-  assert.equal(theme.value, 'theme-rubbing');
+  assert.match(notice.textContent, /自訂紙墨顏色無法完整還原/);
+  assert.equal(theme.value, 'theme-xuan');
   await reuse(ui, 'full');
   assert.equal(notice.hidden, true);
 });
@@ -219,4 +219,24 @@ test('long supported canvases restore exactly and oversized areas use a disclose
   await reuse(ui, 'huge');
   assert.equal(byId(ui, 'canvas-dim-val').textContent, '720 × 960');
   assert.match(byId(ui, 'history-reuse-notice').textContent, /超出目前支援面積/);
+});
+
+test('reuse restores dark artwork and legacy light artwork instead of the current draft palette', async t => {
+  const ui = await createFrontend({jobs: [makeJob('dark', {...complete, palette: 'dark'}), makeJob('old', complete)], fetch: exportResponse});
+  t.after(ui.close);
+  for (const [id, palette, theme] of [['dark', 'dark', 'theme-rubbing'], ['old', 'light', 'theme-xuan']]) {
+    await reuse(ui, id);
+    assert.equal(byId(ui, 'theme-select').value, theme);
+    assert.equal(byId(ui, 'history-reuse-notice').hidden, true);
+    await ui.tickTimeouts(800);
+    byId(ui, 'btn-preview').click(); await flush();
+    byId(ui, 'btn-render').click(); await flush();
+    for (const url of ['/api/editor-preview', '/api/previews', '/api/renders']) {
+      assert.equal(ui.requests.filter(r => r.url === url).at(-1).body.palette, palette, url);
+    }
+    byId(ui, 'creation-notice').querySelector('[data-close]').click();
+    ui.window.location.hash = '#history';
+    ui.window.dispatchEvent(new ui.window.HashChangeEvent('hashchange'));
+    await flush();
+  }
 });

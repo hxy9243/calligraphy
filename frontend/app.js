@@ -256,6 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (_) {
     // Malformed JSON or unavailable storage must not stop the editor.
   }
+  let artworkPalette = preferences.theme === 'theme-rubbing' ? 'dark' : 'light';
   let pendingSavedStyle = preferences.style || null;
   let stylesLoaded = false, catalogLoaded = false;
 
@@ -357,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // One logical page contract for editor pixels, stills and videos. Display size
   // never changes composition; the editor endpoint only downsamples the image.
   function compositionSettings() {
-    return { width: canvasWidth, height: canvasHeight,
+    return { width: canvasWidth, height: canvasHeight, palette: artworkPalette,
       font_size: Number(fontSizeSlider?.value || 68),
       spacing: Number(spacingSlider?.value || 0.18), fit: fitToggle?.checked ?? true };
   }
@@ -1470,7 +1471,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function restoreJobSettings(job) {
     const params = job.params && typeof job.params === 'object' && !Array.isArray(job.params) ? job.params : {};
     const notices = [];
-    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps']);
+    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps', 'palette']);
     const readNumber = (key, fallback, min, max, integer = false) => {
       const value = params[key];
       if (value === undefined || value === null) return fallback;
@@ -1547,14 +1548,19 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreOutput(speedSelect, speedSeg, 'speed', readNumber('speed', 1, 0.25, 4), '視頻速度');
     restoreOutput(fpsSelect, fpsSeg, 'fps', readNumber('fps', 24, 1, 60, true), '幀率');
 
-    // These are implicit worker defaults. Non-default values have no editor/API
-    // control, so disclose them rather than pretending the page theme restores paper.
+    const palette = params.palette ?? 'light';
+    if (!['light', 'dark'].includes(palette)) notices.push('紙墨配色無效，改用淺紙深墨');
+    // Old jobs predate palette selection and were rendered on light paper.
+    selectTheme(palette === 'dark' ? 'theme-rubbing' :
+      (themeSelect?.value === 'theme-gold' ? 'theme-gold' : 'theme-xuan'));
+
+    // Custom legacy colors and transforms still have no editor controls.
     const implicitDefaults = { paper: '#f8f3e9', ink: '#1c1b18', stroke_seconds: 0.18,
       character_gap: 0.15, intro: 0.5, outro: 1, scale: 1, stretch: 1, rotation: 0,
       characters_per_line: null, format: 'auto' };
     const unsupported = Object.keys(params).filter(key => !recognized.has(key) &&
       !(Object.hasOwn(implicitDefaults, key) && params[key] === implicitDefaults[key]));
-    if (unsupported.length) notices.push(`目前無法套用的歷史設定：${unsupported.join('、')}。請核對成品；介面宣紙主題不會改變輸出紙色`);
+    if (unsupported.length) notices.push(`目前無法套用的歷史設定：${unsupported.join('、')}。請核對成品；自訂紙墨顏色無法完整還原`);
 
     const originalStyle = job.style || 'kai';
     const meta = getFontMeta(originalStyle);
@@ -2262,10 +2268,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
   });
 
-  // The paper/background theme is display-only and independent of font/style.
+  // Rubbing changes actual artwork pixels; both light themes retain legacy paper.
+  // Font/style stays independent of this paper-and-ink selection.
   const themeSelect = document.getElementById('theme-select');
   function selectTheme(theme, { persist = true } = {}) {
     if (!themeIds.includes(theme)) return;
+    const nextPalette = theme === 'theme-rubbing' ? 'dark' : 'light';
+    const paletteChanged = nextPalette !== artworkPalette;
+    artworkPalette = nextPalette;
     document.body.classList.remove(...themeIds);
     document.body.classList.add(theme);
     if (themeSelect) themeSelect.value = theme;
@@ -2273,6 +2283,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.toggle('active', button.dataset.theme === theme);
     });
     if (persist) savePreferences({ theme });
+    if (paletteChanged) scheduleEditorPreview();
   }
   selectTheme(preferences.theme || 'theme-xuan', { persist: false });
   themeSelect?.addEventListener('change', () => selectTheme(themeSelect.value));

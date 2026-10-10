@@ -35,13 +35,27 @@ anyone-with-link privacy notice. The standalone viewer and capability boundary a
 
 ## Dark-mode artwork contrast
 
-The rubbing theme keeps dark controls and surroundings, but font badges, picker
-and catalog samples, live editor paper, still-output viewers and history
-thumbnails/detail viewers use light display paper (`#faf7f0`). Source-font PNGs
-contain dark ink on transparent pixels, so they cannot inherit the near-black UI
-paper. Artwork is never inverted, brightened with filters, or recolored; changing
-the UI theme does not request new pixels or alter downloads. The standalone
-shared-video viewer already uses its own fixed light palette.
+The rubbing background selects actual dark paper (`#141414`) and white ink
+(`#ffffff`) for the live editor and generated PNG, SVG and MP4 artwork. Both
+light themes retain the original warm light paper and dark ink. The browser
+sends `palette: light|dark` with the shared composition; the API validates it,
+persists it in job params, and resolves it through the shared scene appearance.
+Cache and render-deduplication identities include palette. Older requests/jobs
+without palette keep their original light/default appearance.
+
+Switching between dark and light requests fresh editor pixels and discards stale
+responses. Completed artwork, history media and shared videos retain their
+original embedded pixels, regardless of the current page theme. Reusing a job
+restores its palette (legacy jobs default to light), and the selected background
+continues to persist across reloads independently of font/style. Fixed catalog
+reference swatches remain on light paper for their existing dark source ink.
+No artwork inversion or other CSS filters are applied.
+
+Palette regression checks cover request validation, durable job params, legacy
+render deduplication, editor caching, preferences/reuse and stale responses.
+`test_studio_composition.py` checks actual light/dark editor and still PNG pixels,
+embedded SVG pixels and FFmpeg-decoded partial/final frames for Kai, Yan and a
+hermetic source-font fixture, including unchanged glyph masks between palettes.
 
 ## Layout direction
 
