@@ -104,7 +104,8 @@ wall-clock deadline including font preparation. The process group is killed on
 deadline or service shutdown, including FFmpeg. Interrupted jobs are failed with
 a retry message on restart; queued jobs survive. Automatic retries are disabled.
 
-Outputs and terminal history expire after 24 hours. Cleanup also removes expired
+Outputs and terminal history expire after 7 days by default, configurable with
+`CALLIGRAPHY_RETENTION_SECONDS` (default: `604800`). Cleanup also removes expired
 output files whose history was deleted. Caches are persistent and do not share
 the output TTL. Cookies are Secure, HttpOnly and SameSite=Lax; browser mutation
 requests must be same-origin. Clearing browser data loses access to old jobs.

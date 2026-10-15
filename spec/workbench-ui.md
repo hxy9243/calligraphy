@@ -39,7 +39,7 @@ The backend supplies owner-only retention metadata for history expiry labels.
 - **Real-time stage (实时试写)**: Both `.stage-viewport` and `.stage-paper` automatically lengthen on the web page to fit the artwork naturally without nested inner scrollbox clamping.
 - Auto-fit only intervenes if manual canvas boundaries constrain text.
 - Completed works open in viewport-height modals rather than a latest-result tab. Video fits the full available media region without a fixed height ceiling; mobile metadata sits below the player. Playback requires an explicit user gesture. Completed videos offer copyable, revocable single-video sharing with a 72-hour per-video retention lease and an exact-expiry privacy notice on creation and copying.
-- History cards clamp text and show the server-reported retention deadline, including active sharing extensions. The detail dialog shows full text, parameters, retention and separate share-link deadlines, and download options. Policy notes distinguish unshared 24-hour retention, 72-hour sharing, and a ten-minute self-handoff link that does not extend retention.
+- History cards clamp text and show the server-reported retention deadline, including active sharing extensions. The detail dialog shows full text, parameters, retention and separate share-link deadlines, and download options. Policy notes distinguish unshared 7-day retention, 72-hour sharing, and a ten-minute self-handoff link that does not extend retention.
 
 ## Persistence
 `localStorage` keys `calligraphy.direction` and `calligraphy.favorites` retain

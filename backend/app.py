@@ -28,6 +28,7 @@ from .database import Database, get_db
 from .database import AdmissionError
 from .public_fonts import allowed_style, public_catalog, private_catalog, validate_style, font_sample
 from .style_catalog import STYLE_ALIASES
+from .retention import get_retention_seconds
 from .worker import execute_job_bounded as execute_job, get_runner
 from .editor_preview import editor_preview
 
@@ -471,7 +472,7 @@ def list_session_jobs(request: Request, response: Response):
     session_id = request.state.session_id
     db = get_db()
     jobs = db.list_jobs(session_id)
-    retention_seconds = int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400"))
+    retention_seconds = get_retention_seconds()
     for j in jobs:
         j["retention"] = job_retention_summary(j, db, retention_seconds)
         if j.get("status") == "succeeded" and j.get("job_type") == "render":
@@ -522,7 +523,7 @@ def get_job_status(job_id: str, request: Request, response: Response):
         "video_url": video_url,
         "created_at": job["created_at"],
         "updated_at": job["updated_at"],
-        "retention": job_retention_summary(job, db, int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400"))),
+        "retention": job_retention_summary(job, db, get_retention_seconds()),
     }
 
 
@@ -608,7 +609,7 @@ def export_video_path(job, lease_expires=None):
     path = Path(job["output_path"])
     if path.suffix.lower() != ".mp4" or path.is_symlink() or not path.is_file():
         raise HTTPException(404, "影片檔案已移除 / Video unavailable")
-    retention = min(86400, int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400")))
+    retention = get_retention_seconds()
     completed = datetime.fromisoformat(job["completed_at"] or job["created_at"]).timestamp()
     deadline = min(completed, path.stat().st_mtime) + retention
     # Explicit sharing may retain this one file longer. Callers supply the

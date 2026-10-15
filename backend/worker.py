@@ -15,6 +15,7 @@ from typing import Any, Dict, Optional
 from calligraphy.renderer import create_scene, export_still, export_svg, export_video
 from .composition import scene_spec_from_params
 from .database import Database, get_db
+from .retention import get_retention_seconds
 from .style_catalog import downloaded_catalog_entry
 
 logger = logging.getLogger("calligraphy.worker")
@@ -65,7 +66,7 @@ def execute_job_bounded(job, db):
 
 
 def cleanup_expired_outputs(db):
-    cutoff = time.time() - int(os.environ.get("CALLIGRAPHY_RETENTION_SECONDS", "86400"))
+    cutoff = time.time() - get_retention_seconds()
     root = output_root()
     # Hold SQLite's write reservation through unlink: share issuance validates
     # and grants its lease in the same kind of transaction, across DB instances.

@@ -136,6 +136,11 @@ Still previews execute synchronously; video requests enter the SQLite-backed
 background queue. See [studio jobs](spec/studio-jobs.md) for job ownership,
 deduplication and browser status behavior.
 
+Finished work and terminal job history are retained for **7 days** by default.
+The frontend shows the retention duration and each work's expiry. Set
+`CALLIGRAPHY_RETENTION_SECONDS` to override the default (604800 seconds).
+Download work before it expires; cleanup removes expired history and output files.
+
 For the static legacy browser examples (永 and poem couplet):
 
 ```sh

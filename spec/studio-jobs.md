@@ -79,7 +79,7 @@ accounts, clearing cookies creates a new identity; this is not an IP abuse limit
 
 Canvas dimensions are bounded to 64–1280 pixels per side, with even video sizes.
 After preparation, videos above 120 seconds or 3000 frames are rejected before
-encoding. Ordinary terminal history and output files expire after 24 hours (or
+encoding. Ordinary terminal history and output files expire after 7 days (or
 the configured retention); an explicitly shared video receives the 72-hour
 retention lease described below. Cleanup also removes expired files whose
 history was previously deleted.
@@ -107,7 +107,7 @@ not create extra poll loops or duplicate cards for the same server job ID.
 
 ## Retention shown to owners
 
-The creation and history notes distinguish unshared retention (24 hours by
+The creation and history notes distinguish unshared retention (7 days by
 default), a friends-sharing link (72 hours plus a lease for that video), and a
 self-handoff link (at most ten minutes with no retention extension). Both link
 types remain bearer capabilities: “for yourself” describes the intended use,
@@ -128,7 +128,7 @@ expiry or a guarantee of immediate physical deletion. The legacy nullable
 `jobs.expires_at` field only constrains new share issuance and is not presented as
 the cleanup deadline. Cleanup is asynchronous; history labels elapsed deadlines
 as due for cleanup. History cards and details show the server deadline, identify
-sharing extensions, and never invent a fresh 24-hour lifetime for older records.
+sharing extensions, and never invent a fresh 7-day lifetime for older records.
 
 Regression coverage: `tests/python/test_job_retention.py` and
 `tests/frontend-retention.test.mjs`.
@@ -219,7 +219,7 @@ revocation, expiry, invalid owner validation or explicit history deletion.
 An explicitly requested replacement
 replaces the old one, immediately invalidating its subsequent access and media
 requests. The link lasts 72 hours from creation and grants a retention lease for
-that one completed job and MP4. Unshared jobs retain ordinary 24-hour/configured
+that one completed job and MP4. Unshared jobs retain ordinary 7-day/configured
 retention. An active share lease supersedes ordinary file/completion age and an
 ordinary job expiry without rewriting them. A still-active share can be rotated
 for a fresh 72-hour lease, but an expired unshared artifact cannot be resurrected.
@@ -292,7 +292,7 @@ The user explicitly chooses **建立 10 分鐘影片連結** after seeing the pr
 with an existing non-symlink MP4. It creates a 256-bit random capability for that
 single artifact; SQLite stores only its SHA-256 digest and expiration. A new link
 replaces the previous link for that job. Expiry is the earliest of ten minutes,
-ordinary retention (24 hours or configured shorter retention, completion age and
+ordinary retention (7 days or configured retention, completion age and
 file age), or an active share's extended retention deadline when applicable.
 A video retained by a live 72-hour share still supports a separate ten-minute
 export link. Export access rechecks the current retention lease; revoking that

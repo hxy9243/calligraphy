@@ -28,7 +28,7 @@ test('history and detail show exact server retention, including the active shari
   assert.match(ui.document.getElementById('detail-meta').textContent, /分享連結期限/);
 });
 
-test('expired, missing, active and failed works do not imply a fresh 24-hour lifetime', async t => {
+test('expired, missing, active and failed works do not imply a fresh retention lifetime', async t => {
   const expiry = now - 30;
   const jobs = [
     makeJob('expired', { expires_at: expiry, output_available: true }),
@@ -44,7 +44,7 @@ test('expired, missing, active and failed works do not imply a fresh 24-hour lif
   assert.match(notice('queued'), /完成後顯示/);
   assert.match(notice('failed'), /記錄保留至/);
   assert.match(notice('unknown'), /暫未提供/);
-  assert.doesNotMatch(notice('unknown'), /Invalid Date|24 小時/);
+  assert.doesNotMatch(notice('unknown'), /Invalid Date|24 小時|7 天/);
 });
 
 test('retention notes honor configured durations and distinguish 72-hour sharing from 10-minute handoff', async t => {
@@ -57,6 +57,17 @@ test('retention notes honor configured durations and distinguish 72-hour sharing
   const handoff = ui.document.getElementById('video-export-notice').textContent;
   assert.match(handoff, /給自己/); assert.match(handoff, /任何持有連結的人都能觀看及下載/);
   assert.doesNotMatch(handoff, /只有你|僅本人|私人連結/);
+});
+
+test('retention notes show seven days before and after loading the server default', async t => {
+  for (const retention_seconds of [undefined, 604800]) {
+    const ui = await createFrontend({ fetch({ url }) {
+      if (url === '/api/jobs') return jsonResponse({ jobs: [], retention_seconds });
+    } }); t.after(ui.close);
+    const labels = ui.document.querySelectorAll('[data-retention-duration]');
+    assert.equal(labels.length, 2);
+    for (const label of labels) assert.equal(label.textContent, '7 天');
+  }
 });
 
 test('ten-minute handoff creation and both copy paths retain exact expiry and access warning', async t => {

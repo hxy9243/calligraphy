@@ -19,6 +19,9 @@ from backend.worker import cleanup_expired_outputs
 
 class VideoShareTests(unittest.TestCase):
     def setUp(self):
+        config = patch.dict(os.environ, {"CALLIGRAPHY_RETENTION_SECONDS": "86400"})
+        config.start()
+        self.addCleanup(config.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.db_url = f"sqlite:///{self.tmp.name}/jobs.db"
         self.db = Database(self.db_url)

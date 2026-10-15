@@ -1445,7 +1445,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateRetentionDuration(seconds) {
     if (!Number.isFinite(seconds) || seconds < 0) return;
-    const duration = seconds % 3600 === 0 ? `${seconds / 3600} 小時`
+    const duration = seconds % 86400 === 0 ? `${seconds / 86400} 天`
+      : seconds % 3600 === 0 ? `${seconds / 3600} 小時`
       : seconds % 60 === 0 ? `${seconds / 60} 分鐘` : `${seconds} 秒`;
     document.querySelectorAll('[data-retention-duration]').forEach(element => { element.textContent = duration; });
   }
