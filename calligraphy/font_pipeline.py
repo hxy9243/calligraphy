@@ -91,7 +91,7 @@ def write_bank(path, bank):
 
 
 def target_masks(font_path, characters):
-    with TTFont(font_path) as font:
+    with TTFont(font_path, fontNumber=0) as font:
         cmap = font.getBestCmap()
         missing = [c for c in characters if ord(c) not in cmap or cmap[ord(c)] == '.notdef']
         if missing:
