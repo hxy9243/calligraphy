@@ -136,10 +136,40 @@
             <div class="label-row"><label for="spacing-slider">字距</label><output id="spacing-val">0.18em</output></div>
             <input type="range" id="spacing-slider" min="0" max="0.8" step="0.02" value="0.18">
           </div>
+          <div class="field">
+            <div class="label-row"><label for="paper-style-select">箋紙樣式</label></div>
+            <select id="paper-style-select" class="select-field">
+              <option value="xuan" selected>朱絲欄宣紙 (默認)</option>
+              <option value="wusi">烏絲欄素箋</option>
+              <option value="gold">灑金朱欄箋</option>
+              <option value="unruled">素箋無欄 (仿古宣紙)</option>
+              <option value="plain">純色底紙</option>
+            </select>
+          </div>
           <label class="check">
             <input type="checkbox" id="fit-toggle" checked>
             <span>長文本自動縮小以適應畫布</span>
           </label>
+          <label class="check">
+            <input type="checkbox" id="zigzag-toggle">
+            <span>錯落章法（長文參差行氣，不齊頭）</span>
+          </label>
+          <div class="field stamp-controls-group">
+            <label class="check">
+              <input type="checkbox" id="stamp-toggle" checked>
+              <span>加蓋朱砂二維碼印章（指向分享連結）</span>
+            </label>
+            <div id="stamp-options-row" class="stamp-options-row">
+              <div class="label-row"><label for="stamp-position-select">印章位置</label><small class="stamp-drag-tip">長按預覽畫布可拖曳對齊界格</small></div>
+              <select id="stamp-position-select" class="select-field">
+                <option value="after-text" selected>文末緊隨（末行字後或次行）</option>
+                <option value="next-line">另起一行（落款位）</option>
+                <option value="before-text">文首引首（首行起首）</option>
+                <option value="corner">壓角閒章（左下／右下角）</option>
+                <option value="custom">自訂位置（長按預覽拖曳）</option>
+              </select>
+            </div>
+          </div>
         </section>
 
         <section class="card" id="card-output">
@@ -174,7 +204,7 @@
           </div>
         </section>
 
-        <p class="creation-note">每分鐘最多創建 3 次 · 未分享作品保留 <span data-retention-duration>7 天</span> · 清除瀏覽器資料後無法找回記錄</p>
+        <p class="creation-note">每分鐘最多創建 3 次 · 未分享作品保留 <span data-retention-duration>30 天</span> · 已分享作品與視頻永久保留</p>
         <div class="action-bar">
           <button type="button" id="btn-preview" class="btn btn-secondary">▢ 導出靜圖</button>
           <button type="button" id="btn-render" class="btn btn-primary">▶ 生成書寫視頻</button>
@@ -195,11 +225,14 @@
 
         <!-- live stage -->
         <div id="pane-live" class="pane">
-          <p class="stage-hint">字體預覽 · 停止輸入後自動更新 · 書寫動作由字體推斷</p>
+          <p class="stage-hint">字體預覽 · 停止輸入後自動更新 · 長按印章可沿界格拖曳位置</p>
           <p id="editor-preview-status" role="status" aria-live="polite">正在更新字體預覽…</p>
           <div class="stage-viewport" id="stage-viewport">
             <div class="stage-paper vertical" id="calligraphy-stage">
               <img id="editor-preview" alt="所選字體的書法預覽" hidden />
+              <div id="stamp-drag-handle" class="stamp-drag-handle" title="長按拖曳印章位置（自動對齊界格）" hidden>
+                <span class="stamp-drag-badge">印 · 長按拖曳</span>
+              </div>
               <div class="stage-text" id="calligraphy-text">明月松間照
 清泉石上流</div>
             </div>
@@ -230,7 +263,7 @@
         <input type="search" id="history-search" class="search" placeholder="搜索文字或字體" aria-label="搜索歷史">
       </div>
     </div>
-    <p class="note retention-guide">未分享作品與記錄保留 <span data-retention-duration>7 天</span>。分享給朋友的連結有效 72 小時，影片至少保留至分享連結到期；給自己換瀏覽器用的臨時連結最長 10 分鐘，不延長作品保留期限。請在下方期限前下載，到期後會清理。</p>
+    <p class="note retention-guide">未分享作品與記錄保留 <span data-retention-duration>30 天</span>。分享給朋友的作品與影片連結永久有效（原 72 小時限制已取消），印章二維碼即對應分享連結；給自己換瀏覽器用的臨時連結最長 10 分鐘，不延長作品保留期限。</p>
     <div id="jobs-list" class="history-grid jobs-list"></div>
     <div id="history-empty" class="empty" hidden>
       <p>暫無記錄</p>
@@ -423,7 +456,7 @@
   <div class="sheet-inner">
     <header class="sheet-head"><h2 id="video-share-title">分享給朋友</h2><button type="button" class="icon-btn" data-close aria-label="關閉" autofocus>✕</button></header>
     <div class="share-body">
-      <p id="video-share-description">分享連結有效 72 小時，這部影片至少會保留至連結到期。任何持有連結的人都能觀看及下載這部影片；請只交給你願意分享的人。刪除影片或停用分享會立即使連結失效，並取消延長保留。複製原連結不會延長期限；只有明確取代才會使舊連結失效。</p>
+      <p id="video-share-description">分享連結與已分享作品永久有效（原 72 小時限制已取消），作品上的朱砂印章二維碼即對應此分享連結。任何持有連結的人都能觀看及下載這部影片；請只交給你願意分享的人。刪除影片或停用分享會立即使連結失效。只有明確取代才會使舊連結失效。</p>
       <p class="note">微信中如無法播放或下載，請複製連結，手動貼到 Safari／Chrome 開啟，無需重新生成影片。</p>
       <input id="video-share-url" type="text" readonly hidden aria-label="影片分享連結" />
       <p id="video-share-status" role="status" aria-live="polite"></p>

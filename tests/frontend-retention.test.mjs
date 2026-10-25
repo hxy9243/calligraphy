@@ -59,14 +59,14 @@ test('retention notes honor configured durations and distinguish 72-hour sharing
   assert.doesNotMatch(handoff, /只有你|僅本人|私人連結/);
 });
 
-test('retention notes show seven days before and after loading the server default', async t => {
-  for (const retention_seconds of [undefined, 604800]) {
+test('retention notes show thirty days before and after loading the server default', async t => {
+  for (const retention_seconds of [undefined, 30 * 86400]) {
     const ui = await createFrontend({ fetch({ url }) {
       if (url === '/api/jobs') return jsonResponse({ jobs: [], retention_seconds });
     } }); t.after(ui.close);
     const labels = ui.document.querySelectorAll('[data-retention-duration]');
     assert.equal(labels.length, 2);
-    for (const label of labels) assert.equal(label.textContent, '7 天');
+    for (const label of labels) assert.equal(label.textContent, '30 天');
   }
 });
 

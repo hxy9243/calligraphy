@@ -15,7 +15,7 @@ from typing import Any, Dict, Optional
 from calligraphy.renderer import create_scene, export_still, export_svg, export_video
 from .composition import scene_spec_from_params
 from .database import Database, get_db
-from .retention import get_retention_seconds
+from .retention import get_retention_seconds, job_share_url
 from .style_catalog import downloaded_catalog_entry
 
 logger = logging.getLogger("calligraphy.worker")
@@ -154,7 +154,10 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
     db.update_job(job_id, status="rendering", progress=0.1)
 
     try:
-        scene_spec = scene_spec_from_params(text, style, params)
+        render_params = dict(params)
+        if job_type == "render" and render_params.get("stamp_url") is None:
+            render_params["stamp_url"] = job_share_url(job_id, render_params.get("base_url"))
+        scene_spec = scene_spec_from_params(text, style, render_params)
 
         db.update_job(job_id, progress=0.3)
 
@@ -223,6 +226,7 @@ class BackgroundTaskRunner:
     def start(self) -> None:
         if self._running:
             return
+        self.db.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         self._lease_file = self.db.sqlite_path.with_suffix(".worker.lock").open("a")
         try:
             fcntl.flock(self._lease_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -230,6 +234,7 @@ class BackgroundTaskRunner:
             self._lease_file.close()
             self._lease_file = None
             raise RuntimeError("Only one studio instance may use this SQLite volume.")
+        self.db.init_schema()
         self.db.recover_interrupted_jobs()
         self._running = True
         self._thread = threading.Thread(target=self._loop, daemon=True)
@@ -284,8 +289,9 @@ _RUNNER_INSTANCE: Optional[BackgroundTaskRunner] = None
 
 def get_runner() -> BackgroundTaskRunner:
     global _RUNNER_INSTANCE
-    if _RUNNER_INSTANCE is None:
-        _RUNNER_INSTANCE = BackgroundTaskRunner()
+    current_db = get_db()
+    if _RUNNER_INSTANCE is None or _RUNNER_INSTANCE.db != current_db:
+        _RUNNER_INSTANCE = BackgroundTaskRunner(current_db)
     return _RUNNER_INSTANCE
 
 

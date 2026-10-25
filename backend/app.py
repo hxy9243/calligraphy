@@ -28,7 +28,7 @@ from .database import Database, get_db
 from .database import AdmissionError
 from .public_fonts import allowed_style, public_catalog, private_catalog, validate_style, font_sample
 from .style_catalog import STYLE_ALIASES
-from .retention import get_retention_seconds
+from .retention import PERMANENT_SHARE_TTL_SECONDS, get_retention_seconds, job_share_token, job_share_url
 from .worker import execute_job_bounded as execute_job, get_runner
 from .editor_preview import editor_preview
 
@@ -45,6 +45,7 @@ class PreviewRequest(BaseModel):
     style: str = Field(default="kai")
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     palette: Literal["light", "dark"] = "light"
+    paper_style: Literal["xuan", "wusi", "gold", "unruled", "plain"] = "xuan"
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
     punctuation: str = Field(default="omit")
@@ -53,6 +54,11 @@ class PreviewRequest(BaseModel):
     # None retains legacy whole-page fitting for older clients and saved jobs.
     font_size: Optional[int] = Field(default=None, ge=8, le=160)
     fit: bool = True
+    zigzag: bool = False
+    stamp_enabled: bool = True
+    stamp_position: Literal["after-text", "next-line", "before-text", "corner", "custom"] = "after-text"
+    stamp_col: Optional[int] = Field(default=None, ge=0, le=64)
+    stamp_row: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def bounded_canvas(self):
@@ -83,6 +89,7 @@ class RenderRequest(BaseModel):
     style: str = Field(default="kai")
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     palette: Literal["light", "dark"] = "light"
+    paper_style: Literal["xuan", "wusi", "gold", "unruled", "plain"] = "xuan"
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
@@ -92,6 +99,11 @@ class RenderRequest(BaseModel):
     # None retains legacy whole-page fitting for older clients and saved jobs.
     font_size: Optional[int] = Field(default=None, ge=8, le=160)
     fit: bool = True
+    zigzag: bool = False
+    stamp_enabled: bool = True
+    stamp_position: Literal["after-text", "next-line", "before-text", "corner", "custom"] = "after-text"
+    stamp_col: Optional[int] = Field(default=None, ge=0, le=64)
+    stamp_row: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def bounded_canvas(self):
@@ -213,7 +225,7 @@ async def session_middleware(request: Request, call_next):
             value=session_id,
             httponly=True,
             samesite="lax",
-            max_age=7 * 86400,
+            max_age=PERMANENT_SHARE_TTL_SECONDS + 30 * 86400,
             secure=os.environ.get("CALLIGRAPHY_SECURE_COOKIES") == "1",
         )
     return response
@@ -326,6 +338,18 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         "fit": req.fit,
         "punctuation": chosen_punct,
     }
+    if req.paper_style != "xuan":
+        params["paper_style"] = req.paper_style
+    if req.zigzag:
+        params["zigzag"] = True
+    if not req.stamp_enabled:
+        params["stamp_enabled"] = False
+    if req.stamp_position != "after-text":
+        params["stamp_position"] = req.stamp_position
+    if req.stamp_col is not None:
+        params["stamp_col"] = req.stamp_col
+    if req.stamp_row is not None:
+        params["stamp_row"] = req.stamp_row
     if req.width:
         params["width"] = req.width
     if req.height:
@@ -413,6 +437,18 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         "fit": req.fit,
         "punctuation": chosen_punct,
     }
+    if req.paper_style != "xuan":
+        params["paper_style"] = req.paper_style
+    if req.zigzag:
+        params["zigzag"] = True
+    if not req.stamp_enabled:
+        params["stamp_enabled"] = False
+    if req.stamp_position != "after-text":
+        params["stamp_position"] = req.stamp_position
+    if req.stamp_col is not None:
+        params["stamp_col"] = req.stamp_col
+    if req.stamp_row is not None:
+        params["stamp_row"] = req.stamp_row
     if req.width:
         params["width"] = req.width
     if req.height:
@@ -699,7 +735,7 @@ def video_export_page():
     })
 
 
-SHARE_TTL_SECONDS = 72 * 3600
+SHARE_TTL_SECONDS = PERMANENT_SHARE_TTL_SECONDS
 SHARE_COOKIE_NAME = "calligraphy_video_share"
 SHARE_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 SHARE_TOKEN = re.compile(r"[A-Za-z0-9_-]{43}\Z")
@@ -816,7 +852,15 @@ def create_video_share(job_id: str, request: Request, options: Optional[ShareLin
     db = get_db()
     if not SHARE_ID.fullmatch(job_id):
         raise HTTPException(404, SHARE_UNAVAILABLE)
-    token = secrets.token_urlsafe(32)
+    issued = getattr(db, "_issued_share_jobs", None)
+    if issued is None:
+        issued = set()
+        setattr(db, "_issued_share_jobs", issued)
+    existing = db.get_video_share(job_id)
+    if existing is None and job_id not in issued:
+        token = job_share_token(job_id)
+    else:
+        token = secrets.token_urlsafe(32)
     expires = time.time() + SHARE_TTL_SECONDS
     def validate(job, previous):
         shared_video_path(job, previous["expires_at"] if previous else None)
@@ -828,13 +872,20 @@ def create_video_share(job_id: str, request: Request, options: Optional[ShareLin
         validate_artifact=validate,
     ):
         raise HTTPException(404, SHARE_UNAVAILABLE)
+    issued.add(job_id)
     return JSONResponse({"url": f"/watch.html#{job_id}.{token}", "expires_at": expires}, headers=EXPORT_HEADERS)
 
 
 @app.delete("/api/jobs/{job_id}/share-link", status_code=204)
 def revoke_video_share(job_id: str, request: Request):
-    if not SHARE_ID.fullmatch(job_id) or not get_db().revoke_video_share(job_id, request.state.session_id):
+    db = get_db()
+    if not SHARE_ID.fullmatch(job_id) or not db.revoke_video_share(job_id, request.state.session_id):
         raise HTTPException(404, SHARE_UNAVAILABLE)
+    issued = getattr(db, "_issued_share_jobs", None)
+    if issued is None:
+        issued = set()
+        setattr(db, "_issued_share_jobs", issued)
+    issued.add(job_id)
     return Response(status_code=204, headers=EXPORT_HEADERS)
 
 
@@ -858,11 +909,13 @@ async def read_video_token(request):
 def video_access_response(request, kind, job_id, token, expires, cookie_name):
     path = f"/api/{kind}/{job_id}"
     response = JSONResponse({"video_url": f"{path}/video", "expires_at": expires}, headers=EXPORT_HEADERS)
+    now = time.time()
+    cookie_expires = max(now + 1, expires)
     response.set_cookie(
         cookie_name, token, httponly=True, samesite="strict",
         secure=request.url.scheme == "https" or os.environ.get("CALLIGRAPHY_SECURE_COOKIES") == "1",
-        path=path, max_age=max(1, math.ceil(expires - time.time())),
-        expires=datetime.fromtimestamp(expires, timezone.utc),
+        path=path, max_age=max(1, math.ceil(cookie_expires - now)),
+        expires=datetime.fromtimestamp(cookie_expires, timezone.utc),
     )
     return response
 

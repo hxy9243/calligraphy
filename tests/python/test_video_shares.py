@@ -12,7 +12,7 @@ from unittest.mock import patch
 from urllib.parse import urlsplit
 
 from fastapi.testclient import TestClient
-from backend.app import app, ShareAccessLimiter, SHARE_COOKIE_NAME, shared_video_path
+from backend.app import app, ShareAccessLimiter, SHARE_COOKIE_NAME, SHARE_TTL_SECONDS, shared_video_path
 from backend.database import Database
 from backend.worker import cleanup_expired_outputs
 
@@ -55,8 +55,8 @@ class VideoShareTests(unittest.TestCase):
         self.assertEqual(url.path, '/watch.html')
         self.assertFalse(url.query)
         self.assertFalse(url.netloc)
-        self.assertLessEqual(data['expires_at'], time.time() + 72 * 3600)
-        self.assertGreater(data['expires_at'], time.time() + 72 * 3600 - 5)
+        self.assertLessEqual(data['expires_at'], time.time() + SHARE_TTL_SECONDS)
+        self.assertGreater(data['expires_at'], time.time() + SHARE_TTL_SECONDS - 5)
         self.assertIn('no-store', response.headers['cache-control'])
         token = url.fragment.split('.')[1]
         self.assertEqual(len(token), 43)
@@ -109,7 +109,7 @@ class VideoShareTests(unittest.TestCase):
         self.owner.delete('/api/jobs/one/share-link')
         self.assertEqual(self.owner.post(path, json={'token': new}).json(), {'active': False})
         new, _ = self.issue()
-        with patch('backend.app.time.time', return_value=time.time() + 73 * 3600):
+        with patch('backend.app.time.time', return_value=time.time() + SHARE_TTL_SECONDS + 3600):
             self.assertEqual(self.owner.post(path, json={'token': new}).json(), {'active': False})
         self.owner.delete('/api/jobs/one')
         self.assertUnavailable(self.owner.post(path, json={'token': new}))

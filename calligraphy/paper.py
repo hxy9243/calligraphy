@@ -71,6 +71,13 @@ def _rs_encode(data: Sequence[int], ec_len: int) -> List[int]:
 
 # (total_codewords, ec_per_block, num_blocks_g1, data_per_block_g1, num_blocks_g2, data_per_block_g2)
 _QR_VERSION_TABLE: Dict[Tuple[int, str], Tuple[int, int, int, int, int, int]] = {
+    # Level L (~7% recovery - high capacity up to 134 bytes in V6)
+    (1, "L"): (26, 7, 1, 19, 0, 0),
+    (2, "L"): (44, 10, 1, 34, 0, 0),
+    (3, "L"): (70, 15, 1, 55, 0, 0),
+    (4, "L"): (100, 20, 1, 80, 0, 0),
+    (5, "L"): (134, 26, 1, 108, 0, 0),
+    (6, "L"): (172, 18, 2, 68, 0, 0),
     # Level M (~15% recovery)
     (1, "M"): (26, 10, 1, 16, 0, 0),
     (2, "M"): (44, 16, 1, 28, 0, 0),
@@ -179,25 +186,20 @@ def encode_qr_matrix(text: str, ecc: str = "Q") -> np.ndarray:
     payload = text.encode("utf-8")
     ecc = ecc.upper()
     chosen_version = None
-    for ver in range(1, 7):
-        spec = _QR_VERSION_TABLE.get((ver, ecc))
-        if not spec:
-            continue
-        _, _, nb1, dp1, nb2, dp2 = spec
-        data_cap = nb1 * dp1 + nb2 * dp2
-        # Byte mode: 4 bits mode + 8 bits len (for V1-9) = 12 bits -> 2 bytes overhead
-        if len(payload) + 2 <= data_cap:
-            chosen_version = ver
-            break
-    if chosen_version is None:
-        # Fallback to M if Q/H overflows V6
-        ecc = "M"
+    for fallback_ecc in (ecc, "M", "L"):
         for ver in range(1, 7):
-            spec = _QR_VERSION_TABLE[(ver, ecc)]
+            spec = _QR_VERSION_TABLE.get((ver, fallback_ecc))
+            if not spec:
+                continue
             _, _, nb1, dp1, nb2, dp2 = spec
-            if len(payload) + 2 <= nb1 * dp1 + nb2 * dp2:
+            data_cap = nb1 * dp1 + nb2 * dp2
+            # Byte mode: 4 bits mode + 8 bits len (for V1-9) = 12 bits -> 2 bytes overhead
+            if len(payload) + 2 <= data_cap:
                 chosen_version = ver
+                ecc = fallback_ecc
                 break
+        if chosen_version is not None:
+            break
     if chosen_version is None:
         raise ValueError("QR payload too long for versions 1-6")
 
@@ -393,9 +395,9 @@ def render_qr_seal_stamp(
 
     # Supersample at 10px per module for authentic stone-carving & cinnabar texture
     scale = 10
-    quiet_mods = 1.75     # Tight seal quiet zone like traditional 朱文印 while 100% scannable
-    border_mods = 1.35    # Carved stone seal outer rim thickness
-    pad_mods = 1.25       # Clean paper margin outside rim so scanners see full quiet zone
+    quiet_mods = 1.0 if n_mod >= 37 else 1.75     # Tight seal quiet zone like traditional 朱文印 while 100% scannable
+    border_mods = 0.8 if n_mod >= 37 else 1.35    # Carved stone seal outer rim thickness
+    pad_mods = 0.8 if n_mod >= 37 else 1.25       # Clean paper margin outside rim so scanners see full quiet zone
     total_mods = n_mod + 2 * (quiet_mods + border_mods + pad_mods)
     canvas_sz = int(round(total_mods * scale))
 
@@ -559,7 +561,12 @@ def render_qr_seal_stamp(
             y1 = qr_origin + (r + 1) * scale
             if matrix[r, c]:
                 qr_mask[y0:y1, x0:x1] = 1.0
-                m_base = 1 if _is_finder(r, c) else 2
+                if n_mod >= 37:
+                    m_base = 0
+                elif _is_finder(r, c):
+                    m_base = 1
+                else:
+                    m_base = 2
                 # Connect core seamlessly across adjacent dark modules so strokes have no internal grid lines
                 ml = 0 if (c > 0 and matrix[r, c - 1]) else m_base
                 mr = 0 if (c + 1 < n_mod and matrix[r, c + 1]) else m_base
@@ -567,7 +574,12 @@ def render_qr_seal_stamp(
                 mb = 0 if (r + 1 < n_mod and matrix[r + 1, c]) else m_base
                 core_keep[y0 + mt : y1 - mb, x0 + ml : x1 - mr] = True
             else:
-                m_base = 1 if _is_finder(r, c) else 2
+                if n_mod >= 37:
+                    m_base = 0
+                elif _is_finder(r, c):
+                    m_base = 1
+                else:
+                    m_base = 2
                 ml = 0 if (c > 0 and not matrix[r, c - 1]) else m_base
                 mr = 0 if (c + 1 < n_mod and not matrix[r, c + 1]) else m_base
                 mt = 0 if (r > 0 and not matrix[r - 1, c]) else m_base
@@ -630,78 +642,396 @@ def render_qr_seal_stamp(
 
 
 # ============================================================================
-# Traditional Xuan Stationery Paper (仿古朱絲欄宣紙信箋)
+# Evenly Distributed Ruling Grid & Line-Aligned Stamp Placement
 # ============================================================================
 
-@lru_cache(maxsize=24)
+def compute_paper_grid(
+    width: int,
+    height: int,
+    direction: str = "vertical-rl",
+    col_centers: Sequence[float] = (),
+    row_centers: Sequence[float] = (),
+    cell_size: float = 0.0,
+    gap: float = 0.18,
+) -> Dict[str, Any]:
+    """Compute outer/inner frames and evenly distributed ruling lines across the full page.
+
+    Every lane between inner_box edges has the exact same width (lane_width),
+    and text columns/rows stay centered in their ruled lanes.
+    """
+    short_side = min(width, height)
+    base_margin = max(10, int(round(short_side * 0.048)))
+    inset = max(3, int(round(short_side * 0.0065)))
+
+    inner_left = float(base_margin + inset)
+    inner_top = float(base_margin + inset)
+    inner_right = float(width - 1 - base_margin - inset)
+    inner_bottom = float(height - 1 - base_margin - inset)
+
+    min_margin = float(max(8, int(round(short_side * 0.022))))
+    max_margin = float(max(base_margin + inset + 4, int(round(short_side * 0.155))))
+
+    if direction == "vertical-rl":
+        default_span = max(32.0, inner_right - inner_left)
+        n_text = len(col_centers)
+        text_pitch = 0.0
+        if n_text >= 2:
+            text_pitch = (col_centers[-1] - col_centers[0]) / float(n_text - 1)
+        elif cell_size > 0:
+            text_pitch = cell_size * (1.0 + gap)
+
+        center_x = 0.5 * (col_centers[0] + col_centers[-1]) if n_text >= 1 else (width - 1) * 0.5
+        chosen_n: Optional[int] = None
+        chosen_pitch: Optional[float] = None
+
+        if text_pitch > 12.0 and text_pitch <= default_span * 0.48:
+            max_span = width - 2.0 * min_margin
+            min_span = width - 2.0 * max_margin
+            parity = n_text % 2 if n_text >= 1 else 0
+            best_diff = 1e9
+            for cand_n in range(max(3, n_text), 48):
+                if n_text >= 1 and (cand_n % 2) != parity:
+                    continue
+                cand_span = cand_n * text_pitch
+                if min_span <= cand_span <= max_span:
+                    diff = abs(cand_span - default_span)
+                    if diff < best_diff:
+                        best_diff = diff
+                        chosen_n = cand_n
+                        chosen_pitch = text_pitch
+
+        if chosen_n is not None and chosen_pitch is not None:
+            grid_span = chosen_n * chosen_pitch
+            inner_left = center_x - 0.5 * grid_span
+            inner_right = center_x + 0.5 * grid_span
+            n_lanes = chosen_n
+            lane_width = chosen_pitch
+        else:
+            # Fallback for single huge character or empty canvas: divide inner_box into equal lanes
+            if n_text == 1:
+                n_lanes = 5 if width <= height else 7
+            elif n_text >= 2:
+                n_lanes = max(4, n_text * 2 if n_text * 2 <= 10 else n_text)
+            else:
+                n_lanes = 6 if width <= height else 8
+            lane_width = default_span / float(n_lanes)
+
+        dividers = [inner_left + k * lane_width for k in range(1, n_lanes)]
+        lane_centers = [inner_left + (k + 0.5) * lane_width for k in range(n_lanes)]
+    else:
+        default_span = max(32.0, inner_bottom - inner_top)
+        n_text = len(row_centers)
+        text_pitch = 0.0
+        if n_text >= 2:
+            text_pitch = (row_centers[-1] - row_centers[0]) / float(n_text - 1)
+        elif cell_size > 0:
+            text_pitch = cell_size * (1.0 + gap)
+
+        center_y = 0.5 * (row_centers[0] + row_centers[-1]) if n_text >= 1 else (height - 1) * 0.5
+        chosen_n = None
+        chosen_pitch = None
+
+        if text_pitch > 12.0 and text_pitch <= default_span * 0.48:
+            max_span = height - 2.0 * min_margin
+            min_span = height - 2.0 * max_margin
+            parity = n_text % 2 if n_text >= 1 else 0
+            best_diff = 1e9
+            for cand_n in range(max(3, n_text), 48):
+                if n_text >= 1 and (cand_n % 2) != parity:
+                    continue
+                cand_span = cand_n * text_pitch
+                if min_span <= cand_span <= max_span:
+                    diff = abs(cand_span - default_span)
+                    if diff < best_diff:
+                        best_diff = diff
+                        chosen_n = cand_n
+                        chosen_pitch = text_pitch
+
+        if chosen_n is not None and chosen_pitch is not None:
+            grid_span = chosen_n * chosen_pitch
+            inner_top = center_y - 0.5 * grid_span
+            inner_bottom = center_y + 0.5 * grid_span
+            n_lanes = chosen_n
+            lane_width = chosen_pitch
+        else:
+            if n_text == 1:
+                n_lanes = 5 if height <= width else 7
+            elif n_text >= 2:
+                n_lanes = max(4, n_text * 2 if n_text * 2 <= 10 else n_text)
+            else:
+                n_lanes = 6 if height <= width else 8
+            lane_width = default_span / float(n_lanes)
+
+        dividers = [inner_top + k * lane_width for k in range(1, n_lanes)]
+        lane_centers = [inner_top + (k + 0.5) * lane_width for k in range(n_lanes)]
+
+    i_box = [
+        int(round(inner_left)),
+        int(round(inner_top)),
+        int(round(inner_right)),
+        int(round(inner_bottom)),
+    ]
+    o_box = [
+        max(2, i_box[0] - inset),
+        max(2, i_box[1] - inset),
+        min(width - 3, i_box[2] + inset),
+        min(height - 3, i_box[3] + inset),
+    ]
+    return {
+        "outer_box": o_box,
+        "inner_box": i_box,
+        "dividers": tuple(round(d, 2) for d in dividers),
+        "lane_centers": tuple(round(c, 2) for c in lane_centers),
+        "lane_width": round(float(lane_width), 2),
+        "n_lanes": len(lane_centers),
+    }
+
+
+def _nearest_lane_index(coord: float, lane_centers: Sequence[float]) -> int:
+    if not lane_centers:
+        return 0
+    return int(min(range(len(lane_centers)), key=lambda i: abs(lane_centers[i] - coord)))
+
+
+def compute_stamp_placement(
+    width: int,
+    height: int,
+    direction: str,
+    grid: Dict[str, Any],
+    schedule: Sequence[Dict[str, Any]],
+    stamp_position: str = "after-text",
+    stamp_col: Optional[int] = None,
+    stamp_row: Optional[float] = None,
+) -> Tuple[int, int, int]:
+    """Compute (sx, sy, stamp_sz) aligned to the paper's ruled lines."""
+    short_side = min(width, height)
+    lane_centers = grid["lane_centers"]
+    lane_width = grid["lane_width"]
+    inner_left, inner_top, inner_right, inner_bottom = grid["inner_box"]
+    n_lanes = max(1, len(lane_centers))
+
+    # Size the stamp to harmonize with the ruled lane width while staying scannable (92..144px)
+    base_sz = int(round(short_side * 0.132))
+    if lane_width > 0:
+        target_sz = int(round(min(base_sz, max(lane_width * 0.88, short_side * 0.115))))
+    else:
+        target_sz = base_sz
+    stamp_sz = max(108, min(144, target_sz))
+    half = stamp_sz * 0.5
+    pad_along = max(8.0, stamp_sz * 0.10)
+
+    def _clamp_box(cx: float, cy: float) -> Tuple[int, int]:
+        sx = int(round(max(4.0, min(width - stamp_sz - 4.0, cx - half))))
+        sy = int(round(max(4.0, min(height - stamp_sz - 4.0, cy - half))))
+        return sx, sy
+
+    if direction == "vertical-rl":
+        min_cy = inner_top + pad_along + half
+        max_cy = inner_bottom - pad_along - half
+        if max_cy < min_cy:
+            min_cy = max_cy = height * 0.5
+
+        if stamp_position == "custom" and (stamp_col is not None or stamp_row is not None):
+            idx = max(0, min(n_lanes - 1, int(stamp_col) if stamp_col is not None else 0))
+            frac = max(0.0, min(1.0, float(stamp_row) if stamp_row is not None else 0.85))
+            cx = lane_centers[idx]
+            cy = min_cy + frac * (max_cy - min_cy)
+            sx, sy = _clamp_box(cx, cy)
+            return sx, sy, stamp_sz
+
+        if not schedule or stamp_position == "corner":
+            cx = lane_centers[0]
+            cy = max_cy
+            sx, sy = _clamp_box(cx, cy)
+            return sx, sy, stamp_sz
+
+        first_e = schedule[0]
+        last_e = schedule[-1]
+        first_cx = float(first_e["x"]) + float(first_e["size"]) * 0.5
+        first_top = float(first_e["y"])
+        last_cx = float(last_e["x"]) + float(last_e["size"]) * 0.5
+        last_bot = float(last_e["y"]) + float(last_e["size"])
+        char_gap = max(10.0, float(last_e["size"]) * 0.16)
+
+        first_lane = _nearest_lane_index(first_cx, lane_centers)
+        last_lane = _nearest_lane_index(last_cx, lane_centers)
+
+        if stamp_position == "before-text":
+            # Above first character on first line if room; else top of preceding right-hand lane
+            if first_top - char_gap - stamp_sz >= inner_top + 4:
+                cx = lane_centers[first_lane]
+                cy = first_top - char_gap - half
+            elif first_lane + 1 < n_lanes:
+                cx = lane_centers[first_lane + 1]
+                cy = max(min_cy, first_top + half)
+            else:
+                cx = lane_centers[first_lane]
+                cy = min_cy
+        elif stamp_position == "next-line":
+            next_lane = max(0, last_lane - 1)
+            cx = lane_centers[next_lane]
+            cy = min(max_cy, max(min_cy, last_bot))
+        else:
+            # "after-text" (default): right after the last character on the last line,
+            # or on the next ruled line if the last line reaches the bottom of the frame.
+            if last_bot + char_gap + stamp_sz <= inner_bottom - 2:
+                cx = lane_centers[last_lane]
+                cy = last_bot + char_gap + half
+            elif last_lane > 0:
+                cx = lane_centers[last_lane - 1]
+                cy = max_cy
+            else:
+                cx = lane_centers[0]
+                cy = max_cy
+
+        sx, sy = _clamp_box(cx, cy)
+        return sx, sy, stamp_sz
+
+    else:
+        # horizontal-lr: lines are horizontal rows from top to bottom
+        min_cx = inner_left + pad_along + half
+        max_cx = inner_right - pad_along - half
+        if max_cx < min_cx:
+            min_cx = max_cx = width * 0.5
+
+        if stamp_position == "custom" and (stamp_col is not None or stamp_row is not None):
+            idx = max(0, min(n_lanes - 1, int(stamp_col) if stamp_col is not None else n_lanes - 1))
+            frac = max(0.0, min(1.0, float(stamp_row) if stamp_row is not None else 0.85))
+            cy = lane_centers[idx]
+            cx = min_cx + frac * (max_cx - min_cx)
+            sx, sy = _clamp_box(cx, cy)
+            return sx, sy, stamp_sz
+
+        if not schedule or stamp_position == "corner":
+            cy = lane_centers[-1]
+            cx = max_cx
+            sx, sy = _clamp_box(cx, cy)
+            return sx, sy, stamp_sz
+
+        first_e = schedule[0]
+        last_e = schedule[-1]
+        first_cy = float(first_e["y"]) + float(first_e["size"]) * 0.5
+        first_left = float(first_e["x"])
+        last_cy = float(last_e["y"]) + float(last_e["size"]) * 0.5
+        last_right = float(last_e["x"]) + float(last_e["size"])
+        char_gap = max(10.0, float(last_e["size"]) * 0.16)
+
+        first_lane = _nearest_lane_index(first_cy, lane_centers)
+        last_lane = _nearest_lane_index(last_cy, lane_centers)
+
+        if stamp_position == "before-text":
+            if first_left - char_gap - stamp_sz >= inner_left + 4:
+                cy = lane_centers[first_lane]
+                cx = first_left - char_gap - half
+            elif first_lane > 0:
+                cy = lane_centers[first_lane - 1]
+                cx = max(min_cx, first_left + half)
+            else:
+                cy = lane_centers[first_lane]
+                cx = min_cx
+        elif stamp_position == "next-line":
+            next_lane = min(n_lanes - 1, last_lane + 1)
+            cy = lane_centers[next_lane]
+            cx = min(max_cx, max(min_cx, last_right))
+        else:
+            # "after-text" (default): right after the last character on the last row,
+            # or on the next ruled row if the last row reaches the right margin.
+            if last_right + char_gap + stamp_sz <= inner_right - 2:
+                cy = lane_centers[last_lane]
+                cx = last_right + char_gap + half
+            elif last_lane + 1 < n_lanes:
+                cy = lane_centers[last_lane + 1]
+                cx = max_cx
+            else:
+                cy = lane_centers[-1]
+                cx = max_cx
+
+        sx, sy = _clamp_box(cx, cy)
+        return sx, sy, stamp_sz
+
+
+# ============================================================================
+# Traditional Xuan Stationery Paper (仿古宣紙信箋 · 多款背景與印章對齊)
+# ============================================================================
+
+@lru_cache(maxsize=32)
 def _cached_xuan_base(
     width: int,
     height: int,
     paper_color: Tuple[int, int, int],
-    columns: int,
-    rows: int,
+    paper_style: str,
     direction: str,
     col_centers_tuple: Tuple[float, ...],
     row_centers_tuple: Tuple[float, ...],
     cell_size: float,
     gap: float,
+    stamp_enabled: bool,
+    stamp_position: str,
+    stamp_col: Optional[int],
+    stamp_row: Optional[float],
     stamp_url: str,
+    first_box: Optional[Tuple[float, float, float]],
+    last_box: Optional[Tuple[float, float, float]],
 ) -> Image.Image:
-    """Render and cache the stationery background (paper texture +朱絲欄 + QR seal stamp)."""
+    """Render and cache the stationery background (paper texture + evenly distributed rules + QR seal stamp)."""
     r0, g0, b0 = paper_color
     is_dark = (r0 + g0 + b0) / 3.0 < 85.0
+    short_side = min(width, height)
 
-    rng = np.random.default_rng(width * 10007 + height * 31 + r0 * 7)
+    if paper_style == "plain" and (not stamp_enabled or not stamp_url or is_dark or short_side < 320):
+        return Image.new("RGB", (width, height), paper_color)
 
-    # 1. Paper base with Xuan paper cloud mottling, laid lines, and warm antique edge vignette
-    yy = np.linspace(-1.0, 1.0, height, dtype=np.float32)[:, None]
-    xx = np.linspace(-1.0, 1.0, width, dtype=np.float32)[None, :]
-    r2 = np.clip(xx * xx + yy * yy, 0.0, 2.0)
-    vignette = np.clip((r2 - 0.35) / 1.35, 0.0, 1.0) ** 1.5
+    rng = np.random.default_rng(width * 10007 + height * 31 + r0 * 7 + len(paper_style) * 13)
 
-    low_h = max(8, height // 20)
-    low_w = max(8, width // 20)
-    cloud = rng.normal(0.0, 1.0, (low_h, low_w)).astype(np.float32)
-    cloud = cv2.GaussianBlur(cloud, (5, 5), 1.2)
-    cloud = cv2.resize(cloud, (width, height), interpolation=cv2.INTER_CUBIC)
-
-    mid_h = max(16, height // 4)
-    mid_w = max(16, width // 4)
-    grain = rng.normal(0.0, 1.0, (mid_h, mid_w)).astype(np.float32)
-    grain = cv2.GaussianBlur(grain, (5, 5), 0.9)
-    grain = cv2.resize(grain, (width, height), interpolation=cv2.INTER_LINEAR)
-
-    # Subtle horizontal bamboo-screen laid lines (簾紋) characteristic of handmade Xuan paper
-    laid = np.sin(np.arange(height, dtype=np.float32)[:, None] * (2.0 * math.pi / 8.0)) * 0.25
-
-    if is_dark:
-        delta = 0.85 * cloud + 0.35 * grain
-        base_r = np.clip(r0 + delta, 0, 255)
-        base_g = np.clip(g0 + delta, 0, 255)
-        base_b = np.clip(b0 + delta, 0, 255)
+    if paper_style == "plain":
+        canvas_arr = np.full((height, width, 3), paper_color, dtype=np.uint8)
     else:
-        # Warm antique Xuan paper: unified luminance delta preserves 4:2:0 yuv420p chroma fidelity
-        vig_scale = 5.0 if min(width, height) >= 240 else 1.5
-        cloud_scale = 1.6 if min(width, height) >= 240 else 0.7
-        grain_scale = 0.55 if min(width, height) >= 240 else 0.2
-        delta = np.round(cloud_scale * cloud + grain_scale * grain + laid - vig_scale * vignette)
-        delta = np.where(delta == -3.0, -2.0, delta)
-        base_r = np.clip(r0 + delta, 145, 255)
-        base_g = np.clip(g0 + delta, 140, 255)
-        base_b = np.clip(b0 + delta, 130, 255)
+        # 1. Paper base with Xuan paper cloud mottling, laid lines, and warm antique edge vignette
+        yy = np.linspace(-1.0, 1.0, height, dtype=np.float32)[:, None]
+        xx = np.linspace(-1.0, 1.0, width, dtype=np.float32)[None, :]
+        r2 = np.clip(xx * xx + yy * yy, 0.0, 2.0)
+        vignette = np.clip((r2 - 0.35) / 1.35, 0.0, 1.0) ** 1.5
 
-    canvas_arr = np.stack([base_r, base_g, base_b], axis=-1).astype(np.uint8)
-    # Guarantee exact corner pixel (0, 0) == paper_color for palette invariants
-    canvas_arr[0, 0] = paper_color
+        low_h = max(8, height // 20)
+        low_w = max(8, width // 20)
+        cloud = rng.normal(0.0, 1.0, (low_h, low_w)).astype(np.float32)
+        cloud = cv2.GaussianBlur(cloud, (5, 5), 1.2)
+        cloud = cv2.resize(cloud, (width, height), interpolation=cv2.INTER_CUBIC)
+
+        mid_h = max(16, height // 4)
+        mid_w = max(16, width // 4)
+        grain = rng.normal(0.0, 1.0, (mid_h, mid_w)).astype(np.float32)
+        grain = cv2.GaussianBlur(grain, (5, 5), 0.9)
+        grain = cv2.resize(grain, (width, height), interpolation=cv2.INTER_LINEAR)
+
+        # Subtle horizontal bamboo-screen laid lines (簾紋) characteristic of handmade Xuan paper
+        laid = np.sin(np.arange(height, dtype=np.float32)[:, None] * (2.0 * math.pi / 8.0)) * 0.25
+
+        if is_dark:
+            delta = 0.85 * cloud + 0.35 * grain
+            base_r = np.clip(r0 + delta, 0, 255)
+            base_g = np.clip(g0 + delta, 0, 255)
+            base_b = np.clip(b0 + delta, 0, 255)
+        else:
+            # Warm antique Xuan paper: unified luminance delta preserves 4:2:0 yuv420p chroma fidelity
+            vig_scale = 5.0 if short_side >= 240 else 1.5
+            cloud_scale = 1.6 if short_side >= 240 else 0.7
+            grain_scale = 0.55 if short_side >= 240 else 0.2
+            delta = np.round(cloud_scale * cloud + grain_scale * grain + laid - vig_scale * vignette)
+            delta = np.where(delta == -3.0, -2.0, delta)
+            base_r = np.clip(r0 + delta, 145, 255)
+            base_g = np.clip(g0 + delta, 140, 255)
+            base_b = np.clip(b0 + delta, 130, 255)
+
+        canvas_arr = np.stack([base_r, base_g, base_b], axis=-1).astype(np.uint8)
+        canvas_arr[0, 0] = paper_color
 
     page = Image.fromarray(canvas_arr, mode="RGB").convert("RGBA")
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     odraw = ImageDraw.Draw(overlay)
 
-    short_side = min(width, height)
-
-    # 2. Delicate Xuan paper plant fibers (宣紙檀皮纖維) on light paper
-    if not is_dark and short_side >= 240:
+    # 2. Delicate Xuan paper plant fibers (宣紙檀皮纖維) and gold flecks (灑金) on light paper
+    if not is_dark and short_side >= 240 and paper_style != "plain":
         n_fibers = max(16, min(110, (width * height) // 14000))
         for _ in range(n_fibers):
             fx = float(rng.uniform(short_side * 0.04, width - short_side * 0.04))
@@ -718,93 +1048,96 @@ def _cached_xuan_base(
                 width=1,
             )
 
-    # 3. Double Cinnabar Border Frame (朱絲欄雙線外框) & Column/Row Dividers (界欄)
-    margin = max(10, int(round(short_side * 0.048)))
-    inset = max(3, int(round(short_side * 0.0065)))
+        if paper_style == "gold":
+            # Shimmering gold leaf flecks (泥金灑金箋) — keep R >= 210 so it never triggers ink masks
+            n_flecks = max(28, min(180, (width * height) // 8500))
+            for _ in range(n_flecks):
+                gx = float(rng.uniform(short_side * 0.03, width - short_side * 0.03))
+                gy = float(rng.uniform(short_side * 0.03, height - short_side * 0.03))
+                rad = float(rng.uniform(1.5, 4.8))
+                n_pts = int(rng.integers(4, 7))
+                pts = []
+                base_ang = float(rng.uniform(0, math.pi * 2))
+                for k in range(n_pts):
+                    ang = base_ang + (2.0 * math.pi * k) / n_pts + float(rng.uniform(-0.3, 0.3))
+                    rr = rad * float(rng.uniform(0.55, 1.25))
+                    pts.append((gx + math.cos(ang) * rr, gy + math.sin(ang) * rr))
+                alpha = int(rng.integers(75, 155))
+                odraw.polygon(pts, fill=(226, 184, 92, alpha))
+
+    # 3. Evenly Distributed Border Frame & Column/Row Dividers (朱絲欄 / 烏絲欄)
+    grid = compute_paper_grid(
+        width,
+        height,
+        direction=direction,
+        col_centers=col_centers_tuple,
+        row_centers=row_centers_tuple,
+        cell_size=cell_size,
+        gap=gap,
+    )
+    outer_box = grid["outer_box"]
+    inner_box = grid["inner_box"]
+    dividers = grid["dividers"]
     outer_w = max(2, int(round(short_side / 380.0))) if short_side >= 320 else 1
 
-    outer_box = [margin, margin, width - 1 - margin, height - 1 - margin]
-    inner_box = [
-        margin + inset,
-        margin + inset,
-        width - 1 - margin - inset,
-        height - 1 - margin - inset,
-    ]
-
-    if is_dark:
-        outer_stroke = (165, 58, 46, 95 if short_side >= 240 else 48)
-        inner_stroke = (165, 58, 46, 60 if short_side >= 240 else 30)
-        rule_stroke = (165, 58, 46, 34 if short_side >= 240 else 20)
-    else:
-        # Cinnabar red (R >= 188 so R is always well above 138 ink threshold)
-        outer_stroke = (188, 96, 78, 195 if short_side >= 240 else 68)
-        inner_stroke = (196, 114, 96, 145 if short_side >= 240 else 44)
-        rule_stroke = (198, 128, 112, 82 if short_side >= 240 else 32)
-
-    if inner_box[2] - inner_box[0] > 24 and inner_box[3] - inner_box[1] > 24:
-        odraw.rectangle(outer_box, outline=outer_stroke, width=outer_w)
-        odraw.rectangle(inner_box, outline=inner_stroke, width=1)
-
-        # Draw internal column/row ruling lines (朱絲界格)
-        step = cell_size * (1.0 + gap)
-        if direction == "vertical-rl" and len(col_centers_tuple) >= 1 and cell_size > 0:
-            xs = sorted(col_centers_tuple)
-            dividers: List[float] = []
-            if len(xs) > 1:
-                for i in range(len(xs) - 1):
-                    dividers.append(0.5 * (xs[i] + xs[i + 1]))
-                left_bound = xs[0] - 0.5 * step
-                right_bound = xs[-1] + 0.5 * step
-            else:
-                left_bound = xs[0] - 0.5 * cell_size * 1.18
-                right_bound = xs[0] + 0.5 * cell_size * 1.18
-            if left_bound > inner_box[0] + 8:
-                dividers.insert(0, left_bound)
-            if right_bound < inner_box[2] - 8:
-                dividers.append(right_bound)
-            for dx in dividers:
-                ix = int(round(dx))
-                if inner_box[0] + 4 < ix < inner_box[2] - 4:
-                    odraw.line(
-                        [(ix, inner_box[1] + 1), (ix, inner_box[3] - 1)],
-                        fill=rule_stroke,
-                        width=1,
-                    )
-        elif direction == "horizontal-lr" and len(row_centers_tuple) >= 1 and cell_size > 0:
-            ys = sorted(row_centers_tuple)
-            dividers = []
-            if len(ys) > 1:
-                for i in range(len(ys) - 1):
-                    dividers.append(0.5 * (ys[i] + ys[i + 1]))
-                top_bound = ys[0] - 0.5 * step
-                bot_bound = ys[-1] + 0.5 * step
-            else:
-                top_bound = ys[0] - 0.5 * cell_size * 1.18
-                bot_bound = ys[0] + 0.5 * cell_size * 1.18
-            if top_bound > inner_box[1] + 8:
-                dividers.insert(0, top_bound)
-            if bot_bound < inner_box[3] - 8:
-                dividers.append(bot_bound)
-            for dy in dividers:
-                iy = int(round(dy))
-                if inner_box[1] + 4 < iy < inner_box[3] - 4:
-                    odraw.line(
-                        [(inner_box[0] + 1, iy), (inner_box[2] - 1, iy)],
-                        fill=rule_stroke,
-                        width=1,
-                    )
-
-    # 4. Corner Cinnabar QR Seal Stamp (左下壓角閒章 / 右下壓角閒章)
-    has_stamp = bool(stamp_url and not is_dark and short_side >= 320)
-    if has_stamp:
-        stamp_sz = max(96, min(144, int(round(short_side * 0.135))))
-        pad_corner = max(6, margin - int(stamp_sz * 0.22))
-        if direction == "vertical-rl":
-            sx = pad_corner
-            sy = height - stamp_sz - pad_corner
+    if paper_style not in ("unruled", "plain"):
+        if is_dark:
+            outer_stroke = (165, 58, 46, 95 if short_side >= 240 else 48)
+            inner_stroke = (165, 58, 46, 60 if short_side >= 240 else 30)
+            rule_stroke = (165, 58, 46, 38 if short_side >= 240 else 20)
+        elif paper_style == "wusi":
+            # Scholar grey-ink ruling (烏絲欄): R >= 150 so blended R stays >= 195 (well above 138 ink threshold)
+            outer_stroke = (152, 148, 142, 165 if short_side >= 240 else 58)
+            inner_stroke = (156, 152, 146, 125 if short_side >= 240 else 40)
+            rule_stroke = (162, 158, 152, 85 if short_side >= 240 else 28)
         else:
-            sx = width - stamp_sz - pad_corner
-            sy = height - stamp_sz - pad_corner
+            # Cinnabar red ruling (朱絲欄): R >= 188
+            outer_stroke = (188, 96, 78, 195 if short_side >= 240 else 68)
+            inner_stroke = (196, 114, 96, 145 if short_side >= 240 else 44)
+            rule_stroke = (198, 128, 112, 88 if short_side >= 240 else 32)
+
+        if inner_box[2] - inner_box[0] > 24 and inner_box[3] - inner_box[1] > 24:
+            odraw.rectangle(outer_box, outline=outer_stroke, width=outer_w)
+            odraw.rectangle(inner_box, outline=inner_stroke, width=1)
+
+            if direction == "vertical-rl":
+                for dx in dividers:
+                    ix = int(round(dx))
+                    if inner_box[0] + 4 < ix < inner_box[2] - 4:
+                        odraw.line(
+                            [(ix, inner_box[1] + 1), (ix, inner_box[3] - 1)],
+                            fill=rule_stroke,
+                            width=1,
+                        )
+            else:
+                for dy in dividers:
+                    iy = int(round(dy))
+                    if inner_box[1] + 4 < iy < inner_box[3] - 4:
+                        odraw.line(
+                            [(inner_box[0] + 1, iy), (inner_box[2] - 1, iy)],
+                            fill=rule_stroke,
+                            width=1,
+                        )
+
+    # 4. Line-Aligned Cinnabar QR Seal Stamp (朱砂印章二維碼)
+    has_stamp = bool(stamp_enabled and stamp_url and not is_dark and short_side >= 320)
+    if has_stamp:
+        synthetic_schedule: List[Dict[str, Any]] = []
+        if first_box is not None:
+            synthetic_schedule.append({"x": first_box[0], "y": first_box[1], "size": first_box[2]})
+        if last_box is not None and last_box != first_box:
+            synthetic_schedule.append({"x": last_box[0], "y": last_box[1], "size": last_box[2]})
+
+        sx, sy, stamp_sz = compute_stamp_placement(
+            width,
+            height,
+            direction=direction,
+            grid=grid,
+            schedule=synthetic_schedule,
+            stamp_position=stamp_position,
+            stamp_col=stamp_col,
+            stamp_row=stamp_row,
+        )
 
         # Clear the ruling lines underneath the seal body so the border lines stop at the stamp edge
         clear_pad = max(2, int(round(stamp_sz * 0.03)))
@@ -837,8 +1170,10 @@ def render_writing_paper(
 ) -> Image.Image:
     """Create the writing paper background for a scene or preview frame."""
     paper_style = getattr(appearance, "paper_style", "xuan")
-    if paper_style == "plain":
-        return Image.new("RGB", (width, height), appearance.paper_color)
+    stamp_enabled = bool(getattr(appearance, "stamp_enabled", True))
+    stamp_position = str(getattr(appearance, "stamp_position", "after-text"))
+    stamp_col = getattr(appearance, "stamp_col", None)
+    stamp_row = getattr(appearance, "stamp_row", None)
 
     schedule: List[Dict[str, Any]] = []
     direction = "vertical-rl"
@@ -849,12 +1184,22 @@ def render_writing_paper(
         schedule = getattr(plan, "schedule", [])
         direction = getattr(plan, "direction", "vertical-rl")
 
-    col_centers = tuple(
-        sorted({round(float(e["x"]) + float(e["size"]) * 0.5, 1) for e in schedule})
-    )
-    row_centers = tuple(
-        sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule})
-    )
+    # Group by logical column/row index if present, otherwise by rounded coordinate
+    if schedule and "column" in schedule[0] and "row" in schedule[0]:
+        cols_by_idx: Dict[int, List[float]] = {}
+        rows_by_idx: Dict[int, List[float]] = {}
+        for e in schedule:
+            cols_by_idx.setdefault(int(e["column"]), []).append(float(e["x"]) + float(e["size"]) * 0.5)
+            rows_by_idx.setdefault(int(e["row"]), []).append(float(e["y"]) + float(e["size"]) * 0.5)
+        col_centers = tuple(sorted(round(sum(v) / len(v), 1) for v in cols_by_idx.values()))
+        row_centers = tuple(sorted(round(sum(v) / len(v), 1) for v in rows_by_idx.values()))
+    else:
+        col_centers = tuple(
+            sorted({round(float(e["x"]) + float(e["size"]) * 0.5, 1) for e in schedule})
+        )
+        row_centers = tuple(
+            sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule})
+        )
     cell_size = round(float(schedule[0]["size"]), 2) if schedule else 0.0
 
     gap = 0.18
@@ -867,17 +1212,31 @@ def render_writing_paper(
     if stamp_url is None:
         stamp_url = get_default_stamp_url()
 
+    first_box: Optional[Tuple[float, float, float]] = None
+    last_box: Optional[Tuple[float, float, float]] = None
+    if schedule:
+        f_e = schedule[0]
+        l_e = schedule[-1]
+        first_box = (round(float(f_e["x"]), 1), round(float(f_e["y"]), 1), round(float(f_e["size"]), 1))
+        last_box = (round(float(l_e["x"]), 1), round(float(l_e["y"]), 1), round(float(l_e["size"]), 1))
+
     base = _cached_xuan_base(
         int(width),
         int(height),
         tuple(appearance.paper_color),
-        len(col_centers),
-        len(row_centers),
+        paper_style,
         direction,
         col_centers,
         row_centers,
         cell_size,
         gap,
+        stamp_enabled,
+        stamp_position,
+        int(stamp_col) if stamp_col is not None else None,
+        round(float(stamp_row), 4) if stamp_row is not None else None,
         stamp_url,
+        first_box,
+        last_box,
     )
     return base.copy()
+

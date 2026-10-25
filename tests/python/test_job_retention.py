@@ -54,11 +54,11 @@ class JobRetentionTests(unittest.TestCase):
 
     def test_default_retention_uses_completion_and_file_age_not_creation(self):
         summary = self.summary()
-        self.assertAlmostEqual(summary["expires_at"], self.completed + 604800, places=4)
+        self.assertAlmostEqual(summary["expires_at"], self.completed + 30 * 86400, places=4)
         self.assertEqual(summary["ordinary_expires_at"], summary["expires_at"])
         self.assertIsNone(summary["share_expires_at"])
         self.assertTrue(summary["output_available"])
-        self.assertEqual(self.owner.get("/api/jobs").json()["retention_seconds"], 604800)
+        self.assertEqual(self.owner.get("/api/jobs").json()["retention_seconds"], 30 * 86400)
 
     def age_work(self, days):
         old = self.now - days * 86400
@@ -66,27 +66,27 @@ class JobRetentionTests(unittest.TestCase):
         with self.db._get_sqlite_conn() as conn:
             conn.execute("UPDATE jobs SET completed_at = ? WHERE job_id = 'one'", (self.iso(old),))
 
-    def test_default_cleanup_keeps_six_day_work_and_removes_eight_day_work(self):
+    def test_default_cleanup_keeps_twenty_nine_day_work_and_removes_thirty_one_day_work(self):
         with patch.dict(os.environ, {"CALLIGRAPHY_OUTPUT_DIR": self.tmp.name}):
-            self.age_work(6)
+            self.age_work(29)
             cleanup_expired_outputs(self.db)
             self.assertTrue(self.path.is_file())
             self.assertIsNotNone(self.db.get_job("one"))
-            self.age_work(8)
+            self.age_work(31)
             cleanup_expired_outputs(self.db)
             self.assertFalse(self.path.exists())
             self.assertIsNone(self.db.get_job("one"))
 
-    def test_six_day_video_can_be_exported_and_shared_but_eight_day_video_cannot(self):
-        self.age_work(6)
+    def test_twenty_nine_day_video_can_be_exported_and_shared_but_thirty_one_day_video_cannot(self):
+        self.age_work(29)
         exported = self.owner.post("/api/jobs/one/export-link")
         self.assertEqual(exported.status_code, 200)
         self.assertLessEqual(exported.json()["expires_at"], time.time() + 600)
         shared = self.owner.post("/api/jobs/one/share-link")
         self.assertEqual(shared.status_code, 200)
-        self.assertLessEqual(shared.json()["expires_at"], time.time() + 72 * 3600)
+        self.assertGreater(shared.json()["expires_at"], time.time() + 365 * 86400)
         self.owner.delete("/api/jobs/one/share-link")
-        self.age_work(8)
+        self.age_work(31)
         self.assertEqual(self.owner.post("/api/jobs/one/export-link").status_code, 404)
         self.assertEqual(self.owner.post("/api/jobs/one/share-link").status_code, 404)
 
@@ -101,7 +101,7 @@ class JobRetentionTests(unittest.TestCase):
     def test_active_share_lease_is_reported_after_ordinary_expiry(self):
         expiry = self.now + 72 * 3600
         self.db.set_video_share("one", self.session, "digest", expiry)
-        old = self.now - 8 * 86400
+        old = self.now - 31 * 86400
         os.utime(self.path, (old, old))
         with self.db._get_sqlite_conn() as conn:
             conn.execute("UPDATE jobs SET completed_at = ?, expires_at = ? WHERE job_id = 'one'",
@@ -133,7 +133,7 @@ class JobRetentionTests(unittest.TestCase):
         self.db.update_job("one", status="failed")
         summary = self.summary()
         self.assertIsNone(summary["output_available"])
-        self.assertAlmostEqual(summary["expires_at"], self.completed + 604800, places=4)
+        self.assertAlmostEqual(summary["expires_at"], self.completed + 30 * 86400, places=4)
         self.db.update_job("one", status="running")
         self.assertEqual(self.summary(), {"expires_at": None, "ordinary_expires_at": None,
                                          "share_expires_at": None, "output_available": None})

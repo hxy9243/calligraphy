@@ -26,24 +26,50 @@ def _parse_color(color: Any, name: str) -> Tuple[int, int, int]:
     raise ValueError(f"{name} must be a valid hex color (#RRGGBB) or RGB tuple (r, g, b)")
 
 
+VALID_PAPER_STYLES = ("xuan", "wusi", "gold", "unruled", "plain")
+VALID_STAMP_POSITIONS = ("after-text", "next-line", "before-text", "corner", "custom")
+
+
 @dataclass(frozen=True)
 class Appearance:
     paper_color: Tuple[int, int, int] = (248, 243, 233)
     ink_color: Tuple[int, int, int] = (28, 27, 24)
     paper_style: str = "xuan"
+    stamp_enabled: bool = True
+    stamp_position: str = "after-text"
+    stamp_col: Optional[int] = None
+    stamp_row: Optional[float] = None
     stamp_url: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "Appearance":
         if not data:
             return cls()
-        paper = _parse_color(data.get("paper_color", data.get("paper", "#f8f3e9")), "paper_color")
-        ink = _parse_color(data.get("ink_color", data.get("ink", "#1c1b18")), "ink_color")
         paper_style = str(data.get("paper_style", "xuan"))
-        if paper_style not in ("xuan", "plain"):
-            raise ValueError("paper_style must be xuan or plain")
+        if paper_style not in VALID_PAPER_STYLES:
+            raise ValueError(f"paper_style must be one of {VALID_PAPER_STYLES}")
+        default_paper = "#f4f1ea" if paper_style == "wusi" else ("#f6ecd8" if paper_style == "gold" else "#f8f3e9")
+        paper = _parse_color(data.get("paper_color", data.get("paper", default_paper)), "paper_color")
+        ink = _parse_color(data.get("ink_color", data.get("ink", "#1c1b18")), "ink_color")
+        stamp_enabled = bool(data.get("stamp_enabled", True))
+        stamp_position = str(data.get("stamp_position", "after-text"))
+        if stamp_position not in VALID_STAMP_POSITIONS:
+            raise ValueError(f"stamp_position must be one of {VALID_STAMP_POSITIONS}")
+        raw_col = data.get("stamp_col")
+        stamp_col = int(raw_col) if raw_col is not None else None
+        raw_row = data.get("stamp_row")
+        stamp_row = float(raw_row) if raw_row is not None else None
         stamp_url = data.get("stamp_url")
-        return cls(paper_color=paper, ink_color=ink, paper_style=paper_style, stamp_url=stamp_url)
+        return cls(
+            paper_color=paper,
+            ink_color=ink,
+            paper_style=paper_style,
+            stamp_enabled=stamp_enabled,
+            stamp_position=stamp_position,
+            stamp_col=stamp_col,
+            stamp_row=stamp_row,
+            stamp_url=stamp_url,
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         result: Dict[str, Any] = {
@@ -52,6 +78,14 @@ class Appearance:
         }
         if self.paper_style != "xuan":
             result["paper_style"] = self.paper_style
+        if not self.stamp_enabled:
+            result["stamp_enabled"] = False
+        if self.stamp_position != "after-text":
+            result["stamp_position"] = self.stamp_position
+        if self.stamp_col is not None:
+            result["stamp_col"] = self.stamp_col
+        if self.stamp_row is not None:
+            result["stamp_row"] = self.stamp_row
         if self.stamp_url is not None:
             result["stamp_url"] = self.stamp_url
         return result

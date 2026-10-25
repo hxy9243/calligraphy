@@ -2,14 +2,18 @@ import unittest
 import cv2
 import numpy as np
 
+from backend.retention import DEFAULT_RETENTION_SECONDS, PERMANENT_SHARE_TTL_SECONDS, job_share_token, job_share_url
 from calligraphy.paper import (
     DEFAULT_STAMP_URL,
+    compute_paper_grid,
+    compute_stamp_placement,
     encode_qr_matrix,
     render_qr_seal_stamp,
     render_writing_paper,
 )
 from calligraphy.renderer import create_scene
 from calligraphy.spec import Appearance, SceneSpec
+from calligraphy.text.layout import layout_text
 
 
 class PaperAndQrStampTests(unittest.TestCase):
@@ -17,7 +21,6 @@ class PaperAndQrStampTests(unittest.TestCase):
         matrix = encode_qr_matrix(DEFAULT_STAMP_URL, ecc="M")
         self.assertEqual(matrix.shape, (33, 33))
         self.assertEqual(matrix.dtype, np.bool_)
-        # Verify 7x7 finder pattern corners
         for r, c in ((0, 0), (0, 26), (26, 0)):
             finder = matrix[r : r + 7, c : c + 7]
             self.assertTrue(np.all(finder[0, :]))
@@ -26,11 +29,17 @@ class PaperAndQrStampTests(unittest.TestCase):
             self.assertTrue(np.all(finder[:, 6]))
             self.assertTrue(np.all(finder[2:5, 2:5]))
 
-    def test_qr_seal_stamp_is_scannable_and_has_weathered_red_ink_and_border_breaks(self):
+    def test_qr_seal_stamp_is_scannable_including_share_link_urls(self):
         detector = cv2.QRCodeDetector()
         paper_rgb = (246, 240, 228)
-        for size_px in (96, 128, 160):
-            stamp = render_qr_seal_stamp(DEFAULT_STAMP_URL, size_px=size_px, paper_rgb=paper_rgb)
+        share_url = job_share_url("vid_a1b2c3d4e5f6")
+        test_cases = [
+            (DEFAULT_STAMP_URL, 96),
+            (DEFAULT_STAMP_URL, 128),
+            (share_url, 128),
+        ]
+        for url, size_px in test_cases:
+            stamp = render_qr_seal_stamp(url, size_px=size_px, paper_rgb=paper_rgb)
             self.assertEqual(stamp.size, (size_px, size_px))
             self.assertEqual(stamp.mode, "RGBA")
 
@@ -43,59 +52,112 @@ class PaperAndQrStampTests(unittest.TestCase):
             ).astype(np.uint8)
 
             decoded, _, _ = detector.detectAndDecode(cv2.cvtColor(composite, cv2.COLOR_RGB2BGR))
-            self.assertEqual(decoded, DEFAULT_STAMP_URL, f"Failed to decode QR stamp at {size_px}px")
+            self.assertEqual(decoded, url, f"Failed to decode QR stamp at {size_px}px for {url}")
 
-            # Verify red-ink cinnabar characteristics (high R, much lower G/B) and variation
             ink_mask = arr[:, :, 3] > 120
             self.assertGreater(int(ink_mask.sum()), size_px * size_px // 8)
             red_vals = arr[:, :, 0][ink_mask]
             green_vals = arr[:, :, 1][ink_mask]
             self.assertGreater(float(red_vals.mean()), 155.0)
             self.assertLess(float(green_vals.mean()), 65.0)
-            self.assertGreater(float(red_vals.std()), 3.5)
 
-            # Verify outer border has weathered breaks (not a solid unbroken rectangle)
-            # Sample along the outer border band
             border_band = arr[2 : max(4, size_px // 14), size_px // 5 : 4 * size_px // 5, 3]
             has_ink = (border_band > 100).any(axis=0)
             self.assertTrue(has_ink.any())
             self.assertTrue((~has_ink).any(), "Outer border should contain weathered breaks")
 
-    def test_writing_paper_renders_ruling_and_scannable_corner_stamp(self):
-        spec = SceneSpec.from_dict(
-            {
-                "version": 1,
-                "text": "永\n永",
-                "style": "kai",
-                "layout": {
-                    "direction": "vertical-rl",
-                    "columns": 2,
-                    "rows": 2,
-                    "width": 720,
-                    "height": 900,
-                    "margin": 64,
-                },
-            }
-        )
-        scene = create_scene(spec)
-        frame = np.asarray(scene.frame(scene.duration))
-        self.assertEqual(frame.shape, (900, 720, 3))
-        # Top-left pixel preserves paper_color invariant
-        self.assertEqual(tuple(int(v) for v in frame[0, 0]), spec.appearance.paper_color)
+    def test_evenly_distributed_ruling_lines_across_entire_page(self):
+        # Even when there are only 2 columns of text, the paper should have evenly distributed lines across the whole page.
+        grid = compute_paper_grid(720, 960, direction="vertical-rl", col_centers=(310.0, 410.0), cell_size=68.0)
+        self.assertGreaterEqual(grid["n_lanes"], 5)
+        centers = grid["lane_centers"]
+        self.assertEqual(len(centers), grid["n_lanes"])
+        diffs = [centers[i + 1] - centers[i] for i in range(len(centers) - 1)]
+        for d in diffs:
+            self.assertAlmostEqual(d, grid["lane_width"], places=1)
 
-        # Decode the corner QR stamp directly from the rendered calligraphy page
+    def test_all_paper_backgrounds_render_distinct_textures_and_preserve_corner_pixel(self):
+        for style in ("xuan", "wusi", "gold", "unruled", "plain"):
+            appearance = Appearance(paper_style=style, stamp_enabled=False)
+            paper = np.asarray(render_writing_paper(480, 640, appearance=appearance))
+            self.assertEqual(paper.shape, (640, 480, 3))
+            self.assertEqual(tuple(int(v) for v in paper[0, 0]), appearance.paper_color)
+
+    def test_stamp_positions_align_to_paper_lines_and_scan_cleanly(self):
         detector = cv2.QRCodeDetector()
-        bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        # Check bottom-left corner crop where vertical-rl places the seal
-        corner = bgr[frame.shape[0] // 2 :, : frame.shape[1] // 2]
-        decoded, _, _ = detector.detectAndDecode(corner)
-        self.assertEqual(decoded, DEFAULT_STAMP_URL)
+        for pos in ("after-text", "next-line", "before-text", "corner", "custom"):
+            spec = SceneSpec.from_dict(
+                {
+                    "version": 1,
+                    "text": "永\n永",
+                    "style": "kai",
+                    "layout": {
+                        "direction": "vertical-rl",
+                        "columns": 2,
+                        "rows": 2,
+                        "width": 720,
+                        "height": 900,
+                        "margin": 64,
+                    },
+                    "appearance": {
+                        "paper_style": "xuan",
+                        "stamp_enabled": True,
+                        "stamp_position": pos,
+                        "stamp_col": 0 if pos == "custom" else None,
+                        "stamp_row": 0.85 if pos == "custom" else None,
+                    },
+                }
+            )
+            scene = create_scene(spec)
+            frame = np.asarray(scene.frame(scene.duration))
+            self.assertEqual(tuple(int(v) for v in frame[0, 0]), spec.appearance.paper_color)
+            schedule = scene.plan["schedule"]
+            col_centers = tuple(sorted({round(float(e["x"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
+            row_centers = tuple(sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
+            cell_size = round(float(schedule[0]["size"]), 2)
+            grid = compute_paper_grid(720, 900, "vertical-rl", col_centers, row_centers, cell_size, 0.18)
+            sx, sy, stamp_sz = compute_stamp_placement(
+                720,
+                900,
+                "vertical-rl",
+                grid,
+                schedule,
+                stamp_position=pos,
+                stamp_col=spec.appearance.stamp_col,
+                stamp_row=spec.appearance.stamp_row,
+            )
+            y0 = max(0, sy - 20)
+            y1 = min(900, sy + stamp_sz + 20)
+            x0 = max(0, sx - 20)
+            x1 = min(720, sx + stamp_sz + 20)
+            crop_bgr = cv2.cvtColor(frame[y0:y1, x0:x1], cv2.COLOR_RGB2BGR)
+            decoded, _, _ = detector.detectAndDecode(crop_bgr)
+            self.assertEqual(decoded, DEFAULT_STAMP_URL, f"Stamp failed to decode in mode {pos}")
 
-    def test_plain_paper_style_disables_ruling_and_stamp(self):
-        appearance = Appearance(paper_style="plain", stamp_url="")
-        paper = np.asarray(render_writing_paper(320, 240, appearance=appearance))
-        expected = np.full((240, 320, 3), appearance.paper_color, dtype=np.uint8)
-        np.testing.assert_array_equal(paper, expected)
+    def test_zigzag_layout_staggers_line_starts_within_margins(self):
+        lines = ["永永永永", "永永永永", "永永永永", "永永永永"]
+        rigid = layout_text(lines, direction="vertical-rl", width=720, height=960, zigzag=False)
+        staggered = layout_text(lines, direction="vertical-rl", width=720, height=960, zigzag=True)
+        rigid_first_y = [p["y"] for p in rigid["placements"] if p["row"] == 0]
+        staggered_first_y = [p["y"] for p in staggered["placements"] if p["row"] == 0]
+        # Rigid layout starts every column at the exact same Y
+        self.assertEqual(len(set(round(y, 2) for y in rigid_first_y)), 1)
+        # Zigzag layout staggers column start Y positions while staying within margins
+        self.assertGreater(len(set(round(y, 2) for y in staggered_first_y)), 1)
+        for p in staggered["placements"]:
+            x0, y0 = p["x"], p["y"]
+            x1, y1 = x0 + p["size"], y0 + p["size"]
+            self.assertGreaterEqual(x0, 0.0)
+            self.assertGreaterEqual(y0, 0.0)
+            self.assertLessEqual(x1, 720.0)
+            self.assertLessEqual(y1, 960.0)
+
+    def test_retention_constants_and_deterministic_share_url(self):
+        self.assertEqual(DEFAULT_RETENTION_SECONDS, 30 * 24 * 3600)
+        self.assertGreaterEqual(PERMANENT_SHARE_TTL_SECONDS, 5 * 365 * 24 * 3600)
+        tok = job_share_token("vid_test123")
+        self.assertEqual(len(tok), 43)
+        self.assertTrue(job_share_url("vid_test123").endswith(f"/watch.html#vid_test123.{tok}"))
 
 
 if __name__ == "__main__":

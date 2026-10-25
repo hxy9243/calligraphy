@@ -346,11 +346,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const spacingSlider = document.getElementById('spacing-slider');
   const spacingVal = document.getElementById('spacing-val');
   const fitToggle = document.getElementById('fit-toggle');
+  const paperStyleSelect = document.getElementById('paper-style-select');
+  const zigzagToggle = document.getElementById('zigzag-toggle');
+  const stampToggle = document.getElementById('stamp-toggle');
+  const stampPositionSelect = document.getElementById('stamp-position-select');
+  const stampOptionsRow = document.getElementById('stamp-options-row');
+  const stampDragHandle = document.getElementById('stamp-drag-handle');
   const stageViewport = document.getElementById('stage-viewport');
   const stageCaption = document.getElementById('stage-caption');
   const editorPreview = document.getElementById('editor-preview');
   const editorPreviewStatus = document.getElementById('editor-preview-status');
   const fontGlyphWarning = document.getElementById('font-glyph-warning');
+  let stampCol = null;
+  let stampRow = null;
   let verifiedMissingGlyphs = [];
   let verifiedGlyphKey = '';
   let editorTimer, editorRevision = 0, editorInFlight = false, editorURL = null;
@@ -358,14 +366,108 @@ document.addEventListener('DOMContentLoaded', () => {
   // One logical page contract for editor pixels, stills and videos. Display size
   // never changes composition; the editor endpoint only downsamples the image.
   function compositionSettings() {
-    return { width: canvasWidth, height: canvasHeight, palette: artworkPalette,
+    const settings = { width: canvasWidth, height: canvasHeight, palette: artworkPalette,
       font_size: Number(fontSizeSlider?.value || 68),
       spacing: Number(spacingSlider?.value || 0.18), fit: fitToggle?.checked ?? true };
+    if (paperStyleSelect && paperStyleSelect.value && paperStyleSelect.value !== 'xuan') {
+      settings.paper_style = paperStyleSelect.value;
+    }
+    if (zigzagToggle?.checked) {
+      settings.zigzag = true;
+    }
+    if (stampToggle && !stampToggle.checked) {
+      settings.stamp_enabled = false;
+    }
+    if (stampPositionSelect && stampPositionSelect.value && stampPositionSelect.value !== 'after-text') {
+      settings.stamp_position = stampPositionSelect.value;
+    }
+    if (stampPositionSelect?.value === 'custom') {
+      if (stampCol !== null && Number.isFinite(stampCol)) settings.stamp_col = stampCol;
+      if (stampRow !== null && Number.isFinite(stampRow)) settings.stamp_row = stampRow;
+    }
+    return settings;
+  }
+
+  function computeStageGridMetrics() {
+    const cw = canvasWidth || 720;
+    const ch = canvasHeight || 960;
+    const isVert = currentDirection === 'vertical-rl';
+    const mx = Math.max(28, Math.round(cw * 0.062));
+    const my = Math.max(28, Math.round(ch * 0.062));
+    const innerP = Math.max(6, Math.round(Math.min(cw, ch) * 0.012));
+    const ix0 = mx + innerP, iy0 = my + innerP;
+    const ix1 = cw - mx - innerP, iy1 = ch - my - innerP;
+    const innerW = Math.max(40, ix1 - ix0), innerH = Math.max(40, iy1 - iy0);
+    const rawLines = (textInput?.value || '永').split('\n').map(l => l.trim()).filter(Boolean);
+    const numTextLines = Math.max(1, rawLines.length);
+    const baseSize = Number(fontSizeSlider?.value || 68);
+    const targetLane = Math.max(44, baseSize * 1.48);
+    const span = isVert ? innerW : innerH;
+    const nLanes = Math.max(numTextLines, Math.max(4, Math.round(span / targetLane)));
+    const laneW = span / nLanes;
+    return { cw, ch, isVert, ix0, iy0, ix1, iy1, innerW, innerH, nLanes, laneW, rawLines, numTextLines, baseSize };
+  }
+
+  function updateStampDragHandlePosition() {
+    if (!stampDragHandle || !calligraphyStage) return;
+    const enabled = stampToggle ? stampToggle.checked : true;
+    if (stampOptionsRow) stampOptionsRow.hidden = !enabled;
+    if (!enabled) {
+      stampDragHandle.hidden = true;
+      return;
+    }
+    stampDragHandle.hidden = false;
+    const g = computeStageGridMetrics();
+    const posMode = stampPositionSelect ? stampPositionSelect.value : 'after-text';
+    const stampSize = Math.max(64, Math.min(Math.round(Math.min(g.cw, g.ch) * 0.142), Math.round(g.laneW * 0.90), 144));
+    let col = 0;
+    let row = 0.85;
+    if (posMode === 'custom' && stampCol !== null && stampRow !== null) {
+      col = Math.max(0, Math.min(g.nLanes - 1, stampCol));
+      row = Math.max(0, Math.min(1, stampRow));
+    } else if (posMode === 'before-text') {
+      col = 0;
+      row = 0.02;
+    } else if (posMode === 'next-line') {
+      col = Math.min(g.nLanes - 1, g.numTextLines);
+      row = 0.78;
+    } else if (posMode === 'corner') {
+      col = g.nLanes - 1;
+      row = 0.92;
+    } else {
+      const lastLineIdx = Math.min(g.nLanes - 1, g.numTextLines - 1);
+      const lastLineLen = Math.max(1, [...(g.rawLines[lastLineIdx] || '永')].length);
+      const estEndRatio = Math.min(1.0, (lastLineLen * g.baseSize * 1.18) / Math.max(1, g.isVert ? g.innerH : g.innerW));
+      if (estEndRatio < 0.76) {
+        col = lastLineIdx;
+        row = Math.min(0.92, estEndRatio + 0.08);
+      } else {
+        col = Math.min(g.nLanes - 1, lastLineIdx + 1);
+        row = 0.82;
+      }
+    }
+    let cx, cy;
+    if (g.isVert) {
+      cx = g.ix1 - (col + 0.5) * g.laneW;
+      cy = g.iy0 + stampSize * 0.55 + row * Math.max(1, g.innerH - stampSize * 1.1);
+    } else {
+      cy = g.iy0 + (col + 0.5) * g.laneW;
+      cx = g.ix0 + stampSize * 0.55 + row * Math.max(1, g.innerW - stampSize * 1.1);
+    }
+    const leftPct = ((cx - stampSize / 2) / g.cw) * 100;
+    const topPct = ((cy - stampSize / 2) / g.ch) * 100;
+    const wPct = (stampSize / g.cw) * 100;
+    const hPct = (stampSize / g.ch) * 100;
+    stampDragHandle.style.left = `${Math.max(1, Math.min(95, leftPct)).toFixed(2)}%`;
+    stampDragHandle.style.top = `${Math.max(1, Math.min(95, topPct)).toFixed(2)}%`;
+    stampDragHandle.style.width = `${Math.max(6, wPct).toFixed(2)}%`;
+    stampDragHandle.style.height = `${Math.max(6, hPct).toFixed(2)}%`;
   }
 
   function scheduleEditorPreview() {
     editorRevision += 1;
     clearTimeout(editorTimer);
+    updateStampDragHandlePosition();
     if (verifiedGlyphKey !== JSON.stringify([textInput.value.trim(), styleSelect.value])) {
       verifiedMissingGlyphs = [];
       if (fontGlyphWarning) fontGlyphWarning.hidden = true;
@@ -393,11 +495,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) {
         const error = await res.json();
         if (revision !== editorRevision) return;
-        const missing = String(error.detail || '').match(/Missing (?:font |prepared [^ ]* )?glyphs: ([^\.\n]+)/i);
+        const detailStr = String(error.detail || '');
+        const missing = detailStr.match(/(?:Missing (?:font |prepared [^ ]* )?|Empty (?:font )?)glyphs?: ([^\.\n]+)/i);
         if (missing) {
+          const isEmpty = /Empty/i.test(detailStr);
           verifiedGlyphKey = JSON.stringify([textInput.value.trim(), styleSelect.value]);
-          verifiedMissingGlyphs = [...new Set([...missing[1]].filter(c => /\p{Script=Han}/u.test(c)))];
-          fontGlyphWarning.textContent = `此字體缺少【${verifiedMissingGlyphs.join('、')}】，請更換字體或修改文字。`;
+          verifiedMissingGlyphs = [...new Set([...missing[1]].filter(c => /\p{Script=Han}/u.test(c) || c.trim()))];
+          fontGlyphWarning.textContent = isEmpty
+            ? `⚠️ 字體空白字形警告：此字體中的【${verifiedMissingGlyphs.join('、')}】為空白字形（無筆畫），請更換字體或修改文字！`
+            : `⚠️ 字體缺字警告：此字體缺少【${verifiedMissingGlyphs.join('、')}】，請更換字體或修改文字！`;
           fontGlyphWarning.hidden = false;
         }
         if (res.status === 503) {
@@ -416,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
       editorPreviewStatus.hidden = true;
     } catch (error) {
       if (revision === editorRevision) editorPreviewStatus.textContent = verifiedMissingGlyphs.length
-        ? '字體預覽無法更新：所選字體缺字。' : error.message;
+        ? '字體預覽無法更新：所選字體缺字或含空白字形。' : error.message;
     } finally {
       editorInFlight = false;
       if (revision !== editorRevision) editorTimer = setTimeout(refreshEditorPreview, 800);
@@ -1009,6 +1115,101 @@ document.addEventListener('DOMContentLoaded', () => {
     fitToggle.addEventListener('change', fitStage);
   }
 
+  if (paperStyleSelect) {
+    paperStyleSelect.addEventListener('change', () => scheduleEditorPreview());
+  }
+  if (zigzagToggle) {
+    zigzagToggle.addEventListener('change', () => scheduleEditorPreview());
+  }
+  if (stampToggle) {
+    stampToggle.addEventListener('change', () => {
+      updateStampDragHandlePosition();
+      scheduleEditorPreview();
+    });
+  }
+  if (stampPositionSelect) {
+    stampPositionSelect.addEventListener('change', () => {
+      if (stampPositionSelect.value !== 'custom') {
+        stampCol = null;
+        stampRow = null;
+      }
+      updateStampDragHandlePosition();
+      scheduleEditorPreview();
+    });
+  }
+
+  // Long-press / long-click drag to position the stamp aligned with paper ruled lines
+  if (calligraphyStage && stampDragHandle) {
+    let longPressTimer = null;
+    let draggingStamp = false;
+    let activePointerId = null;
+
+    function snapPointerToPaperLines(clientX, clientY) {
+      const rect = calligraphyStage.getBoundingClientRect ? calligraphyStage.getBoundingClientRect() : null;
+      if (!rect || rect.width <= 0 || rect.height <= 0) return;
+      const g = computeStageGridMetrics();
+      const cx = ((clientX - rect.left) / rect.width) * g.cw;
+      const cy = ((clientY - rect.top) / rect.height) * g.ch;
+      const stampSize = Math.max(64, Math.min(Math.round(Math.min(g.cw, g.ch) * 0.142), Math.round(g.laneW * 0.90), 144));
+      if (g.isVert) {
+        const col = Math.max(0, Math.min(g.nLanes - 1, Math.floor((g.ix1 - cx) / g.laneW)));
+        const row = Math.max(0, Math.min(1, (cy - g.iy0 - stampSize * 0.55) / Math.max(1, g.innerH - stampSize * 1.1)));
+        stampCol = col;
+        stampRow = Number(row.toFixed(3));
+      } else {
+        const col = Math.max(0, Math.min(g.nLanes - 1, Math.floor((cy - g.iy0) / g.laneW)));
+        const row = Math.max(0, Math.min(1, (cx - g.ix0 - stampSize * 0.55) / Math.max(1, g.innerW - stampSize * 1.1)));
+        stampCol = col;
+        stampRow = Number(row.toFixed(3));
+      }
+      if (stampPositionSelect) stampPositionSelect.value = 'custom';
+      updateStampDragHandlePosition();
+    }
+
+    function beginStampDrag(e) {
+      if (stampToggle && !stampToggle.checked) return;
+      if (e.button != null && e.button !== 0) return;
+      clearTimeout(longPressTimer);
+      activePointerId = e.pointerId ?? null;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const onHandle = e.target === stampDragHandle || stampDragHandle.contains(e.target);
+      const delayMs = onHandle ? 180 : 320;
+      longPressTimer = setTimeout(() => {
+        draggingStamp = true;
+        stampDragHandle.classList.add('active-drag');
+        snapPointerToPaperLines(startX, startY);
+      }, delayMs);
+    }
+
+    function moveStampDrag(e) {
+      if (!draggingStamp) return;
+      if (activePointerId !== null && e.pointerId != null && e.pointerId !== activePointerId) return;
+      if (e.cancelable) e.preventDefault();
+      snapPointerToPaperLines(e.clientX, e.clientY);
+    }
+
+    function endStampDrag() {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+      if (draggingStamp) {
+        draggingStamp = false;
+        activePointerId = null;
+        stampDragHandle.classList.remove('active-drag');
+        scheduleEditorPreview();
+      }
+    }
+
+    stampDragHandle.addEventListener('pointerdown', beginStampDrag);
+    calligraphyStage.addEventListener('pointerdown', e => {
+      if (e.target === stampDragHandle || stampDragHandle.contains(e.target)) return;
+      beginStampDrag(e);
+    });
+    window.addEventListener('pointermove', moveStampDrag);
+    window.addEventListener('pointerup', endStampDrag);
+    window.addEventListener('pointercancel', endStampDrag);
+  }
+
   // Numeric matching also handles the standard speed button's "1" vs "1.0".
   const speedSeg = document.getElementById('speed-seg');
   const fpsSeg = document.getElementById('fps-seg');
@@ -1304,15 +1505,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) {
         const err = await res.json();
         const detail = err.detail || '預覽失敗';
-        if (/missing.*glyph/i.test(detail)) {
-          const match = detail.match(/Missing (?:font |prepared [^ ]* )?glyphs: ([^\.]+)/i);
+        if (/(?:missing|empty).*glyph/i.test(detail)) {
+          const isEmpty = /empty/i.test(detail);
+          const match = detail.match(/(?:Missing (?:font |prepared [^ ]* )?|Empty (?:font )?)glyphs?: ([^\.]+)/i);
           const chars = match ? match[1].trim() : '';
-          const msg = chars ? `當前字體缺少字符【${chars}】，無法生成` : '當前字體缺少字符，無法生成';
+          const msg = isEmpty
+            ? (chars ? `⚠️ 當前字體中的字符【${chars}】為空白字形（無筆畫），無法生成` : '⚠️ 當前字體含有空白字形，無法生成')
+            : (chars ? `當前字體缺少字符【${chars}】，無法生成` : '當前字體缺少字符，無法生成');
           showStatus(msg, 'error');
           if (charLimitWarning) {
             charLimitWarning.textContent = msg;
             charLimitWarning.hidden = false;
             charLimitWarning.classList.remove('hidden');
+          }
+          if (fontGlyphWarning) {
+            fontGlyphWarning.textContent = msg;
+            fontGlyphWarning.hidden = false;
           }
           return;
         }
@@ -1379,15 +1587,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) {
         const err = await res.json();
         const detail = err.detail || '任務創建失敗';
-        if (/missing.*glyph/i.test(detail)) {
-          const match = detail.match(/Missing (?:font |prepared [^ ]* )?glyphs: ([^\.]+)/i);
+        if (/(?:missing|empty).*glyph/i.test(detail)) {
+          const isEmpty = /empty/i.test(detail);
+          const match = detail.match(/(?:Missing (?:font |prepared [^ ]* )?|Empty (?:font )?)glyphs?: ([^\.]+)/i);
           const chars = match ? match[1].trim() : '';
-          const msg = chars ? `當前字體缺少字符【${chars}】，無法生成` : '當前字體缺少字符，無法生成';
+          const msg = isEmpty
+            ? (chars ? `⚠️ 當前字體中的字符【${chars}】為空白字形（無筆畫），無法生成` : '⚠️ 當前字體含有空白字形，無法生成')
+            : (chars ? `當前字體缺少字符【${chars}】，無法生成` : '當前字體缺少字符，無法生成');
           showStatus(msg, 'error');
           if (charLimitWarning) {
             charLimitWarning.textContent = msg;
             charLimitWarning.hidden = false;
             charLimitWarning.classList.remove('hidden');
+          }
+          if (fontGlyphWarning) {
+            fontGlyphWarning.textContent = msg;
+            fontGlyphWarning.hidden = false;
           }
           return;
         }
@@ -1472,7 +1687,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function restoreJobSettings(job) {
     const params = job.params && typeof job.params === 'object' && !Array.isArray(job.params) ? job.params : {};
     const notices = [];
-    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps', 'palette']);
+    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps', 'palette', 'paper_style', 'zigzag', 'stamp_enabled', 'stamp_position', 'stamp_col', 'stamp_row']);
     const readNumber = (key, fallback, min, max, integer = false) => {
       const value = params[key];
       if (value === undefined || value === null) return fallback;
@@ -1534,6 +1749,24 @@ document.addEventListener('DOMContentLoaded', () => {
     else notices.push('適應畫布控制項不可用');
     if (params.fit != null && typeof params.fit !== 'boolean') notices.push('適應畫布設定無效，已啟用預設值');
 
+    if (paperStyleSelect) {
+      const ps = params.paper_style ?? 'xuan';
+      paperStyleSelect.value = ['xuan', 'wusi', 'gold', 'unruled', 'plain'].includes(ps) ? ps : 'xuan';
+    }
+    if (zigzagToggle) {
+      zigzagToggle.checked = Boolean(params.zigzag);
+    }
+    if (stampToggle) {
+      stampToggle.checked = typeof params.stamp_enabled === 'boolean' ? params.stamp_enabled : true;
+    }
+    if (stampPositionSelect) {
+      const sp = params.stamp_position ?? 'after-text';
+      stampPositionSelect.value = ['after-text', 'next-line', 'before-text', 'corner', 'custom'].includes(sp) ? sp : 'after-text';
+    }
+    stampCol = typeof params.stamp_col === 'number' && Number.isFinite(params.stamp_col) ? params.stamp_col : null;
+    stampRow = typeof params.stamp_row === 'number' && Number.isFinite(params.stamp_row) ? params.stamp_row : null;
+    updateStampDragHandlePosition();
+
     const direction = params.direction ?? 'vertical-rl';
     if (!['vertical-rl', 'horizontal-lr'].includes(direction)) notices.push('排版方向無效，改用豎排右起');
     selectDirection(['vertical-rl', 'horizontal-lr'].includes(direction) ? direction : 'vertical-rl');
@@ -1558,7 +1791,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Custom legacy colors and transforms still have no editor controls.
     const implicitDefaults = { paper: '#f8f3e9', ink: '#1c1b18', stroke_seconds: 0.18,
       character_gap: 0.15, intro: 0.5, outro: 1, scale: 1, stretch: 1, rotation: 0,
-      characters_per_line: null, format: 'auto' };
+      characters_per_line: null, format: 'auto', paper_style: 'xuan', zigzag: false,
+      stamp_enabled: true, stamp_position: 'after-text', stamp_col: null, stamp_row: null };
     const unsupported = Object.keys(params).filter(key => !recognized.has(key) &&
       !(Object.hasOwn(implicitDefaults, key) && params[key] === implicitDefaults[key]));
     if (unsupported.length) notices.push(`目前無法套用的歷史設定：${unsupported.join('、')}。請核對成品；自訂紙墨顏色無法完整還原`);

@@ -30,6 +30,7 @@ def layout_text(
     gap: float = 0.18,
     font_size: Optional[float] = None,
     fit: bool = True,
+    zigzag: bool = False,
 ) -> Dict[str, Any]:
     """Fit lines of characters into page cell placements.
     
@@ -58,6 +59,8 @@ def layout_text(
         font_size = _finite_number(font_size, "font_size", minimum=8, maximum=8192)
     if not isinstance(fit, bool):
         raise TypeError("fit must be a boolean")
+    if not isinstance(zigzag, bool):
+        raise TypeError("zigzag must be a boolean")
 
     vertical = direction == "vertical-rl"
     count = sum(len(line) for line in lines)
@@ -84,18 +87,27 @@ def layout_text(
     columns = len(wrapped) if vertical else longest
     rows = longest if vertical else len(wrapped)
 
-    col_denom = columns + (columns - 1) * gap
-    row_denom = rows + (rows - 1) * gap
+    base_col_denom = columns + (columns - 1) * gap
+    base_row_denom = rows + (rows - 1) * gap
+    zigzag_pad = 0.44 if (zigzag and count > 1) else 0.0
+    col_denom = base_col_denom + (0.0 if vertical else zigzag_pad)
+    row_denom = base_row_denom + (zigzag_pad if vertical else 0.0)
     cell = min(available_width / col_denom, available_height / row_denom)
     if font_size is not None:
-        if not fit and font_size > cell + 1e-6:
+        if not fit and font_size > min(available_width / base_col_denom, available_height / base_row_denom) + 1e-6:
             raise ValueError("文字超出畫布，請開啟自動適應、縮小字號或加大畫布 / Text exceeds the canvas; enable fit, reduce font size or enlarge the canvas")
         cell = min(font_size, cell) if fit else font_size
     if cell < (8 if font_size is not None else 16):
         raise ValueError("Text is too dense for this page; use a larger page or fewer characters")
 
-    left = (width - cell * col_denom) / 2
-    top = (height - cell * row_denom) / 2
+    left = (width - cell * base_col_denom) / 2
+    top = (height - cell * base_row_denom) / 2
+
+    slack_along = max(
+        0.0,
+        (available_height - cell * base_row_denom) if vertical else (available_width - cell * base_col_denom),
+    )
+    amp_along = min(cell * 0.24, slack_along * 0.46) if (zigzag and count > 1) else 0.0
 
     placements = []
     for line_index, line in enumerate(wrapped):
@@ -104,6 +116,15 @@ def layout_text(
             row = index if vertical else line_index
             x = left + col * cell * (1 + gap)
             y = top + row * cell * (1 + gap)
+            if amp_along > 0.0:
+                sign = -1.0 if (line_index % 2 == 1) else 1.0
+                line_wave = sign * (0.72 + 0.28 * math.sin(line_index * 1.7 + 0.4))
+                char_wave = 0.28 * math.sin(index * 1.45 + line_index * 1.1)
+                shift_along = amp_along * max(-1.0, min(1.0, line_wave + char_wave))
+                if vertical:
+                    y = max(margin, min(height - margin - cell, y + shift_along))
+                else:
+                    x = max(margin, min(width - margin - cell, x + shift_along))
             placements.append(
                 {
                     "character": character,
@@ -123,5 +144,6 @@ def layout_text(
         "charactersPerLine": per_line,
         "columns": columns,
         "rows": rows,
+        "zigzag": zigzag,
         "placements": placements,
     }
