@@ -20,6 +20,14 @@ def _finite_number(value, name: str, minimum: float = -math.inf, maximum: float 
     return val
 
 
+def _pseudo_rand(i: int, j: int = 0) -> float:
+    """Deterministic integer hash returning a float in [-1.0, 1.0]."""
+    n = (i * 374761393 + j * 668265263 + 1013904223) & 0xFFFFFFFF
+    n = ((n ^ (n >> 13)) * 1274126177) & 0xFFFFFFFF
+    n = n ^ (n >> 16)
+    return (n / 2147483647.5) - 1.0
+
+
 def layout_text(
     lines: List[List[str]],
     width: int = 1080,
@@ -89,7 +97,7 @@ def layout_text(
 
     base_col_denom = columns + (columns - 1) * gap
     base_row_denom = rows + (rows - 1) * gap
-    zigzag_pad = 0.44 if (zigzag and count > 1) else 0.0
+    zigzag_pad = 0.52 if (zigzag and count > 1) else 0.0
     col_denom = base_col_denom + (0.0 if vertical else zigzag_pad)
     row_denom = base_row_denom + (zigzag_pad if vertical else 0.0)
     cell = min(available_width / col_denom, available_height / row_denom)
@@ -107,7 +115,16 @@ def layout_text(
         0.0,
         (available_height - cell * base_row_denom) if vertical else (available_width - cell * base_col_denom),
     )
-    amp_along = min(cell * 0.24, slack_along * 0.46) if (zigzag and count > 1) else 0.0
+    amp_along = min(cell * 0.35, slack_along * 0.52) if (zigzag and count > 1) else 0.0
+
+    if zigzag and len(wrapped) > 1:
+        raw_offsets = [_pseudo_rand(idx + 1) for idx in range(len(wrapped))]
+        mean_offset = sum(raw_offsets) / len(raw_offsets)
+        centered = [r - mean_offset for r in raw_offsets]
+        max_abs = max(abs(x) for x in centered) or 1.0
+        norm_line_offsets = [x / max_abs for x in centered]
+    else:
+        norm_line_offsets = [0.0] * max(1, len(wrapped))
 
     placements = []
     for line_index, line in enumerate(wrapped):
@@ -117,14 +134,16 @@ def layout_text(
             x = left + col * cell * (1 + gap)
             y = top + row * cell * (1 + gap)
             if amp_along > 0.0:
-                sign = -1.0 if (line_index % 2 == 1) else 1.0
-                line_wave = sign * (0.72 + 0.28 * math.sin(line_index * 1.7 + 0.4))
-                char_wave = 0.28 * math.sin(index * 1.45 + line_index * 1.1)
-                shift_along = amp_along * max(-1.0, min(1.0, line_wave + char_wave))
+                line_stagger = norm_line_offsets[line_index] * amp_along
+                char_jitter = _pseudo_rand(line_index + 1, index + 1) * (cell * 0.09)
+                shift_along = line_stagger + char_jitter
+                shift_across = _pseudo_rand(line_index + 101, index + 1) * min(cell * 0.05, cell * gap * 0.32)
                 if vertical:
                     y = max(margin, min(height - margin - cell, y + shift_along))
+                    x = max(margin, min(width - margin - cell, x + shift_across))
                 else:
                     x = max(margin, min(width - margin - cell, x + shift_along))
+                    y = max(margin, min(height - margin - cell, y + shift_across))
             placements.append(
                 {
                     "character": character,

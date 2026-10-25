@@ -285,9 +285,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 }
 .stamp-drag-handle.active-drag {
   cursor: grabbing;
-  border-color: rgba(182, 34, 24, 0.85);
-  background: rgba(182, 34, 24, 0.12);
-  box-shadow: 0 2px 8px rgba(182, 34, 24, 0.22);
+  border-color: rgba(182, 34, 24, 0.9);
+  background: rgba(182, 34, 24, 0.18);
+  box-shadow: 0 3px 12px rgba(182, 34, 24, 0.3);
 }
 
 /* result viewer: fits by default and zoomed out slightly for comfortable viewing, scroll when actual size */

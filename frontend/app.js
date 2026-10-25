@@ -465,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
     stampDragHandle.style.height = `${Math.max(6, hPct).toFixed(2)}%`;
   }
 
-  function scheduleEditorPreview() {
+  function scheduleEditorPreview(opts = {}) {
     editorRevision += 1;
     clearTimeout(editorTimer);
     updateStampDragHandlePosition();
@@ -473,12 +473,16 @@ document.addEventListener('DOMContentLoaded', () => {
       verifiedMissingGlyphs = [];
       if (fontGlyphWarning) fontGlyphWarning.hidden = true;
     }
-    if (editorPreview) editorPreview.hidden = true;
-    if (editorPreviewStatus) {
-      editorPreviewStatus.hidden = false;
-      editorPreviewStatus.textContent = textInput.value.trim() ? '正在更新字體預覽…' : '請輸入要書寫的文字';
+    const hasExistingImage = Boolean(editorURL && editorPreview && editorPreview.src);
+    if (!hasExistingImage) {
+      if (editorPreview) editorPreview.hidden = true;
+      if (editorPreviewStatus) {
+        editorPreviewStatus.hidden = false;
+        editorPreviewStatus.textContent = textInput.value.trim() ? '正在更新字體預覽…' : '請輸入要書寫的文字';
+      }
     }
-    editorTimer = setTimeout(refreshEditorPreview, 800);
+    const delay = opts.delay != null ? opts.delay : (opts.immediate ? 0 : 800);
+    editorTimer = setTimeout(refreshEditorPreview, delay);
   }
 
   async function refreshEditorPreview() {
@@ -514,16 +518,35 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const blob = await res.blob();
       if (revision !== editorRevision) return;
+      const newURL = URL.createObjectURL(blob);
+      if (typeof window.Image === 'function') {
+        const preloader = new Image();
+        preloader.src = newURL;
+        if (typeof preloader.decode === 'function') {
+          try {
+            await preloader.decode();
+          } catch (_) {}
+        }
+      }
+      if (revision !== editorRevision) {
+        URL.revokeObjectURL(newURL);
+        return;
+      }
       verifiedMissingGlyphs = [];
-      fontGlyphWarning.hidden = true;
-      if (editorURL) URL.revokeObjectURL(editorURL);
-      editorURL = URL.createObjectURL(blob);
+      if (fontGlyphWarning) fontGlyphWarning.hidden = true;
+      const prevURL = editorURL;
+      editorURL = newURL;
       editorPreview.src = editorURL;
       editorPreview.hidden = false;
-      editorPreviewStatus.hidden = true;
+      if (editorPreviewStatus) editorPreviewStatus.hidden = true;
+      if (prevURL) URL.revokeObjectURL(prevURL);
     } catch (error) {
-      if (revision === editorRevision) editorPreviewStatus.textContent = verifiedMissingGlyphs.length
-        ? '字體預覽無法更新：所選字體缺字或含空白字形。' : error.message;
+      if (revision === editorRevision) {
+        if (!editorURL && editorPreviewStatus) {
+          editorPreviewStatus.textContent = verifiedMissingGlyphs.length
+            ? '字體預覽無法更新：所選字體缺字或含空白字形。' : error.message;
+        }
+      }
     } finally {
       editorInFlight = false;
       if (revision !== editorRevision) editorTimer = setTimeout(refreshEditorPreview, 800);
@@ -1135,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stampRow = null;
       }
       updateStampDragHandlePosition();
-      scheduleEditorPreview();
+      scheduleEditorPreview({ delay: 80 });
     });
   }
 
@@ -1198,7 +1221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         draggingStamp = false;
         activePointerId = null;
         stampDragHandle.classList.remove('active-drag');
-        scheduleEditorPreview();
+        scheduleEditorPreview({ delay: 60 });
       }
     }
 
