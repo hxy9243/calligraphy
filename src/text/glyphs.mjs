@@ -41,7 +41,15 @@ export async function resolveGlyphs(text, { glyphs = bundledGlyphs, fetchMissing
   for (let offset = 0; offset < missing.length; offset += 4) {
     const batch = await Promise.all(missing.slice(offset, offset + 4).map(async character => {
       const url = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@${GLYPH_DATA_VERSION}/${encodeURIComponent(character)}.json`;
-      const response = await fetchImpl(url, { signal: AbortSignal.timeout(15000) });
+      let response = await fetchImpl(url, { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) {
+        const fallbacks = { '灩': '滟', '灧': '滟', '瀲': '潋' };
+        if (fallbacks[character]) {
+          const fbUrl = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@${GLYPH_DATA_VERSION}/${encodeURIComponent(fallbacks[character])}.json`;
+          const fbResp = await fetchImpl(fbUrl, { signal: AbortSignal.timeout(15000) });
+          if (fbResp.ok) response = fbResp;
+        }
+      }
       if (!response.ok) throw new Error(`Could not fetch glyph ${character}: HTTP ${response.status}`);
       return [character, validateGlyph(character, await response.json())];
     }));

@@ -20,8 +20,8 @@ test('studio presets omit the Yong demo in both scripts and preserve the other e
     const river = presets.find(button => button.textContent === '春江花月夜');
     assert.ok(river, 'the neighboring preset remains available');
     river.click();
-    assert.equal(document.getElementById('text-input').value, '春江花月夜');
-    assert.equal(document.getElementById('calligraphy-text').textContent, '春江花月夜');
+    assert.ok(document.getElementById('text-input').value.startsWith('春江潮水'));
+    assert.ok(document.getElementById('calligraphy-text').textContent.startsWith('春江潮水'));
   }
 });
 

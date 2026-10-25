@@ -124,6 +124,19 @@ def resolve_glyphs(
                     raw = json.loads(resp.read().decode("utf-8"))
                     return char, raw
             except Exception as e:
+                fallbacks = {"灩": "滟", "灧": "滟", "瀲": "潋"}
+                if char in fallbacks:
+                    fb_char = fallbacks[char]
+                    try:
+                        fb_enc = urllib.parse.quote(fb_char)
+                        fb_url = f"https://cdn.jsdelivr.net/npm/hanzi-writer-data@{GLYPH_DATA_VERSION}/{fb_enc}.json"
+                        fb_req = urllib.request.Request(fb_url, headers={"User-Agent": "calligraphy-engine/0.1.0"})
+                        with urllib.request.urlopen(fb_req, timeout=12) as fb_resp:
+                            if fb_resp.status == 200:
+                                raw = json.loads(fb_resp.read().decode("utf-8"))
+                                return char, raw
+                    except Exception:
+                        pass
                 raise ValueError(f"Could not fetch glyph {char}: {e}") from e
 
         with ThreadPoolExecutor(max_workers=min(12, len(missing))) as executor:
