@@ -30,6 +30,8 @@ def _parse_color(color: Any, name: str) -> Tuple[int, int, int]:
 class Appearance:
     paper_color: Tuple[int, int, int] = (248, 243, 233)
     ink_color: Tuple[int, int, int] = (28, 27, 24)
+    paper_style: str = "xuan"
+    stamp_url: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "Appearance":
@@ -37,13 +39,22 @@ class Appearance:
             return cls()
         paper = _parse_color(data.get("paper_color", data.get("paper", "#f8f3e9")), "paper_color")
         ink = _parse_color(data.get("ink_color", data.get("ink", "#1c1b18")), "ink_color")
-        return cls(paper_color=paper, ink_color=ink)
+        paper_style = str(data.get("paper_style", "xuan"))
+        if paper_style not in ("xuan", "plain"):
+            raise ValueError("paper_style must be xuan or plain")
+        stamp_url = data.get("stamp_url")
+        return cls(paper_color=paper, ink_color=ink, paper_style=paper_style, stamp_url=stamp_url)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result: Dict[str, Any] = {
             "paper_color": list(self.paper_color),
             "ink_color": list(self.ink_color),
         }
+        if self.paper_style != "xuan":
+            result["paper_style"] = self.paper_style
+        if self.stamp_url is not None:
+            result["stamp_url"] = self.stamp_url
+        return result
 
 
 @dataclass(frozen=True)

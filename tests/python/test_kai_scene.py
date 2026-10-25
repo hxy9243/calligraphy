@@ -137,13 +137,14 @@ class KaiSceneTests(unittest.TestCase):
         entry = scene.plan['schedule'][0]
         mask = scene.glyph_mask('永')
         from PIL import Image
+        from calligraphy.paper import render_writing_paper
         size = entry['size']
         alpha = Image.fromarray(np.uint8(mask * 255)).resize(
             (round(size*.92*.8*1.1), round(size*.92*.8)), Image.Resampling.LANCZOS)
         patch_image = Image.new('RGBA', alpha.size, spec.appearance.ink_color + (0,))
         patch_image.putalpha(alpha)
         patch_image = patch_image.rotate(-5, resample=Image.Resampling.BICUBIC, expand=True)
-        expected = Image.new('RGB', frame.size, spec.appearance.paper_color)
+        expected = render_writing_paper(frame.width, frame.height, spec.appearance, scene.plan)
         expected.paste(patch_image, (round(entry['x']+size/2-patch_image.width/2),
                                     round(entry['y']+size/2-patch_image.height/2)), patch_image)
         np.testing.assert_array_equal(frame, expected)

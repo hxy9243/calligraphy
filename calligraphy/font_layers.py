@@ -171,8 +171,9 @@ class FontLayerScene:
 
     def frame(self, time: float) -> Image.Image:
         """Render page at time t into a PIL Image."""
+        from .paper import render_writing_paper
         t = float(min(self.plan.duration, max(0.0, time)))
-        page = Image.new("RGB", (self.plan.width, self.plan.height), self.appearance.paper_color)
+        page = render_writing_paper(self.plan.width, self.plan.height, self.appearance, self.plan)
 
         for index, entry in enumerate(self.plan.schedule):
             if t <= entry["start"]:

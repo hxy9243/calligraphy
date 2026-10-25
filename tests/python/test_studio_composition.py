@@ -282,7 +282,8 @@ class StudioCompositionTests(unittest.TestCase):
                     scene = self.create_scene(scene_spec_from_params(params['text'], style, params))
                     self.assertEqual(len(frames), math.ceil(scene.duration * params['fps']))
                     paper = scene.appearance.paper_color
-                    self.assertLess(np.abs(frames[0].astype(float) - paper).max(), 5)
+                    intro_expected = np.asarray(scene.frame(0))
+                    self.assertLess(np.abs(frames[0].astype(float) - intro_expected).mean(), 2)
                     for index in (6, 10, len(frames) - 1):
                         time = scene.duration if index == len(frames) - 1 else index / params['fps']
                         expected = np.asarray(scene.frame(time))

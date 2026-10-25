@@ -105,6 +105,7 @@ def render_pixels(params):
         from types import SimpleNamespace
         from calligraphy.font_pipeline import target_masks
         from calligraphy.font_layers import FontLayerScene
+        from calligraphy.paper import render_writing_paper
         from calligraphy.spec import RenderPlan
         from calligraphy.styled_contact_scene import paste_patch
         plan = RenderPlan.create(spec, {char: 1 for char in spec.unique_characters})
@@ -112,7 +113,7 @@ def render_pixels(params):
         size = plan.schedule[0]['size']
         patches = {char: FontLayerScene._create_patch(painter, mask, size)
                    for char, mask in target_masks(path, spec.unique_characters)}
-        image = Image.new('RGB', (plan.width, plan.height), spec.appearance.paper_color)
+        image = render_writing_paper(plan.width, plan.height, spec.appearance, plan)
         for placement in plan.schedule:
             paste_patch(image, placement, patches[placement['character']])
     # Rasterize the same logical page as exports, then downsample for transport.

@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 from .contact_renderer import ContactScene
 from .font_layers import FontLayerScene
+from .paper import render_writing_paper
 from .spec import Appearance, Transforms
 
 
@@ -36,7 +37,7 @@ class StyledContactScene(ContactScene):
         if time < self._last_time:
             self._active = None
         self._last_time = time
-        page = Image.new('RGB', (self.width, self.height), self.appearance.paper_color)
+        page = render_writing_paper(self.width, self.height, self.appearance, self.plan)
         for index, entry in enumerate(self.plan['schedule']):
             if time <= entry['start']:
                 break
