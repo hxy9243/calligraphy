@@ -158,10 +158,6 @@ textarea.exceeded { border-color: var(--seal); }
 .stamp-options-row {
   margin-top: 8px;
 }
-.stamp-drag-tip {
-  font-size: 11px;
-  color: var(--seal);
-}
 .field { margin-top: 12px; }
 .field:first-of-type { margin-top: 0; }
 .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -272,40 +268,26 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 .stamp-drag-handle {
   position: absolute;
   z-index: 4;
-  border: 2px dashed rgba(182, 34, 24, 0.72);
-  background: rgba(182, 34, 24, 0.08);
+  border: 1.5px dashed transparent;
+  background: transparent;
   border-radius: 4px;
   cursor: grab;
   touch-action: none;
   user-select: none;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  transition: box-shadow 0.12s ease, transform 0.12s ease, background 0.12s ease;
+  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
 .stamp-drag-handle[hidden] {
   display: none;
 }
-.stamp-drag-handle:hover,
-.stamp-drag-handle.active-drag {
-  background: rgba(182, 34, 24, 0.18);
-  border-color: rgba(182, 34, 24, 0.95);
-  box-shadow: 0 4px 14px rgba(182, 34, 24, 0.28);
+.stamp-drag-handle:hover {
+  border-color: rgba(182, 34, 24, 0.45);
+  background: rgba(182, 34, 24, 0.05);
 }
 .stamp-drag-handle.active-drag {
   cursor: grabbing;
-  transform: scale(1.05);
-}
-.stamp-drag-badge {
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-  background: rgba(176, 30, 22, 0.88);
-  padding: 1px 5px;
-  border-radius: 3px;
-  white-space: nowrap;
-  transform: translateY(100%);
-  pointer-events: none;
+  border-color: rgba(182, 34, 24, 0.85);
+  background: rgba(182, 34, 24, 0.12);
+  box-shadow: 0 2px 8px rgba(182, 34, 24, 0.22);
 }
 
 /* result viewer: fits by default and zoomed out slightly for comfortable viewing, scroll when actual size */

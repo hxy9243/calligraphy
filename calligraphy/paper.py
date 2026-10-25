@@ -389,15 +389,15 @@ def render_qr_seal_stamp(
 
     Returns an RGBA PIL Image of shape (size_px, size_px).
     """
-    size_px = max(72, int(size_px))
-    matrix = encode_qr_matrix(url, ecc="M")
+    size_px = max(64, int(size_px))
+    matrix = encode_qr_matrix(url, ecc="L")
     n_mod = matrix.shape[0]
 
     # Supersample at 10px per module for authentic stone-carving & cinnabar texture
     scale = 10
-    quiet_mods = 1.0 if n_mod >= 37 else 1.75     # Tight seal quiet zone like traditional 朱文印 while 100% scannable
-    border_mods = 0.8 if n_mod >= 37 else 1.35    # Carved stone seal outer rim thickness
-    pad_mods = 0.8 if n_mod >= 37 else 1.25       # Clean paper margin outside rim so scanners see full quiet zone
+    quiet_mods = 1.0 if n_mod >= 33 else 1.2      # Tight seal quiet zone like traditional 朱文印 while 100% scannable
+    border_mods = 0.8 if n_mod >= 33 else 1.0     # Carved stone seal outer rim thickness
+    pad_mods = 0.8                                # Clean paper margin outside rim so scanners see full quiet zone
     total_mods = n_mod + 2 * (quiet_mods + border_mods + pad_mods)
     canvas_sz = int(round(total_mods * scale))
 
@@ -802,21 +802,31 @@ def compute_stamp_placement(
     stamp_position: str = "after-text",
     stamp_col: Optional[int] = None,
     stamp_row: Optional[float] = None,
+    stamp_url: Optional[str] = None,
 ) -> Tuple[int, int, int]:
-    """Compute (sx, sy, stamp_sz) aligned to the paper's ruled lines."""
+    """Compute (sx, sy, stamp_sz) aligned to the paper's ruled lines.
+
+    The seal stamp is sized to be smaller, delicate, and fit comfortably in between
+    the ruled lines with clearance on both sides so it never crosses the grid boundaries.
+    """
     short_side = min(width, height)
     lane_centers = grid["lane_centers"]
     lane_width = grid["lane_width"]
     inner_left, inner_top, inner_right, inner_bottom = grid["inner_box"]
     n_lanes = max(1, len(lane_centers))
 
-    # Size the stamp to harmonize with the ruled lane width while staying scannable (92..144px)
-    base_sz = int(round(short_side * 0.132))
+    # Dense share URLs (41x41 matrix) require ~92px; default URLs (29x29 matrix) scan at 80-84px
+    is_dense_url = bool(stamp_url and len(stamp_url) > 80)
+    ideal_sz = 92 if is_dense_url else 84
+
     if lane_width > 0:
-        target_sz = int(round(min(base_sz, max(lane_width * 0.88, short_side * 0.115))))
+        # Keep inside lane width with breathing room so it never touches or crosses the lines
+        max_fit = int(round(lane_width * 0.78))
+        target_sz = min(ideal_sz, max_fit)
+        stamp_sz = max(72, min(ideal_sz, target_sz)) if max_fit >= 72 else max(64, max_fit)
     else:
-        target_sz = base_sz
-    stamp_sz = max(108, min(144, target_sz))
+        stamp_sz = max(72, min(ideal_sz, int(round(short_side * 0.09))))
+
     half = stamp_sz * 0.5
     pad_along = max(8.0, stamp_sz * 0.10)
 
@@ -1137,6 +1147,7 @@ def _cached_xuan_base(
             stamp_position=stamp_position,
             stamp_col=stamp_col,
             stamp_row=stamp_row,
+            stamp_url=stamp_url,
         )
 
         # Clear the ruling lines underneath the seal body so the border lines stop at the stamp edge

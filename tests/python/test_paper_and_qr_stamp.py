@@ -34,8 +34,10 @@ class PaperAndQrStampTests(unittest.TestCase):
         paper_rgb = (246, 240, 228)
         share_url = job_share_url("vid_a1b2c3d4e5f6")
         test_cases = [
+            (DEFAULT_STAMP_URL, 84),
             (DEFAULT_STAMP_URL, 96),
             (DEFAULT_STAMP_URL, 128),
+            (share_url, 92),
             (share_url, 128),
         ]
         for url, size_px in test_cases:
@@ -126,6 +128,8 @@ class PaperAndQrStampTests(unittest.TestCase):
                 stamp_col=spec.appearance.stamp_col,
                 stamp_row=spec.appearance.stamp_row,
             )
+            self.assertLess(stamp_sz, grid["lane_width"], f"Stamp size {stamp_sz} exceeds lane width {grid['lane_width']}")
+            self.assertLessEqual(stamp_sz, 92, f"Stamp size {stamp_sz} is not small/delicate")
             y0 = max(0, sy - 20)
             y1 = min(900, sy + stamp_sz + 20)
             x0 = max(0, sx - 20)

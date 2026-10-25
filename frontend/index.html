@@ -160,13 +160,13 @@
               <span>加蓋朱砂二維碼印章（指向分享連結）</span>
             </label>
             <div id="stamp-options-row" class="stamp-options-row">
-              <div class="label-row"><label for="stamp-position-select">印章位置</label><small class="stamp-drag-tip">長按預覽畫布可拖曳對齊界格</small></div>
+              <label for="stamp-position-select">印章位置</label>
               <select id="stamp-position-select" class="select-field">
                 <option value="after-text" selected>文末緊隨（末行字後或次行）</option>
                 <option value="next-line">另起一行（落款位）</option>
                 <option value="before-text">文首引首（首行起首）</option>
                 <option value="corner">壓角閒章（左下／右下角）</option>
-                <option value="custom">自訂位置（長按預覽拖曳）</option>
+                <option value="custom">自訂位置</option>
               </select>
             </div>
           </div>
@@ -225,14 +225,12 @@
 
         <!-- live stage -->
         <div id="pane-live" class="pane">
-          <p class="stage-hint">字體預覽 · 停止輸入後自動更新 · 長按印章可沿界格拖曳位置</p>
+          <p class="stage-hint">字體預覽 · 停止輸入後自動更新</p>
           <p id="editor-preview-status" role="status" aria-live="polite">正在更新字體預覽…</p>
           <div class="stage-viewport" id="stage-viewport">
             <div class="stage-paper vertical" id="calligraphy-stage">
               <img id="editor-preview" alt="所選字體的書法預覽" hidden />
-              <div id="stamp-drag-handle" class="stamp-drag-handle" title="長按拖曳印章位置（自動對齊界格）" hidden>
-                <span class="stamp-drag-badge">印 · 長按拖曳</span>
-              </div>
+              <div id="stamp-drag-handle" class="stamp-drag-handle" hidden></div>
               <div class="stage-text" id="calligraphy-text">明月松間照
 清泉石上流</div>
             </div>

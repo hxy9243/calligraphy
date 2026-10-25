@@ -419,7 +419,8 @@ document.addEventListener('DOMContentLoaded', () => {
     stampDragHandle.hidden = false;
     const g = computeStageGridMetrics();
     const posMode = stampPositionSelect ? stampPositionSelect.value : 'after-text';
-    const stampSize = Math.max(64, Math.min(Math.round(Math.min(g.cw, g.ch) * 0.142), Math.round(g.laneW * 0.90), 144));
+    const maxFit = Math.round(g.laneW * 0.78);
+    const stampSize = Math.max(48, Math.min(84, maxFit));
     let col = 0;
     let row = 0.85;
     if (posMode === 'custom' && stampCol !== null && stampRow !== null) {
@@ -1150,7 +1151,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const g = computeStageGridMetrics();
       const cx = ((clientX - rect.left) / rect.width) * g.cw;
       const cy = ((clientY - rect.top) / rect.height) * g.ch;
-      const stampSize = Math.max(64, Math.min(Math.round(Math.min(g.cw, g.ch) * 0.142), Math.round(g.laneW * 0.90), 144));
+      const maxFit = Math.round(g.laneW * 0.78);
+      const stampSize = Math.max(48, Math.min(84, maxFit));
       if (g.isVert) {
         const col = Math.max(0, Math.min(g.nLanes - 1, Math.floor((g.ix1 - cx) / g.laneW)));
         const row = Math.max(0, Math.min(1, (cy - g.iy0 - stampSize * 0.55) / Math.max(1, g.innerH - stampSize * 1.1)));
@@ -1174,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const startX = e.clientX;
       const startY = e.clientY;
       const onHandle = e.target === stampDragHandle || stampDragHandle.contains(e.target);
-      const delayMs = onHandle ? 180 : 320;
+      const delayMs = onHandle ? 80 : 320;
       longPressTimer = setTimeout(() => {
         draggingStamp = true;
         stampDragHandle.classList.add('active-drag');
