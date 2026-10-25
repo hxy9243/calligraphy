@@ -960,6 +960,89 @@ def compute_stamp_placement(
         return sx, sy, stamp_sz
 
 
+def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Compute stamp placement and grid metrics for editor handle alignment."""
+    enabled = bool(params.get("stamp_enabled", True))
+    width = int(params.get("width", 720))
+    height = int(params.get("height", 960))
+    direction = str(params.get("direction", "vertical-rl"))
+    stamp_position = str(params.get("stamp_position", "after-text"))
+    stamp_col = params.get("stamp_col")
+    stamp_row = params.get("stamp_row")
+    gap = float(params.get("spacing", 0.18))
+    font_size = float(params.get("font_size", 68)) if params.get("font_size") is not None else None
+    fit = bool(params.get("fit", True))
+    zigzag = bool(params.get("zigzag", False))
+    lines = params.get("lines")
+    if not lines and params.get("text"):
+        from .text.input import parse_text
+        lines = parse_text(params["text"], punctuation=params.get("punctuation", "omit"))["lines"]
+    if not lines:
+        lines = [["永"]]
+
+    from .text.layout import layout_text
+    plan = layout_text(
+        lines,
+        width=width,
+        height=height,
+        direction=direction,
+        font_size=font_size,
+        gap=gap,
+        fit=fit,
+        zigzag=zigzag,
+    )
+    schedule = plan.get("placements", [])
+
+    if schedule and "column" in schedule[0] and "row" in schedule[0]:
+        cols_by_idx: Dict[int, List[float]] = {}
+        rows_by_idx: Dict[int, List[float]] = {}
+        for e in schedule:
+            cols_by_idx.setdefault(int(e["column"]), []).append(float(e["x"]) + float(e["size"]) * 0.5)
+            rows_by_idx.setdefault(int(e["row"]), []).append(float(e["y"]) + float(e["size"]) * 0.5)
+        col_centers = tuple(sorted(round(sum(v) / len(v), 1) for v in cols_by_idx.values()))
+        row_centers = tuple(sorted(round(sum(v) / len(v), 1) for v in rows_by_idx.values()))
+    else:
+        col_centers = tuple(sorted({round(float(e["x"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
+        row_centers = tuple(sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
+    cell_size = round(float(schedule[0]["size"]), 2) if schedule else 0.0
+
+    grid = compute_paper_grid(
+        width=width,
+        height=height,
+        direction=direction,
+        col_centers=col_centers,
+        row_centers=row_centers,
+        cell_size=cell_size,
+        gap=gap,
+    )
+
+    stamp_url = params.get("stamp_url") or get_default_stamp_url()
+    sx, sy, sz = compute_stamp_placement(
+        width=width,
+        height=height,
+        direction=direction,
+        grid=grid,
+        schedule=schedule,
+        stamp_position=stamp_position,
+        stamp_col=int(stamp_col) if stamp_col is not None else None,
+        stamp_row=float(stamp_row) if stamp_row is not None else None,
+        stamp_url=stamp_url,
+    )
+
+    return {
+        "sx": sx,
+        "sy": sy,
+        "sz": sz,
+        "cw": width,
+        "ch": height,
+        "inner_box": [int(x) for x in grid["inner_box"]],
+        "lane_width": float(grid["lane_width"]),
+        "lane_centers": [float(c) for c in grid["lane_centers"]],
+        "enabled": enabled,
+        "direction": direction,
+    }
+
+
 # ============================================================================
 # Traditional Xuan Stationery Paper (仿古宣紙信箋 · 多款背景與印章對齊)
 # ============================================================================

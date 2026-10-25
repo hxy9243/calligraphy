@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let stampRow = null;
   let verifiedMissingGlyphs = [];
   let verifiedGlyphKey = '';
-  let editorTimer, editorRevision = 0, editorInFlight = false, editorURL = null;
+  let editorTimer, editorRevision = 0, editorInFlight = false, editorURL = null, currentStampMeta = null, draggingStamp = false;
 
   // One logical page contract for editor pixels, stills and videos. Display size
   // never changes composition; the editor endpoint only downsamples the image.
@@ -408,12 +408,35 @@ document.addEventListener('DOMContentLoaded', () => {
     return { cw, ch, isVert, ix0, iy0, ix1, iy1, innerW, innerH, nLanes, laneW, rawLines, numTextLines, baseSize };
   }
 
+  function applyStampHandleBounds(meta) {
+    if (!stampDragHandle || !calligraphyStage || !meta) return;
+    const enabled = stampToggle ? stampToggle.checked : true;
+    if (stampOptionsRow) stampOptionsRow.hidden = !enabled;
+    if (!enabled || !meta.enabled) {
+      stampDragHandle.hidden = true;
+      return;
+    }
+    stampDragHandle.hidden = false;
+    const leftPct = (meta.sx / meta.cw) * 100;
+    const topPct = (meta.sy / meta.ch) * 100;
+    const wPct = (meta.sz / meta.cw) * 100;
+    const hPct = (meta.sz / meta.ch) * 100;
+    stampDragHandle.style.left = `${leftPct.toFixed(2)}%`;
+    stampDragHandle.style.top = `${topPct.toFixed(2)}%`;
+    stampDragHandle.style.width = `${wPct.toFixed(2)}%`;
+    stampDragHandle.style.height = `${hPct.toFixed(2)}%`;
+  }
+
   function updateStampDragHandlePosition() {
     if (!stampDragHandle || !calligraphyStage) return;
     const enabled = stampToggle ? stampToggle.checked : true;
     if (stampOptionsRow) stampOptionsRow.hidden = !enabled;
     if (!enabled) {
       stampDragHandle.hidden = true;
+      return;
+    }
+    if (currentStampMeta) {
+      applyStampHandleBounds(currentStampMeta);
       return;
     }
     stampDragHandle.hidden = false;
@@ -427,29 +450,22 @@ document.addEventListener('DOMContentLoaded', () => {
       col = Math.max(0, Math.min(g.nLanes - 1, stampCol));
       row = Math.max(0, Math.min(1, stampRow));
     } else if (posMode === 'before-text') {
-      col = 0;
-      row = 0.02;
+      col = g.nLanes - 1;
+      row = 0.04;
     } else if (posMode === 'next-line') {
-      col = Math.min(g.nLanes - 1, g.numTextLines);
+      col = Math.max(0, g.nLanes - g.numTextLines - 1);
       row = 0.78;
     } else if (posMode === 'corner') {
-      col = g.nLanes - 1;
+      col = 0;
       row = 0.92;
     } else {
-      const lastLineIdx = Math.min(g.nLanes - 1, g.numTextLines - 1);
-      const lastLineLen = Math.max(1, [...(g.rawLines[lastLineIdx] || '永')].length);
-      const estEndRatio = Math.min(1.0, (lastLineLen * g.baseSize * 1.18) / Math.max(1, g.isVert ? g.innerH : g.innerW));
-      if (estEndRatio < 0.76) {
-        col = lastLineIdx;
-        row = Math.min(0.92, estEndRatio + 0.08);
-      } else {
-        col = Math.min(g.nLanes - 1, lastLineIdx + 1);
-        row = 0.82;
-      }
+      const lastCol = Math.max(0, g.nLanes - g.numTextLines);
+      col = lastCol;
+      row = 0.82;
     }
     let cx, cy;
     if (g.isVert) {
-      cx = g.ix1 - (col + 0.5) * g.laneW;
+      cx = g.ix0 + (col + 0.5) * g.laneW;
       cy = g.iy0 + stampSize * 0.55 + row * Math.max(1, g.innerH - stampSize * 1.1);
     } else {
       cy = g.iy0 + (col + 0.5) * g.laneW;
@@ -515,6 +531,29 @@ document.addEventListener('DOMContentLoaded', () => {
           editorTimer = setTimeout(refreshEditorPreview, 2000);
         }
         throw new Error(error.detail || '字體預覽暫時不可用');
+      }
+      if (res.headers && typeof res.headers.get === 'function') {
+        const boundsHdr = res.headers.get('X-Stamp-Bounds');
+        const centersHdr = res.headers.get('X-Stamp-Centers');
+        const gridHdr = res.headers.get('X-Stamp-Grid');
+        const enabledHdr = res.headers.get('X-Stamp-Enabled');
+        if (boundsHdr) {
+          const [sx, sy, sz, cw, ch] = boundsHdr.split(',').map(Number);
+          const laneCenters = centersHdr ? centersHdr.split(',').map(Number) : [];
+          const [ix0, iy0, ix1, iy1, laneWidth, nLanes] = gridHdr ? gridHdr.split(',').map(Number) : [];
+          currentStampMeta = {
+            sx, sy, sz, cw, ch,
+            laneCenters,
+            innerBox: [ix0, iy0, ix1, iy1],
+            laneWidth,
+            nLanes,
+            enabled: enabledHdr !== '0',
+            direction: currentDirection,
+          };
+          if (!draggingStamp) {
+            applyStampHandleBounds(currentStampMeta);
+          }
+        }
       }
       const blob = await res.blob();
       if (revision !== editorRevision) return;
@@ -1147,12 +1186,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (stampToggle) {
     stampToggle.addEventListener('change', () => {
+      currentStampMeta = null;
       updateStampDragHandlePosition();
       scheduleEditorPreview();
     });
   }
   if (stampPositionSelect) {
     stampPositionSelect.addEventListener('change', () => {
+      currentStampMeta = null;
       if (stampPositionSelect.value !== 'custom') {
         stampCol = null;
         stampRow = null;
@@ -1165,19 +1206,84 @@ document.addEventListener('DOMContentLoaded', () => {
   // Long-press / long-click drag to position the stamp aligned with paper ruled lines
   if (calligraphyStage && stampDragHandle) {
     let longPressTimer = null;
-    let draggingStamp = false;
     let activePointerId = null;
 
     function snapPointerToPaperLines(clientX, clientY) {
       const rect = calligraphyStage.getBoundingClientRect ? calligraphyStage.getBoundingClientRect() : null;
       if (!rect || rect.width <= 0 || rect.height <= 0) return;
+      const isVert = currentDirection === 'vertical-rl';
+      const meta = currentStampMeta;
+
+      if (meta && Array.isArray(meta.laneCenters) && meta.laneCenters.length > 0) {
+        const cx = ((clientX - rect.left) / rect.width) * meta.cw;
+        const cy = ((clientY - rect.top) / rect.height) * meta.ch;
+        const stampSz = meta.sz;
+        const half = stampSz / 2;
+        const padAlong = Math.max(8, meta.laneWidth * 0.2);
+
+        if (isVert) {
+          let bestIdx = 0;
+          let minDiff = Infinity;
+          for (let i = 0; i < meta.laneCenters.length; i++) {
+            const diff = Math.abs(meta.laneCenters[i] - cx);
+            if (diff < minDiff) {
+              minDiff = diff;
+              bestIdx = i;
+            }
+          }
+          const innerTop = meta.innerBox[1];
+          const innerBottom = meta.innerBox[3];
+          const minCy = innerTop + padAlong + half;
+          const maxCy = innerBottom - padAlong - half;
+          const span = maxCy - minCy;
+          const frac = span > 0 ? Math.max(0, Math.min(1, (cy - minCy) / span)) : 0.85;
+
+          stampCol = bestIdx;
+          stampRow = Number(frac.toFixed(3));
+
+          const targetCx = meta.laneCenters[bestIdx];
+          const targetCy = minCy + frac * span;
+          meta.sx = Math.round(Math.max(4, Math.min(meta.cw - stampSz - 4, targetCx - half)));
+          meta.sy = Math.round(Math.max(4, Math.min(meta.ch - stampSz - 4, targetCy - half)));
+        } else {
+          let bestIdx = 0;
+          let minDiff = Infinity;
+          for (let i = 0; i < meta.laneCenters.length; i++) {
+            const diff = Math.abs(meta.laneCenters[i] - cy);
+            if (diff < minDiff) {
+              minDiff = diff;
+              bestIdx = i;
+            }
+          }
+          const innerLeft = meta.innerBox[0];
+          const innerRight = meta.innerBox[2];
+          const minCx = innerLeft + padAlong + half;
+          const maxCx = innerRight - padAlong - half;
+          const span = maxCx - minCx;
+          const frac = span > 0 ? Math.max(0, Math.min(1, (cx - minCx) / span)) : 0.85;
+
+          stampCol = bestIdx;
+          stampRow = Number(frac.toFixed(3));
+
+          const targetCx = minCx + frac * span;
+          const targetCy = meta.laneCenters[bestIdx];
+          meta.sx = Math.round(Math.max(4, Math.min(meta.cw - stampSz - 4, targetCx - half)));
+          meta.sy = Math.round(Math.max(4, Math.min(meta.ch - stampSz - 4, targetCy - half)));
+        }
+
+        if (stampPositionSelect) stampPositionSelect.value = 'custom';
+        applyStampHandleBounds(meta);
+        return;
+      }
+
+      // Fallback if metadata is not yet loaded
       const g = computeStageGridMetrics();
       const cx = ((clientX - rect.left) / rect.width) * g.cw;
       const cy = ((clientY - rect.top) / rect.height) * g.ch;
       const maxFit = Math.round(g.laneW * 0.78);
       const stampSize = Math.max(48, Math.min(84, maxFit));
       if (g.isVert) {
-        const col = Math.max(0, Math.min(g.nLanes - 1, Math.floor((g.ix1 - cx) / g.laneW)));
+        const col = Math.max(0, Math.min(g.nLanes - 1, Math.floor((cx - g.ix0) / g.laneW)));
         const row = Math.max(0, Math.min(1, (cy - g.iy0 - stampSize * 0.55) / Math.max(1, g.innerH - stampSize * 1.1)));
         stampCol = col;
         stampRow = Number(row.toFixed(3));

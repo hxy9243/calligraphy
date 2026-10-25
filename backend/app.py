@@ -404,7 +404,19 @@ def render_editor_preview(req: EditorPreviewRequest):
         raise HTTPException(status_code=504, detail=str(exc))
     except (ValueError, OSError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    return Response(pixels, media_type='image/png', headers={'Cache-Control': 'no-store'})
+    headers = {'Cache-Control': 'no-store'}
+    try:
+        from calligraphy.paper import get_stamp_preview_meta
+        meta = get_stamp_preview_meta(params)
+        if meta:
+            headers['X-Stamp-Bounds'] = f"{meta['sx']},{meta['sy']},{meta['sz']},{meta['cw']},{meta['ch']}"
+            headers['X-Stamp-Grid'] = f"{meta['inner_box'][0]},{meta['inner_box'][1]},{meta['inner_box'][2]},{meta['inner_box'][3]},{meta['lane_width']:.2f},{len(meta['lane_centers'])}"
+            headers['X-Stamp-Centers'] = ','.join(f"{c:.2f}" for c in meta['lane_centers'])
+            headers['X-Stamp-Enabled'] = '1' if meta['enabled'] else '0'
+            headers['Access-Control-Expose-Headers'] = 'X-Stamp-Bounds, X-Stamp-Grid, X-Stamp-Centers, X-Stamp-Enabled'
+    except Exception:
+        pass
+    return Response(pixels, media_type='image/png', headers=headers)
 
 
 @app.post("/api/renders", status_code=status.HTTP_202_ACCEPTED)
