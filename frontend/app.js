@@ -1921,11 +1921,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Custom legacy colors and transforms still have no editor controls.
     const implicitDefaults = { paper: '#f8f3e9', ink: '#1c1b18', stroke_seconds: 0.18,
-      character_gap: 0.15, intro: 0.5, outro: 1, scale: 1, stretch: 1, rotation: 0,
+      character_gap: 0.15, intro: 0.5, outro: 5, scale: 1, stretch: 1, rotation: 0,
       characters_per_line: null, format: 'auto', paper_style: 'xuan', zigzag: false,
       stamp_enabled: true, stamp_position: 'after-text', stamp_col: null, stamp_row: null };
     const unsupported = Object.keys(params).filter(key => !recognized.has(key) &&
-      !(Object.hasOwn(implicitDefaults, key) && params[key] === implicitDefaults[key]));
+      !(Object.hasOwn(implicitDefaults, key) && (params[key] === implicitDefaults[key] || (key === 'outro' && (params[key] === 1 || params[key] === 5)))));
     if (unsupported.length) notices.push(`目前無法套用的歷史設定：${unsupported.join('、')}。請核對成品；自訂紙墨顏色無法完整還原`);
 
     const originalStyle = job.style || 'kai';

@@ -173,7 +173,12 @@ class FontLayerScene:
         """Render page at time t into a PIL Image."""
         from .paper import render_writing_paper
         t = float(min(self.plan.duration, max(0.0, time)))
-        page = render_writing_paper(self.plan.width, self.plan.height, self.appearance, self.plan)
+        schedule = self.plan.schedule if hasattr(self.plan, 'schedule') else self.plan.get('schedule', [])
+        writing_end = max((float(e["end"]) for e in schedule), default=0.0)
+        dur = self.plan.duration if hasattr(self.plan, 'duration') else self.plan.get('duration', t)
+        stamp_time = min(writing_end + 0.35, dur)
+        include_stamp = (t >= stamp_time)
+        page = render_writing_paper(self.plan.width, self.plan.height, self.appearance, self.plan, include_stamp=include_stamp)
 
         for index, entry in enumerate(self.plan.schedule):
             if t <= entry["start"]:

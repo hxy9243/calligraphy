@@ -163,6 +163,40 @@ class PaperAndQrStampTests(unittest.TestCase):
         self.assertEqual(len(tok), 43)
         self.assertTrue(job_share_url("vid_test123").endswith(f"/watch.html#vid_test123.{tok}"))
 
+    def test_video_stamp_timing_deferred_until_writing_ends_and_five_second_outro(self):
+        from backend.composition import scene_spec_from_params
+        detector = cv2.QRCodeDetector()
+        spec = scene_spec_from_params(
+            "永",
+            "kai",
+            {"width": 720, "height": 960, "paper_style": "xuan", "stamp_enabled": True, "stamp_position": "after-text"},
+        )
+        scene = create_scene(spec)
+        schedule = scene.plan["schedule"]
+        writing_end = schedule[-1]["end"]
+        # Default outro is ~5.0s for reading pause after writing completes
+        self.assertAlmostEqual(scene.duration - writing_end, 5.0, places=2)
+
+        # 1. During writing (mid-stroke), stamp must NOT be present
+        mid_frame = np.asarray(scene.frame(writing_end * 0.5))
+        # Compute stamp bounding box
+        schedule = scene.plan["schedule"]
+        col_centers = tuple(sorted({round(float(e["x"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
+        row_centers = tuple(sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
+        cell_size = round(float(schedule[0]["size"]), 2)
+        grid = compute_paper_grid(720, 960, "vertical-rl", col_centers, row_centers, cell_size, 0.18)
+        sx, sy, stamp_sz = compute_stamp_placement(720, 960, "vertical-rl", grid, schedule, stamp_position="after-text")
+        pad = 20
+        crop_mid = cv2.cvtColor(mid_frame[max(0, sy-pad):min(960, sy+stamp_sz+pad), max(0, sx-pad):min(720, sx+stamp_sz+pad)], cv2.COLOR_RGB2BGR)
+        decoded_mid, _, _ = detector.detectAndDecode(crop_mid)
+        self.assertEqual(decoded_mid, "", "Stamp should NOT be present on paper while writing is in progress")
+
+        # 2. After writing completes during the outro pause, stamp is stamped and scannable
+        end_frame = np.asarray(scene.frame(scene.duration))
+        crop_end = cv2.cvtColor(end_frame[max(0, sy-pad):min(960, sy+stamp_sz+pad), max(0, sx-pad):min(720, sx+stamp_sz+pad)], cv2.COLOR_RGB2BGR)
+        decoded_end, _, _ = detector.detectAndDecode(crop_end)
+        self.assertEqual(decoded_end, DEFAULT_STAMP_URL, "Stamp should be present and scannable at end of video")
+
 
 if __name__ == "__main__":
     unittest.main()

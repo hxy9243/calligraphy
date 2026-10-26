@@ -104,6 +104,7 @@ class RenderRequest(BaseModel):
     stamp_position: Literal["after-text", "next-line", "before-text", "corner", "custom"] = "after-text"
     stamp_col: Optional[int] = Field(default=None, ge=0, le=64)
     stamp_row: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    outro: Optional[float] = Field(default=None, ge=0.0, le=60.0)
 
     @model_validator(mode="after")
     def bounded_canvas(self):
@@ -465,6 +466,8 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         params["width"] = req.width
     if req.height:
         params["height"] = req.height
+    if req.outro is not None:
+        params["outro"] = req.outro
 
     job = db.enqueue_render(
         job_id=job_id,

@@ -1261,10 +1261,13 @@ def render_writing_paper(
     height: int,
     appearance: Any,
     plan: Optional[Any] = None,
+    include_stamp: Optional[bool] = None,
 ) -> Image.Image:
     """Create the writing paper background for a scene or preview frame."""
     paper_style = getattr(appearance, "paper_style", "xuan")
     stamp_enabled = bool(getattr(appearance, "stamp_enabled", True))
+    if include_stamp is not None:
+        stamp_enabled = stamp_enabled and bool(include_stamp)
     stamp_position = str(getattr(appearance, "stamp_position", "after-text"))
     stamp_col = getattr(appearance, "stamp_col", None)
     stamp_row = getattr(appearance, "stamp_row", None)

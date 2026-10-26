@@ -32,7 +32,7 @@ def parse_args(args: Optional[list] = None) -> argparse.Namespace:
     parser.add_argument("--stroke-seconds", type=float, default=0.18, help="Seconds per stroke")
     parser.add_argument("--gap", type=float, default=0.15, help="Seconds between characters")
     parser.add_argument("--intro", type=float, default=0.5, help="Intro pause in seconds")
-    parser.add_argument("--outro", type=float, default=1.0, help="Outro pause in seconds")
+    parser.add_argument("--outro", type=float, default=5.0, help="Outro pause in seconds")
     parser.add_argument("--time", type=float, default=None, help="Scene time for still image (defaults to end)")
     parser.add_argument("--fps", type=int, default=24, help="Video frames per second (default 24)")
     parser.add_argument("--speed", type=float, default=1.0, help="Video playback speed multiplier (default 1.0)")

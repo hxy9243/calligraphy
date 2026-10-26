@@ -45,7 +45,7 @@ def scene_spec_from_params(text, style, params):
             "stroke_seconds": params.get("stroke_seconds", 0.18),
             "character_gap": params.get("character_gap", 0.15),
             "intro": params.get("intro", 0.5),
-            "outro": params.get("outro", 1.0),
+            "outro": float(params.get("outro", 5.0)),
         },
         punctuation=params.get("punctuation", "omit"),
         appearance=appearance_from_params(params),

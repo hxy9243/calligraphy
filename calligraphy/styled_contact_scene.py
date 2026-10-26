@@ -26,6 +26,8 @@ class StyledContactScene(ContactScene):
         self.transforms = transforms or Transforms()
         self.width, self.height = plan['width'], plan['height']
         self.duration = plan['duration']
+        schedule = self.plan.get('schedule', []) if isinstance(self.plan, dict) else getattr(self.plan, 'schedule', [])
+        self.writing_end = max((float(e['end']) for e in schedule), default=0.0)
 
     _create_patch = FontLayerScene._create_patch
 
@@ -37,7 +39,9 @@ class StyledContactScene(ContactScene):
         if time < self._last_time:
             self._active = None
         self._last_time = time
-        page = render_writing_paper(self.width, self.height, self.appearance, self.plan)
+        stamp_time = min(self.writing_end + 0.35, self.duration)
+        include_stamp = (time >= stamp_time)
+        page = render_writing_paper(self.width, self.height, self.appearance, self.plan, include_stamp=include_stamp)
         for index, entry in enumerate(self.plan['schedule']):
             if time <= entry['start']:
                 break
