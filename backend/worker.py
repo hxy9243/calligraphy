@@ -18,6 +18,7 @@ from .database import Database, get_db
 from .editor_preview import glyph_worker_count
 from .retention import get_retention_seconds, job_share_url
 from .style_catalog import downloaded_catalog_entry
+from .public_fonts import ROOT, private_catalog
 
 logger = logging.getLogger("calligraphy.worker")
 _RENDER_SLOT = threading.Lock()
@@ -162,9 +163,29 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
 
         db.update_job(job_id, progress=0.3)
 
-        _auto_prepare_font(style, text)
-        g_workers = glyph_worker_count() if job_type == "preview" else max(1, min(4, os.cpu_count() or 1))
-        scene = create_scene(scene_spec, fetch_missing=True, glyph_workers=g_workers)
+        if job_type == "preview":
+            g_workers = glyph_worker_count()
+            if style in ("kai", "yan"):
+                scene = create_scene(scene_spec, fetch_missing=True, glyph_workers=g_workers)
+            else:
+                font_path = None
+                try:
+                    from calligraphy.font_pipeline import load_bank
+                    bank = load_bank(style)
+                    font_path = Path(bank["font"]["path"])
+                except Exception:
+                    pass
+                if not font_path or not font_path.exists():
+                    entry = downloaded_catalog_entry(private_catalog(), style)
+                    if entry and entry.get("file_path"):
+                        candidate = (ROOT / entry["file_path"]).resolve()
+                        if candidate.is_file():
+                            font_path = candidate
+                scene = create_scene(scene_spec, font_path=font_path, mode="static", fetch_missing=True, glyph_workers=g_workers)
+        else:
+            _auto_prepare_font(style, text)
+            g_workers = max(1, min(4, os.cpu_count() or 1))
+            scene = create_scene(scene_spec, fetch_missing=True, glyph_workers=g_workers)
 
         db.update_job(job_id, progress=0.5)
 
