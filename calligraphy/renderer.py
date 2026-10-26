@@ -123,10 +123,22 @@ class TemplateScene:
             marks.append(mark)
 
         inner = "".join(marks)
+        writing_end = max((float(e.get("end", 0.0)) for e in self.plan.schedule), default=0.0)
+        stamp_time = min(writing_end + 0.35, self.duration)
+        include_stamp = (t >= stamp_time)
+        stamp_svg = ""
+        if include_stamp:
+            from .paper import get_stamp_placement_for_plan, render_qr_seal_stamp_svg, get_default_stamp_url
+            stamp_placement = get_stamp_placement_for_plan(self.width, self.height, self.appearance, self.plan)
+            if stamp_placement is not None:
+                sx, sy, stamp_sz = stamp_placement
+                stamp_url = getattr(self.appearance, "stamp_url", None) or get_default_stamp_url()
+                stamp_svg = render_qr_seal_stamp_svg(stamp_url, size_px=stamp_sz, sx=sx, sy=sy)
+
         res = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" '
             f'viewBox="0 0 {self.width} {self.height}">'
-            f'<rect width="100%" height="100%" fill="{paper_hex}"/>{inner}</svg>'
+            f'<rect width="100%" height="100%" fill="{paper_hex}"/>{inner}{stamp_svg}</svg>'
         )
         self._cached_svg_time = time_key
         self._cached_svg_content = res

@@ -684,6 +684,187 @@ def render_qr_seal_stamp(
         return stamp
 
 
+@lru_cache(maxsize=32)
+def render_qr_seal_stamp_svg(
+    url: str = DEFAULT_STAMP_URL,
+    size_px: int = 112,
+    sx: int = 0,
+    sy: int = 0,
+    stamp_id: str = "seal",
+) -> str:
+    """Render a scannable red-ink cinnabar seal stamp as vector SVG.
+
+    The QR modules and outer frame are rendered as vector paths with
+    shape-rendering="crispEdges", so when users zoom in (to 200%, 500%, 1000%+, etc.),
+    the seal stamp and all QR code modules remain razor sharp and instantly scannable.
+    """
+    size_px = max(64, int(size_px))
+    matrix = encode_qr_matrix(url, ecc="L")
+    n_mod = matrix.shape[0]
+
+    if n_mod <= 33:
+        m = 2
+        if n_mod * 3 + 24 <= size_px:
+            m = 3
+
+        qr_w = n_mod * m
+        remaining = size_px - qr_w
+        half_rem = remaining // 2
+
+        quiet_px = max(2 * m, int(round(half_rem * 0.52)))
+        rem_bp = max(4, half_rem - quiet_px)
+        pad_px = max(1, int(round(rem_bp * 0.35)))
+        border_px = max(2, rem_bp - pad_px)
+        quiet_px = half_rem - pad_px - border_px
+
+        outer_lo = pad_px + (remaining % 2) // 2
+        outer_hi = outer_lo + qr_w + 2 * (quiet_px + border_px)
+        border_w = border_px
+        inner_lo = outer_lo + border_w
+        inner_hi = outer_hi - border_w
+        qr_origin = inner_lo + quiet_px
+
+        mod_cmds = []
+        for r in range(n_mod):
+            my = sy + qr_origin + r * m
+            for c in range(n_mod):
+                if matrix[r, c]:
+                    mx = sx + qr_origin + c * m
+                    mod_cmds.append(f"M{mx},{my}h{m}v{m}h-{m}Z")
+        qr_path_d = "".join(mod_cmds)
+
+        bw = outer_hi - outer_lo
+        bh = outer_hi - outer_lo
+        bx = sx + outer_lo
+        by = sy + outer_lo
+
+        ix = sx + inner_lo
+        iy = sy + inner_lo
+        iw = inner_hi - inner_lo
+        ih = inner_hi - inner_lo
+
+        border_d = f"M{bx},{by}h{bw}v{bh}h-{bw}ZM{ix},{iy}v{ih}h{iw}v-{ih}Z"
+
+        rng_seed = int(hashlib.sha256(url.encode("utf-8")).hexdigest()[:8], 16)
+        rng = np.random.default_rng(rng_seed)
+        span = outer_hi - outer_lo
+        rim_breaks = [
+            ("top", 0.22, 2.2, 1.15),
+            ("top", 0.76, 2.4, 1.15),
+            ("right", 0.26, 2.5, 1.15),
+            ("right", 0.80, 2.2, 1.15),
+            ("bottom", 0.20, 2.1, 1.15),
+            ("bottom", 0.72, 2.6, 1.15),
+            ("left", 0.24, 2.0, 1.15),
+            ("left", 0.60, 2.3, 1.15),
+        ]
+        cut_polys = []
+        for side, frac, len_sc, depth_frac in rim_breaks:
+            half_len = max(2, int(round(len_sc * m * 0.5)))
+            depth = max(1, int(round(border_w * depth_frac)))
+            center = outer_lo + int(round(span * frac))
+            j = rng.integers(-1, 2, size=4)
+            if side == "top":
+                poly = [
+                    (sx + center - half_len, sy + outer_lo - 1),
+                    (sx + center + half_len, sy + outer_lo - 1),
+                    (sx + center + half_len // 2 + j[0], sy + outer_lo + depth),
+                    (sx + center - half_len // 2 + j[1], sy + outer_lo + depth),
+                ]
+            elif side == "bottom":
+                poly = [
+                    (sx + center - half_len, sy + outer_hi + 1),
+                    (sx + center + half_len, sy + outer_hi + 1),
+                    (sx + center + half_len // 2 + j[0], sy + outer_hi - depth),
+                    (sx + center - half_len // 2 + j[1], sy + outer_hi - depth),
+                ]
+            elif side == "left":
+                poly = [
+                    (sx + outer_lo - 1, sy + center - half_len),
+                    (sx + outer_lo - 1, sy + center + half_len),
+                    (sx + outer_lo + depth, sy + center + half_len // 2 + j[0]),
+                    (sx + outer_lo + depth, sy + center - half_len // 2 + j[1]),
+                ]
+            else:
+                poly = [
+                    (sx + outer_hi + 1, sy + center - half_len),
+                    (sx + outer_hi + 1, sy + center + half_len),
+                    (sx + outer_hi - depth, sy + center + half_len // 2 + j[0]),
+                    (sx + outer_hi - depth, sy + center - half_len // 2 + j[1]),
+                ]
+            pts = " ".join(f"{px},{py}" for px, py in poly)
+            cut_polys.append(f'<polygon points="{pts}" fill="black"/>')
+
+        for cx, cy, sx_dir, sy_dir in [
+            (sx + outer_lo, sy + outer_lo, 1, 1),
+            (sx + outer_hi, sy + outer_lo, -1, 1),
+            (sx + outer_lo, sy + outer_hi, 1, -1),
+            (sx + outer_hi, sy + outer_hi, -1, -1),
+        ]:
+            c_len = max(2, int(round(border_w * 1.25)))
+            poly = [
+                (cx - sx_dir * 1, cy - sy_dir * 1),
+                (cx + sx_dir * c_len, cy - sy_dir * 1),
+                (cx - sx_dir * 1, cy + sy_dir * c_len),
+            ]
+            pts = " ".join(f"{px},{py}" for px, py in poly)
+            cut_polys.append(f'<polygon points="{pts}" fill="black"/>')
+
+        cuts_svg = "".join(cut_polys)
+        mask_id = f"seal-mask-{stamp_id}"
+
+        return (
+            f'<g class="seal-stamp-vector" shape-rendering="crispEdges" data-url="{url}">'
+            f'<defs><mask id="{mask_id}"><rect x="{bx - 2}" y="{by - 2}" width="{bw + 4}" height="{bh + 4}" fill="white"/>{cuts_svg}</mask></defs>'
+            f'<path d="{border_d}" fill="#ba1c16" fill-rule="evenodd" mask="url(#{mask_id})"/>'
+            f'<path d="{qr_path_d}" fill="#ba1c16"/>'
+            f'</g>'
+        )
+
+    else:
+        quiet_mods = 1.0
+        border_mods = 0.8
+        pad_mods = 0.8
+        total_mods = n_mod + 2 * (quiet_mods + border_mods + pad_mods)
+        mod_px = size_px / total_mods
+
+        pad_px = pad_mods * mod_px
+        border_w = border_mods * mod_px
+        quiet_px = quiet_mods * mod_px
+
+        outer_lo = pad_px
+        outer_hi = size_px - pad_px
+        inner_lo = outer_lo + border_w
+        inner_hi = outer_hi - border_w
+        qr_origin = inner_lo + quiet_px
+
+        mod_cmds = []
+        for r in range(n_mod):
+            my = sy + qr_origin + r * mod_px
+            for c in range(n_mod):
+                if matrix[r, c]:
+                    mx = sx + qr_origin + c * mod_px
+                    mod_cmds.append(f"M{mx:.2f},{my:.2f}h{mod_px:.2f}v{mod_px:.2f}h-{mod_px:.2f}Z")
+        qr_path_d = "".join(mod_cmds)
+
+        bw = outer_hi - outer_lo
+        bh = outer_hi - outer_lo
+        bx = sx + outer_lo
+        by = sy + outer_lo
+
+        ix = sx + inner_lo
+        iy = sy + inner_lo
+        iw = inner_hi - inner_lo
+        ih = inner_hi - inner_lo
+        border_d = f"M{bx:.2f},{by:.2f}h{bw:.2f}v{bh:.2f}h-{bw:.2f}ZM{ix:.2f},{iy:.2f}v{ih:.2f}h{iw:.2f}v-{ih:.2f}Z"
+        return (
+            f'<g class="seal-stamp-vector" shape-rendering="crispEdges" data-url="{url}">'
+            f'<path d="{border_d}" fill="#ba1c16" fill-rule="evenodd"/>'
+            f'<path d="{qr_path_d}" fill="#ba1c16"/>'
+            f'</g>'
+        )
+
+
 # ============================================================================
 # Evenly Distributed Ruling Grid & Line-Aligned Stamp Placement
 # ============================================================================
@@ -1086,6 +1267,95 @@ def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "enabled": enabled,
         "direction": direction,
     }
+
+
+def get_stamp_placement_for_plan(
+    width: int,
+    height: int,
+    appearance: Any,
+    plan: Optional[Any] = None,
+) -> Optional[Tuple[int, int, int]]:
+    """Compute (sx, sy, stamp_sz) for the given scene appearance and plan."""
+    stamp_enabled = bool(getattr(appearance, "stamp_enabled", True))
+    if not stamp_enabled:
+        return None
+    paper_color = tuple(getattr(appearance, "paper_color", (246, 239, 226)))
+    is_dark = (paper_color[0] + paper_color[1] + paper_color[2]) < 240
+    short_side = min(width, height)
+    if is_dark or short_side < 320:
+        return None
+
+    stamp_url = getattr(appearance, "stamp_url", None)
+    if not stamp_url:
+        stamp_url = get_default_stamp_url()
+
+    stamp_position = str(getattr(appearance, "stamp_position", "after-text"))
+    stamp_col = getattr(appearance, "stamp_col", None)
+    stamp_row = getattr(appearance, "stamp_row", None)
+
+    schedule: List[Dict[str, Any]] = []
+    direction = "vertical-rl"
+    if isinstance(plan, dict):
+        schedule = plan.get("schedule", [])
+        direction = plan.get("direction", "vertical-rl")
+    elif plan is not None:
+        schedule = getattr(plan, "schedule", [])
+        direction = getattr(plan, "direction", "vertical-rl")
+
+    if schedule and "column" in schedule[0] and "row" in schedule[0]:
+        cols_by_idx: Dict[int, List[float]] = {}
+        rows_by_idx: Dict[int, List[float]] = {}
+        for e in schedule:
+            cols_by_idx.setdefault(int(e["column"]), []).append(float(e["x"]) + float(e["size"]) * 0.5)
+            rows_by_idx.setdefault(int(e["row"]), []).append(float(e["y"]) + float(e["size"]) * 0.5)
+        col_centers = tuple(sorted(round(sum(v) / len(v), 1) for v in cols_by_idx.values()))
+        row_centers = tuple(sorted(round(sum(v) / len(v), 1) for v in rows_by_idx.values()))
+    else:
+        col_centers = tuple(sorted({round(float(e["x"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
+        row_centers = tuple(sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
+    cell_size = round(float(schedule[0]["size"]), 2) if schedule else 0.0
+
+    gap = 0.18
+    if len(col_centers) > 1 and cell_size > 0:
+        gap = round((col_centers[1] - col_centers[0]) / cell_size - 1.0, 3)
+    elif len(row_centers) > 1 and cell_size > 0:
+        gap = round((row_centers[1] - row_centers[0]) / cell_size - 1.0, 3)
+
+    first_box: Optional[Tuple[float, float, float]] = None
+    last_box: Optional[Tuple[float, float, float]] = None
+    if schedule:
+        f_e = schedule[0]
+        l_e = schedule[-1]
+        first_box = (round(float(f_e["x"]), 1), round(float(f_e["y"]), 1), round(float(f_e["size"]), 1))
+        last_box = (round(float(l_e["x"]), 1), round(float(l_e["y"]), 1), round(float(l_e["size"]), 1))
+
+    grid = compute_paper_grid(
+        width,
+        height,
+        direction=direction,
+        col_centers=col_centers,
+        row_centers=row_centers,
+        cell_size=cell_size,
+        gap=gap,
+    )
+
+    synthetic_schedule: List[Dict[str, Any]] = []
+    if first_box is not None:
+        synthetic_schedule.append({"x": first_box[0], "y": first_box[1], "size": first_box[2]})
+    if last_box is not None and last_box != first_box:
+        synthetic_schedule.append({"x": last_box[0], "y": last_box[1], "size": last_box[2]})
+
+    return compute_stamp_placement(
+        width,
+        height,
+        direction=direction,
+        grid=grid,
+        schedule=synthetic_schedule,
+        stamp_position=stamp_position,
+        stamp_col=int(stamp_col) if stamp_col is not None else None,
+        stamp_row=round(float(stamp_row), 4) if stamp_row is not None else None,
+        stamp_url=stamp_url,
+    )
 
 
 # ============================================================================

@@ -197,6 +197,47 @@ class PaperAndQrStampTests(unittest.TestCase):
         decoded_end, _, _ = detector.detectAndDecode(crop_end)
         self.assertEqual(decoded_end, DEFAULT_STAMP_URL, "Stamp should be present and scannable at end of video")
 
+    def test_render_qr_seal_stamp_svg_sharpness_and_geometry(self):
+        from calligraphy.paper import render_qr_seal_stamp_svg, DEFAULT_STAMP_URL
+        svg = render_qr_seal_stamp_svg(DEFAULT_STAMP_URL, size_px=84, sx=120, sy=240)
+        self.assertIn('class="seal-stamp-vector"', svg)
+        self.assertIn('shape-rendering="crispEdges"', svg)
+        self.assertIn('fill="#ba1c16"', svg)
+        self.assertIn('data-url="https://calligraphy-demo-production.up.railway.app"', svg)
+        self.assertIn('mask="url(#seal-mask-seal)"', svg)
+
+        # Dense URL test
+        dense_svg = render_qr_seal_stamp_svg(
+            "https://example.com/share?data=very_long_url_with_dense_matrix_parameters_for_testing",
+            size_px=92,
+            sx=50,
+            sy=50,
+        )
+        self.assertIn('class="seal-stamp-vector"', dense_svg)
+        self.assertIn('shape-rendering="crispEdges"', dense_svg)
+
+    def test_frame_svg_vector_stamp_and_pixelated_rendering(self):
+        from calligraphy.spec import SceneSpec, Appearance
+        from calligraphy.renderer import create_scene
+        spec = SceneSpec(
+            text="春江花月夜",
+            style="kai",
+            layout={"width": 720, "height": 960},
+            appearance=Appearance(stamp_enabled=True),
+        )
+        scene = create_scene(spec)
+
+        # During writing: no stamp overlay in SVG
+        mid_svg = scene.frame_svg(scene.writing_end * 0.5)
+        self.assertNotIn('class="seal-stamp-vector"', mid_svg)
+        self.assertIn('image-rendering="pixelated"', mid_svg)
+        self.assertIn('image-rendering: crisp-edges', mid_svg)
+
+        # At end: vector stamp overlay is present with crispEdges
+        end_svg = scene.frame_svg(scene.duration)
+        self.assertIn('class="seal-stamp-vector"', end_svg)
+        self.assertIn('shape-rendering="crispEdges"', end_svg)
+
 
 if __name__ == "__main__":
     unittest.main()
