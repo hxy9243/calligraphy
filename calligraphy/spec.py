@@ -161,13 +161,17 @@ class SceneSpec:
     punctuation: str = "break"
     appearance: Appearance = field(default_factory=Appearance)
     transforms: Transforms = field(default_factory=Transforms)
+    inscription: Optional[str] = None
     schema_version: int = 1
 
     def __post_init__(self):
         parsed = parse_text(self.text, punctuation=self.punctuation)
-        self.normalized_characters = parsed["characters"]
-        self.unique_characters = parsed["uniqueCharacters"]
-        self.omitted = parsed["omitted"]
+        parsed_insc = parse_text(self.inscription, punctuation=self.punctuation) if (self.inscription and self.inscription.strip()) else None
+        insc_chars = parsed_insc["characters"] if parsed_insc else []
+        insc_unique = parsed_insc["uniqueCharacters"] if parsed_insc else []
+        self.normalized_characters = parsed["characters"] + insc_chars
+        self.unique_characters = list(dict.fromkeys(parsed["uniqueCharacters"] + insc_unique))
+        self.omitted = parsed["omitted"] + (parsed_insc["omitted"] if parsed_insc else [])
 
     @property
     def spec_hash(self) -> str:
@@ -184,6 +188,7 @@ class SceneSpec:
             "punctuation": self.punctuation,
             "appearance": self.appearance.to_dict(),
             "transforms": self.transforms.to_dict(),
+            "inscription": self.inscription,
         }
 
     @classmethod
@@ -196,8 +201,10 @@ class SceneSpec:
             punctuation=data.get("punctuation", "break"),
             appearance=Appearance.from_dict(data.get("appearance")),
             transforms=Transforms.from_dict(data.get("transforms")),
+            inscription=data.get("inscription"),
             schema_version=data.get("schemaVersion", 1),
         )
+
 
 
 @dataclass
@@ -227,7 +234,9 @@ class RenderPlan:
             layout=scene_spec.layout,
             timing=scene_spec.timing,
             punctuation=scene_spec.punctuation,
+            inscription=scene_spec.inscription,
         )
+
 
         schedule = []
         for entry in base_plan["schedule"]:

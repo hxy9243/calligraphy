@@ -52,4 +52,6 @@ def scene_spec_from_params(text, style, params):
         transforms=Transforms(scale=params.get("scale", 1.0),
                               stretch=params.get("stretch", 1.0),
                               rotation=params.get("rotation", 0.0)),
+        inscription=params.get("inscription"),
     )
+

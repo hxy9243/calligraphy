@@ -48,7 +48,7 @@ class StyledContactScene(ContactScene):
         for index, entry in enumerate(self.plan['schedule']):
             if time <= entry['start']:
                 break
-            if time >= entry['end']:
+            if time >= entry['end'] or entry.get('is_inscription'):
                 key = (entry['character'], entry['size'])
                 if key not in self._patches:
                     self._patches[key] = self._create_patch(self.glyph_mask(entry['character']), entry['size'])

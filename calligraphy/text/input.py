@@ -102,3 +102,46 @@ def parse_text(text: str, punctuation: str = "break") -> dict:
         "uniqueCharacters": unique_characters,
         "omitted": omitted,
     }
+
+
+STEMS = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
+BRANCHES = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+
+def get_default_inscription(d=None, script: str = "trad") -> str:
+    """Generate dynamic Chinese Ganzhi year and seasonal inscription by date.
+    
+    Four seasons divide by traditional solar terms:
+      Lichun (~Feb 4), Lixia (~May 5), Liqiu (~Aug 7), Lidong (~Nov 7).
+    """
+    import datetime
+    if d is None:
+        d = datetime.date.today()
+    elif isinstance(d, datetime.datetime):
+        d = d.date()
+
+    y = d.year
+    md = d.month * 100 + d.day
+
+    if md < 204:
+        effective_year = y - 1
+        season = "冬"
+    elif md < 505:
+        effective_year = y
+        season = "春"
+    elif md < 807:
+        effective_year = y
+        season = "夏"
+    elif md < 1107:
+        effective_year = y
+        season = "秋"
+    else:
+        effective_year = y
+        season = "冬"
+
+    offset = ((effective_year - 4) % 60 + 60) % 60
+    stem = STEMS[offset % 10]
+    branch = BRANCHES[offset % 12]
+    suffix = "墨韻書法生成" if script == "trad" else "墨韵书法生成"
+    return f"{stem}{branch}年{season} {suffix}"
+

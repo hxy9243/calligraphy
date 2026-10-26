@@ -241,7 +241,12 @@ function fontSampleMarkup(font) {
 document.addEventListener('DOMContentLoaded', () => {
 
   const textInput = document.getElementById('text-input');
+  const inscriptionInput = document.getElementById('inscription-input');
+  const inscriptionCountEl = document.getElementById('inscription-count');
+  const inscriptionCounterEl = document.getElementById('inscription-counter');
+  const inscriptionWarning = document.getElementById('inscription-warning');
   const styleSelect = document.getElementById('style-select');
+
   // Persist only UI choices, never draft text, history, or share capabilities.
   // Font and calligraphy style are the same selection in this workbench.
   const preferencesStorageKey = 'calligraphy.preferences';
@@ -385,8 +390,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (stampCol !== null && Number.isFinite(stampCol)) settings.stamp_col = stampCol;
       if (stampRow !== null && Number.isFinite(stampRow)) settings.stamp_row = stampRow;
     }
+    if (inscriptionInput && inscriptionInput.value.trim()) {
+      settings.inscription = inscriptionInput.value.trim();
+    }
     return settings;
   }
+
 
   function computeStageGridMetrics() {
     const cw = canvasWidth || 720;
@@ -727,6 +736,76 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function computeDefaultInscription(date = new Date(), script = 'trad') {
+    const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+    const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+    const y = date.getFullYear();
+    const m = date.getMonth() + 1;
+    const d = date.getDate();
+    const md = m * 100 + d;
+    let effectiveYear = y;
+    let season = '春';
+    if (md < 204) {
+      effectiveYear = y - 1;
+      season = '冬';
+    } else if (md < 505) {
+      effectiveYear = y;
+      season = '春';
+    } else if (md < 807) {
+      effectiveYear = y;
+      season = '夏';
+    } else if (md < 1107) {
+      effectiveYear = y;
+      season = '秋';
+    } else {
+      effectiveYear = y;
+      season = '冬';
+    }
+    const offset = ((effectiveYear - 4) % 60 + 60) % 60;
+    const stem = STEMS[offset % 10];
+    const branch = BRANCHES[offset % 12];
+    const suffix = (script === 'trad') ? '墨韻書法生成' : '墨韵书法生成';
+    return `${stem}${branch}年${season} ${suffix}`;
+  }
+
+  function updateInscriptionText() {
+    if (!inscriptionInput) return true;
+    const rawText = inscriptionInput.value;
+    const len = rawText.length;
+    if (inscriptionCountEl) inscriptionCountEl.textContent = len;
+
+    const lines = rawText.split('\n');
+    const longLines = lines
+      .map((l, idx) => ({ num: idx + 1, len: [...l].length }))
+      .filter(x => x.len > MAX_LINE_CHARS);
+    const overLen = len > 64;
+    const overLine = longLines.length > 0;
+    const invalid = overLen || overLine;
+
+    if (invalid) {
+      if (inscriptionCounterEl) inscriptionCounterEl.classList.add('exceeded');
+      inscriptionInput.classList.add('exceeded');
+      if (inscriptionWarning) {
+        inscriptionWarning.classList.remove('hidden');
+        inscriptionWarning.hidden = false;
+        if (overLine) {
+          inscriptionWarning.textContent = `落款第 ${longLines[0].num} 行超出單行 ${MAX_LINE_CHARS} 字限制`;
+        } else {
+          inscriptionWarning.textContent = `落款總字數達 ${len} 字，超出 64 字上限`;
+        }
+      }
+      return false;
+    } else {
+      if (inscriptionCounterEl) inscriptionCounterEl.classList.remove('exceeded');
+      inscriptionInput.classList.remove('exceeded');
+      if (inscriptionWarning) {
+        inscriptionWarning.classList.add('hidden');
+        inscriptionWarning.hidden = true;
+      }
+      return true;
+    }
+  }
+
   // A conversion owns only the text revision and script choice it started with.
   let scriptConversionVersion = 0;
   let scriptConversionStatus = '';
@@ -742,11 +821,32 @@ document.addEventListener('DOMContentLoaded', () => {
   textInput.addEventListener('input', () => {
     invalidateScriptConversion();
     updateText();
+    scheduleEditorPreview();
   });
-  textInput.addEventListener('paste', () => setTimeout(updateText, 20));
-  if (punctuationSelect) {
-    punctuationSelect.addEventListener('change', updateText);
+  textInput.addEventListener('paste', () => setTimeout(() => {
+    updateText();
+    scheduleEditorPreview();
+  }, 20));
+
+  if (inscriptionInput) {
+    inscriptionInput.addEventListener('input', () => {
+      invalidateScriptConversion();
+      updateInscriptionText();
+      scheduleEditorPreview();
+    });
+    inscriptionInput.addEventListener('paste', () => setTimeout(() => {
+      updateInscriptionText();
+      scheduleEditorPreview();
+    }, 20));
   }
+
+  if (punctuationSelect) {
+    punctuationSelect.addEventListener('change', () => {
+      updateText();
+      scheduleEditorPreview();
+    });
+  }
+
 
   // High-precision Trad/Simp conversion with server-side OpenCC + client OpenCC fallback
   async function performScriptConversion(targetScript) {
@@ -757,9 +857,18 @@ document.addEventListener('DOMContentLoaded', () => {
     currentScript = targetScript;
     updateScriptButtons();
     renderPresets();
+    const originalInsc = inscriptionInput ? inscriptionInput.value : '';
+    if (originalInsc && inscriptionInput) {
+      inscriptionInput.value = fallbackConvert(originalInsc, targetScript);
+      updateInscriptionText();
+    }
+    if (inscriptionInput) {
+      inscriptionInput.placeholder = `落款或署名，可多行（例：${computeDefaultInscription(new Date(), targetScript)}）`;
+    }
     if (!originalText.trim()) {
       return;
     }
+
 
     scriptConversionStatus = `正在轉換文本爲${targetScript === 'trad' ? '繁體' : '簡體'}...`;
     showStatus(scriptConversionStatus, 'info');
@@ -1606,13 +1715,16 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus('請輸入要書寫的文本', 'error');
       return;
     }
-    if (!updateText()) {
-      showStatus(`輸入字符數量已超出 ${MAX_CHARS} 字符限制，請刪減後再預覽`, 'error');
+    if (!updateText() || !updateInscriptionText()) {
+      showStatus(`輸入字符數量已超出限制，請修改後再預覽`, 'error');
       return;
     }
 
     const style = styleSelect.value;
-    const missingPreview = [...new Set([...getMissingCharacters(text, style), ...verifiedMissingGlyphs])];
+    const inscVal = inscriptionInput ? inscriptionInput.value.trim() : '';
+    const fullText = text + (inscVal ? `\n${inscVal}` : '');
+    const missingPreview = [...new Set([...getMissingCharacters(fullText, style), ...verifiedMissingGlyphs])];
+
     if (missingPreview.length > 0) {
       const activeSupport = getActiveFontCharSupport(style);
       const targetScript = activeSupport === 'trad' ? '繁體' : '簡體';
@@ -1686,13 +1798,16 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus('請輸入要書寫的文本', 'error');
       return;
     }
-    if (!updateText()) {
-      showStatus(`輸入字符數量已超出 ${MAX_CHARS} 字符限制，請刪減後再生成`, 'error');
+    if (!updateText() || !updateInscriptionText()) {
+      showStatus(`輸入字符數量已超出限制，請刪減後再生成`, 'error');
       return;
     }
 
     const style = styleSelect.value;
-    const missingRender = [...new Set([...getMissingCharacters(text, style), ...verifiedMissingGlyphs])];
+    const inscVal = inscriptionInput ? inscriptionInput.value.trim() : '';
+    const fullText = text + (inscVal ? `\n${inscVal}` : '');
+    const missingRender = [...new Set([...getMissingCharacters(fullText, style), ...verifiedMissingGlyphs])];
+
     if (missingRender.length > 0) {
       const activeSupport = getActiveFontCharSupport(style);
       const targetScript = activeSupport === 'trad' ? '繁體' : '簡體';
@@ -2896,8 +3011,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Initial loads
+  if (inscriptionInput) {
+    const dynInsc = computeDefaultInscription(new Date(), currentScript);
+    if (!inscriptionInput.value.trim()) {
+      inscriptionInput.value = dynInsc;
+    }
+    inscriptionInput.placeholder = `落款或署名，可多行（例：${dynInsc}）`;
+  }
   updateCanvasDimDisplay();
   updateText();
+  updateInscriptionText();
+
   loadStyles();
   loadJobs();
   loadFontDatabase();

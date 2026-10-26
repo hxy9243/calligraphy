@@ -59,6 +59,7 @@ class PreviewRequest(BaseModel):
     stamp_position: Literal["after-text", "next-line", "before-text", "corner", "custom"] = "after-text"
     stamp_col: Optional[int] = Field(default=None, ge=0, le=64)
     stamp_row: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    inscription: Optional[str] = Field(default=None, max_length=MAX_INPUT_CHARACTERS)
 
     @model_validator(mode="after")
     def bounded_canvas(self):
@@ -73,6 +74,18 @@ class PreviewRequest(BaseModel):
             if len(line) > MAX_LINE_CHARACTERS:
                 raise ValueError(
                     f"第 {idx} 行超出单行 {MAX_LINE_CHARACTERS} 字限制（当前 {len(line)} 字），请换行后再试 / Line {idx} exceeds {MAX_LINE_CHARACTERS}-character limit ({len(line)} chars)."
+                )
+        return v
+
+    @field_validator("inscription")
+    @classmethod
+    def validate_inscription_line_length(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        for idx, line in enumerate(v.split("\n"), 1):
+            if len(line) > MAX_LINE_CHARACTERS:
+                raise ValueError(
+                    f"落款第 {idx} 行超出单行 {MAX_LINE_CHARACTERS} 字限制（当前 {len(line)} 字），请换行后再试 / Inscription line {idx} exceeds {MAX_LINE_CHARACTERS}-character limit ({len(line)} chars)."
                 )
         return v
 
@@ -104,6 +117,7 @@ class RenderRequest(BaseModel):
     stamp_position: Literal["after-text", "next-line", "before-text", "corner", "custom"] = "after-text"
     stamp_col: Optional[int] = Field(default=None, ge=0, le=64)
     stamp_row: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    inscription: Optional[str] = Field(default=None, max_length=MAX_INPUT_CHARACTERS)
     outro: Optional[float] = Field(default=None, ge=0.0, le=60.0)
 
     @model_validator(mode="after")
@@ -128,6 +142,19 @@ class RenderRequest(BaseModel):
                     f"第 {idx} 行超出单行 {MAX_LINE_CHARACTERS} 字限制（当前 {len(line)} 字），请换行后再试 / Line {idx} exceeds {MAX_LINE_CHARACTERS}-character limit ({len(line)} chars)."
                 )
         return v
+
+    @field_validator("inscription")
+    @classmethod
+    def validate_inscription_line_length(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        for idx, line in enumerate(v.split("\n"), 1):
+            if len(line) > MAX_LINE_CHARACTERS:
+                raise ValueError(
+                    f"落款第 {idx} 行超出单行 {MAX_LINE_CHARACTERS} 字限制（当前 {len(line)} 字），请换行后再试 / Inscription line {idx} exceeds {MAX_LINE_CHARACTERS}-character limit ({len(line)} chars)."
+                )
+        return v
+
 
 
 @asynccontextmanager
@@ -468,6 +495,9 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         params["height"] = req.height
     if req.outro is not None:
         params["outro"] = req.outro
+    if req.inscription:
+        params["inscription"] = req.inscription
+
 
     job = db.enqueue_render(
         job_id=job_id,

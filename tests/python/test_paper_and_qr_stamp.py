@@ -238,6 +238,52 @@ class PaperAndQrStampTests(unittest.TestCase):
         self.assertIn('class="seal-stamp-vector"', end_svg)
         self.assertIn('shape-rendering="crispEdges"', end_svg)
 
+    def test_inscription_layout_and_plan(self):
+        import datetime
+        from calligraphy.text.input import get_default_inscription
+        from calligraphy.text.plan import create_text_plan
+        from calligraphy.spec import SceneSpec, Appearance
+        from calligraphy.renderer import create_scene
+
+        # Dynamic inscription calculation
+        self.assertEqual(get_default_inscription(datetime.date(2026, 10, 25), "trad"), "丙午年秋 墨韻書法生成")
+        self.assertEqual(get_default_inscription(datetime.date(2026, 10, 25), "simp"), "丙午年秋 墨韵书法生成")
+
+        # Plan with inscription
+        counts = {"明": 8, "月": 4, "丙": 5, "午": 4, "年": 6, "秋": 9}
+        plan = create_text_plan(
+            text="明月",
+            stroke_counts=counts,
+            layout={"width": 720, "height": 960, "direction": "vertical-rl"},
+            inscription="丙午年秋",
+        )
+        self.assertEqual(len(plan["schedule"]), 6)
+        # Main text (first 2 entries)
+        self.assertFalse(plan["schedule"][0]["is_inscription"])
+        self.assertFalse(plan["schedule"][1]["is_inscription"])
+        main_size = plan["schedule"][0]["size"]
+
+        # Inscription (next 4 entries)
+        for e in plan["schedule"][2:]:
+            self.assertTrue(e["is_inscription"])
+            self.assertAlmostEqual(e["size"], main_size * 0.5, delta=1.0)
+            # Inscription placed to the left of main text
+            self.assertLess(e["x"], plan["schedule"][0]["x"])
+
+        # Create scene and render frame
+        spec = SceneSpec(
+            text="明月",
+            style="kai",
+            layout={"width": 720, "height": 960, "direction": "vertical-rl"},
+            inscription="丙午年秋",
+            appearance=Appearance(stamp_enabled=True),
+        )
+        scene = create_scene(spec, fetch_missing=True)
+
+        frame = scene.frame(scene.duration)
+        self.assertEqual(frame.size, (720, 960))
+
 
 if __name__ == "__main__":
     unittest.main()
+

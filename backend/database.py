@@ -18,8 +18,9 @@ RENDER_PARAMETER_DEFAULTS = {
     "font_size": None, "fit": True, "palette": "light",
     "paper_style": "xuan", "zigzag": False,
     "stamp_enabled": True, "stamp_position": "after-text",
-    "stamp_col": None, "stamp_row": None,
+    "stamp_col": None, "stamp_row": None, "inscription": None,
 }
+
 
 
 def now_utc_iso() -> str:

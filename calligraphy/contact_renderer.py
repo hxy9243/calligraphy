@@ -68,8 +68,12 @@ def validate_plan(plan, glyphs):
         start = finite(entry.get('start'), 'start')
         end = finite(entry.get('end'), 'end')
         length = finite(entry.get('duration'), 'glyph duration', 0.000001)
-        if start + 1e-8 < previous_end or end > duration + 1e-8 or not math.isclose(end - start, len(glyphs[character]) * step, abs_tol=1e-8) or not math.isclose(length, end - start, abs_tol=1e-8):
+        is_insc = entry.get('is_inscription', False)
+        expected_duration = length if is_insc else len(glyphs[character]) * step
+        if start + 1e-8 < previous_end or end > duration + 1e-8 or not math.isclose(end - start, expected_duration, abs_tol=1e-8) or not math.isclose(length, end - start, abs_tol=1e-8):
+
             raise ValueError('Inconsistent or overlapping glyph schedule')
+
         previous_end = end
         size = finite(entry.get('size'), 'size', 1)
         x, y = finite(entry.get('x'), 'x'), finite(entry.get('y'), 'y')

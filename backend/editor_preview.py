@@ -110,12 +110,20 @@ def render_pixels(params):
         from calligraphy.styled_contact_scene import paste_patch
         plan = RenderPlan.create(spec, {char: 1 for char in spec.unique_characters})
         painter = SimpleNamespace(appearance=spec.appearance, transforms=spec.transforms)
-        size = plan.schedule[0]['size']
-        patches = {char: FontLayerScene._create_patch(painter, mask, size)
-                   for char, mask in target_masks(path, spec.unique_characters)}
+        mask_dict = dict(target_masks(path, spec.unique_characters))
+        patches = {}
+        for placement in plan.schedule:
+            char = placement['character']
+            sz = placement['size']
+            key = (char, sz)
+            if key not in patches and char in mask_dict:
+                patches[key] = FontLayerScene._create_patch(painter, mask_dict[char], sz)
         image = render_writing_paper(plan.width, plan.height, spec.appearance, plan)
         for placement in plan.schedule:
-            paste_patch(image, placement, patches[placement['character']])
+            key = (placement['character'], placement['size'])
+            if key in patches:
+                paste_patch(image, placement, patches[key])
+
     # Rasterize the same logical page as exports, then downsample for transport.
     # Scaling geometry first changes wrapping, rounding, margins and brush ink.
     image.thumbnail((640, 640), Image.Resampling.LANCZOS)

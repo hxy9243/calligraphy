@@ -78,29 +78,37 @@ class TemplateScene:
             char = entry["character"]
             data = self.glyph_records[char]
             strokes_svg = []
-            for i, (path, median) in enumerate(zip(data["strokes"], data["medians"])):
-                if t >= entry["end"]:
-                    progress = 1.0
-                else:
-                    progress = _clamp((t - entry["start"] - i * self.plan.stroke_seconds) / self.plan.stroke_seconds)
-
-                if progress <= 0:
-                    continue
-                if progress >= 1.0:
+            if entry.get("is_inscription"):
+                for path in data["strokes"]:
                     strokes_svg.append(
                         f'<path d="{path}" fill="{ink_hex}" stroke="{ink_hex}" '
                         f'stroke-width="{self.expansion}" stroke-linejoin="round"/>'
                     )
-                else:
-                    mask_id = f"text-{entry['index']}-{i}"
-                    trace_path, _ = trace_polyline(median, progress)
-                    strokes_svg.append(
-                        f'<defs><mask id="{mask_id}" maskUnits="userSpaceOnUse" x="-64" y="-160" width="1152" height="1280">'
-                        f'<path d="{path}" fill="white" stroke="white" stroke-width="{self.expansion}" stroke-linejoin="round"/>'
-                        f'</mask></defs>'
-                        f'<path d="{trace_path}" mask="url(#{mask_id})" fill="none" stroke="{ink_hex}" '
-                        f'stroke-width="{174 + self.expansion}" stroke-linecap="round" stroke-linejoin="round"/>'
-                    )
+            else:
+                for i, (path, median) in enumerate(zip(data["strokes"], data["medians"])):
+                    if t >= entry["end"]:
+                        progress = 1.0
+                    else:
+                        progress = _clamp((t - entry["start"] - i * self.plan.stroke_seconds) / self.plan.stroke_seconds)
+
+                    if progress <= 0:
+                        continue
+                    if progress >= 1.0:
+                        strokes_svg.append(
+                            f'<path d="{path}" fill="{ink_hex}" stroke="{ink_hex}" '
+                            f'stroke-width="{self.expansion}" stroke-linejoin="round"/>'
+                        )
+                    else:
+                        mask_id = f"text-{entry['index']}-{i}"
+                        trace_path, _ = trace_polyline(median, progress)
+                        strokes_svg.append(
+                            f'<defs><mask id="{mask_id}" maskUnits="userSpaceOnUse" x="-64" y="-160" width="1152" height="1280">'
+                            f'<path d="{path}" fill="white" stroke="white" stroke-width="{self.expansion}" stroke-linejoin="round"/>'
+                            f'</mask></defs>'
+                            f'<path d="{trace_path}" mask="url(#{mask_id})" fill="none" stroke="{ink_hex}" '
+                            f'stroke-width="{174 + self.expansion}" stroke-linecap="round" stroke-linejoin="round"/>'
+                        )
+
 
             strokes_content = "".join(strokes_svg)
             # Center of the cell
@@ -303,12 +311,14 @@ def create_scene(
     manifest = style_manifest()
 
     if style in TEMPLATE_EXPANSIONS:
+        full_text = scene_spec.text + (f"\n{scene_spec.inscription}" if scene_spec.inscription else "")
         loaded_glyphs = resolve_glyphs(
-            scene_spec.text,
+            full_text,
             glyphs=glyphs,
             fetch_missing=fetch_missing,
             punctuation=scene_spec.punctuation,
         )
+
         stroke_counts = {c: len(loaded_glyphs[c]["strokes"]) for c in loaded_glyphs}
         plan = RenderPlan.create(scene_spec, stroke_counts=stroke_counts)
         if mode in ("auto", "stroke_ir", "contact"):
@@ -341,12 +351,14 @@ def create_scene(
     except FontBankNotFoundError:
         if font_path and (fetch_missing or glyphs):
             from .font_pipeline import prepare_style
+            full_text = scene_spec.text + (f"\n{scene_spec.inscription}" if scene_spec.inscription else "")
             needed_glyphs = resolve_glyphs(
-                scene_spec.text,
+                full_text,
                 glyphs=glyphs,
                 fetch_missing=fetch_missing,
                 punctuation=scene_spec.punctuation,
             )
+
             prepare_style(
                 style,
                 needed_glyphs,

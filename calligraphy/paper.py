@@ -1206,6 +1206,14 @@ def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not lines:
         lines = [["永"]]
 
+    insc_lines = None
+    if params.get("inscription"):
+        from .text.input import parse_text
+        try:
+            insc_lines = parse_text(params["inscription"], punctuation=params.get("punctuation", "omit"))["lines"]
+        except Exception:
+            pass
+
     from .text.layout import layout_text
     plan = layout_text(
         lines,
@@ -1216,7 +1224,9 @@ def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         gap=gap,
         fit=fit,
         zigzag=zigzag,
+        inscription_lines=insc_lines,
     )
+
     schedule = plan.get("placements", [])
 
     if schedule and "column" in schedule[0] and "row" in schedule[0]:

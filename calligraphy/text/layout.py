@@ -39,6 +39,7 @@ def layout_text(
     font_size: Optional[float] = None,
     fit: bool = True,
     zigzag: bool = False,
+    inscription_lines: Optional[List[List[str]]] = None,
 ) -> Dict[str, Any]:
     """Fit lines of characters into page cell placements.
     
@@ -95,66 +96,187 @@ def layout_text(
     columns = len(wrapped) if vertical else longest
     rows = longest if vertical else len(wrapped)
 
-    base_col_denom = columns + (columns - 1) * gap
-    base_row_denom = rows + (rows - 1) * gap
-    zigzag_pad = 0.52 if (zigzag and count > 1) else 0.0
-    col_denom = base_col_denom + (0.0 if vertical else zigzag_pad)
-    row_denom = base_row_denom + (zigzag_pad if vertical else 0.0)
-    cell = min(available_width / col_denom, available_height / row_denom)
-    if font_size is not None:
-        if not fit and font_size > min(available_width / base_col_denom, available_height / base_row_denom) + 1e-6:
-            raise ValueError("文字超出畫布，請開啟自動適應、縮小字號或加大畫布 / Text exceeds the canvas; enable fit, reduce font size or enlarge the canvas")
-        cell = min(font_size, cell) if fit else font_size
-    if cell < (8 if font_size is not None else 16):
-        raise ValueError("Text is too dense for this page; use a larger page or fewer characters")
+    clean_insc_lines = [l for l in inscription_lines if l] if inscription_lines else []
+    has_insc = len(clean_insc_lines) > 0
+    scale_ratio = 0.5
+    num_insc_cols = len(clean_insc_lines) if has_insc else 0
+    longest_insc = max((len(l) for l in clean_insc_lines), default=0)
 
-    left = (width - cell * base_col_denom) / 2
-    top = (height - cell * base_row_denom) / 2
+    if vertical:
+        main_col_units = columns + (columns - 1) * gap
+        inter_section_gap_units = (0.8 + 0.5 * gap) if num_insc_cols > 0 else 0.0
+        insc_col_units = scale_ratio * (num_insc_cols + (num_insc_cols - 1) * gap) if num_insc_cols > 0 else 0.0
+        base_col_denom = main_col_units + inter_section_gap_units + insc_col_units
+        insc_row_units = scale_ratio * (longest_insc * (1 + gap)) + 0.5 if has_insc else 0.0
+        base_row_denom = max(rows + (rows - 1) * gap, insc_row_units)
 
-    slack_along = max(
-        0.0,
-        (available_height - cell * base_row_denom) if vertical else (available_width - cell * base_col_denom),
-    )
-    amp_along = min(cell * 0.35, slack_along * 0.52) if (zigzag and count > 1) else 0.0
+        zigzag_pad = 0.52 if (zigzag and count > 1) else 0.0
+        col_denom = base_col_denom
+        row_denom = base_row_denom + zigzag_pad
 
-    if zigzag and len(wrapped) > 1:
-        raw_offsets = [_pseudo_rand(idx + 1) for idx in range(len(wrapped))]
-        mean_offset = sum(raw_offsets) / len(raw_offsets)
-        centered = [r - mean_offset for r in raw_offsets]
-        max_abs = max(abs(x) for x in centered) or 1.0
-        norm_line_offsets = [x / max_abs for x in centered]
-    else:
-        norm_line_offsets = [0.0] * max(1, len(wrapped))
+        cell = min(available_width / col_denom, available_height / row_denom)
+        if font_size is not None:
+            if not fit and font_size > min(available_width / base_col_denom, available_height / base_row_denom) + 1e-6:
+                raise ValueError("文字超出畫布，請開啟自動適應、縮小字號或加大畫布 / Text exceeds the canvas; enable fit, reduce font size or enlarge the canvas")
+            cell = min(font_size, cell) if fit else font_size
+        if cell < (8 if font_size is not None else 16):
+            raise ValueError("Text is too dense for this page; use a larger page or fewer characters")
 
-    placements = []
-    for line_index, line in enumerate(wrapped):
-        for index, character in enumerate(line):
-            col = (columns - 1 - line_index) if vertical else index
-            row = index if vertical else line_index
-            x = left + col * cell * (1 + gap)
-            y = top + row * cell * (1 + gap)
-            if amp_along > 0.0:
-                line_stagger = norm_line_offsets[line_index] * amp_along
-                char_jitter = _pseudo_rand(line_index + 1, index + 1) * (cell * 0.09)
-                shift_along = line_stagger + char_jitter
-                shift_across = _pseudo_rand(line_index + 101, index + 1) * min(cell * 0.05, cell * gap * 0.32)
-                if vertical:
+        s = cell * scale_ratio
+        total_w = cell * base_col_denom
+        left = (width - total_w) / 2
+        top = (height - cell * base_row_denom) / 2
+
+        slack_along = max(0.0, available_height - cell * base_row_denom)
+        amp_along = min(cell * 0.35, slack_along * 0.52) if (zigzag and count > 1) else 0.0
+
+
+        if zigzag and len(wrapped) > 1:
+            raw_offsets = [_pseudo_rand(idx + 1) for idx in range(len(wrapped))]
+            mean_offset = sum(raw_offsets) / len(raw_offsets)
+            centered = [r - mean_offset for r in raw_offsets]
+            max_abs = max(abs(x) for x in centered) or 1.0
+            norm_line_offsets = [x / max_abs for x in centered]
+        else:
+            norm_line_offsets = [0.0] * max(1, len(wrapped))
+
+        placements = []
+        for line_index, line in enumerate(wrapped):
+            col_x = left + total_w - cell - line_index * cell * (1 + gap)
+            for index, character in enumerate(line):
+                col = columns - 1 - line_index
+                row = index
+                x = col_x
+                y = top + row * cell * (1 + gap)
+                if amp_along > 0.0:
+                    line_stagger = norm_line_offsets[line_index] * amp_along
+                    char_jitter = _pseudo_rand(line_index + 1, index + 1) * (cell * 0.09)
+                    shift_along = line_stagger + char_jitter
+                    shift_across = _pseudo_rand(line_index + 101, index + 1) * min(cell * 0.05, cell * gap * 0.32)
                     y = max(margin, min(height - margin - cell, y + shift_along))
                     x = max(margin, min(width - margin - cell, x + shift_across))
-                else:
+                placements.append(
+                    {
+                        "character": character,
+                        "line": line_index,
+                        "column": col,
+                        "row": row,
+                        "x": x,
+                        "y": y,
+                        "size": cell,
+                        "is_inscription": False,
+                    }
+                )
+
+        if has_insc:
+            for insc_col_idx, line in enumerate(clean_insc_lines):
+                col_x = left + (num_insc_cols - 1 - insc_col_idx) * s * (1 + gap)
+                total_insc_height = len(line) * s * (1 + gap) - s * gap
+                y_offset = min(cell * 0.4, max(0.0, cell * base_row_denom - total_insc_height - s))
+                col_y_start = top + y_offset
+
+                for char_idx, character in enumerate(line):
+                    placements.append(
+                        {
+                            "character": character,
+                            "line": len(wrapped) + insc_col_idx,
+                            "column": -1 - insc_col_idx,
+                            "row": char_idx,
+                            "x": col_x,
+                            "y": col_y_start + char_idx * s * (1 + gap),
+                            "size": s,
+                            "is_inscription": True,
+                        }
+                    )
+
+    else:
+        num_insc_rows = len(clean_insc_lines) if has_insc else 0
+        longest_insc_chars = longest_insc
+
+        main_col_units = columns + (columns - 1) * gap
+        main_row_units = rows + (rows - 1) * gap
+        insc_row_units = scale_ratio * (num_insc_rows + (num_insc_rows - 1) * gap) if num_insc_rows > 0 else 0.0
+        base_row_denom = main_row_units + (0.6 + insc_row_units if num_insc_rows > 0 else 0.0)
+
+        insc_col_units = scale_ratio * (longest_insc_chars + (longest_insc_chars - 1) * gap)
+        base_col_denom = max(main_col_units, insc_col_units)
+
+        zigzag_pad = 0.52 if (zigzag and count > 1) else 0.0
+        col_denom = base_col_denom + zigzag_pad
+        row_denom = base_row_denom
+
+        cell = min(available_width / col_denom, available_height / row_denom)
+        if font_size is not None:
+            if not fit and font_size > min(available_width / base_col_denom, available_height / base_row_denom) + 1e-6:
+                raise ValueError("文字超出畫布，請開啟自動適應、縮小字號或加大畫布 / Text exceeds the canvas; enable fit, reduce font size or enlarge the canvas")
+            cell = min(font_size, cell) if fit else font_size
+        if cell < (8 if font_size is not None else 16):
+            raise ValueError("Text is too dense for this page; use a larger page or fewer characters")
+
+        s = cell * scale_ratio
+        main_h = rows * cell + (rows - 1) * cell * gap
+        total_h = main_h + (0.6 * cell + num_insc_rows * s * (1 + gap) if num_insc_rows > 0 else 0.0)
+        left = (width - cell * (columns + (columns - 1) * gap)) / 2
+        top = (height - total_h) / 2
+
+        slack_along = max(0.0, available_width - cell * (columns + (columns - 1) * gap))
+        amp_along = min(cell * 0.35, slack_along * 0.52) if (zigzag and count > 1) else 0.0
+
+        if zigzag and len(wrapped) > 1:
+            raw_offsets = [_pseudo_rand(idx + 1) for idx in range(len(wrapped))]
+            mean_offset = sum(raw_offsets) / len(raw_offsets)
+            centered = [r - mean_offset for r in raw_offsets]
+            max_abs = max(abs(x) for x in centered) or 1.0
+            norm_line_offsets = [x / max_abs for x in centered]
+        else:
+            norm_line_offsets = [0.0] * max(1, len(wrapped))
+
+        placements = []
+        for line_index, line in enumerate(wrapped):
+            for index, character in enumerate(line):
+                col = index
+                row = line_index
+                x = left + col * cell * (1 + gap)
+                y = top + row * cell * (1 + gap)
+                if amp_along > 0.0:
+                    line_stagger = norm_line_offsets[line_index] * amp_along
+                    char_jitter = _pseudo_rand(line_index + 1, index + 1) * (cell * 0.09)
+                    shift_along = line_stagger + char_jitter
+                    shift_across = _pseudo_rand(line_index + 101, index + 1) * min(cell * 0.05, cell * gap * 0.32)
                     x = max(margin, min(width - margin - cell, x + shift_along))
                     y = max(margin, min(height - margin - cell, y + shift_across))
-            placements.append(
-                {
-                    "character": character,
-                    "line": line_index,
-                    "column": col,
-                    "row": row,
-                    "x": x,
-                    "y": y,
-                    "size": cell,
-                }
-            )
+                placements.append(
+                    {
+                        "character": character,
+                        "line": line_index,
+                        "column": col,
+                        "row": row,
+                        "x": x,
+                        "y": y,
+                        "size": cell,
+                        "is_inscription": False,
+                    }
+                )
+
+        if has_insc:
+            main_right = left + cell * (columns + (columns - 1) * gap)
+            for row_idx, line in enumerate(clean_insc_lines):
+                line_w = len(line) * s * (1 + gap) - s * gap
+                row_x_start = main_right - line_w
+                row_y = top + main_h + cell * 0.5 + row_idx * s * (1 + gap)
+                for char_idx, character in enumerate(line):
+                    placements.append(
+                        {
+                            "character": character,
+                            "line": len(wrapped) + row_idx,
+                            "column": char_idx,
+                            "row": rows + row_idx,
+                            "x": row_x_start + char_idx * s * (1 + gap),
+                            "y": row_y,
+                            "size": s,
+                            "is_inscription": True,
+                        }
+                    )
 
     return {
         "width": width,
@@ -166,3 +288,4 @@ def layout_text(
         "zigzag": zigzag,
         "placements": placements,
     }
+

@@ -65,7 +65,20 @@
             <span id="char-warning" class="warn" hidden></span>
             <span id="char-counter" class="counter"><span id="char-count">0</span>/256 · 單行≤20</span>
           </div>
+          <div class="field" style="margin-top: 14px;">
+            <div class="field-head">
+              <label for="inscription-input" class="field-label">落款 / 署名</label>
+              <span class="sub-label">半倍字號 · 逐字落筆</span>
+            </div>
+            <textarea id="inscription-input" rows="2" spellcheck="false" aria-label="落款文本"
+              placeholder="落款或署名，可多行"></textarea>
+            <div class="field-foot">
+              <span id="inscription-warning" class="warn" hidden></span>
+              <span id="inscription-counter" class="counter"><span id="inscription-count">0</span>/64 · 單行≤20</span>
+            </div>
+          </div>
           <button type="button" id="btn-convert-current" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1">轉爲繁簡</button>
+
           <p id="font-glyph-warning" class="warn" role="alert" hidden></p>
           <div id="status-message" class="status-message hidden"></div>
           <div class="presets-block">
