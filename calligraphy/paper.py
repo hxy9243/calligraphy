@@ -388,257 +388,300 @@ def render_qr_seal_stamp(
     """Render a scannable red-ink cinnabar seal stamp with outer-frame breaking.
 
     Returns an RGBA PIL Image of shape (size_px, size_px).
+    The QR modules are rendered crisply without module-destroying blur or voids,
+    preserving high contrast and exact finder pattern geometry while authentic
+    chiselled stone breaks (朱文印 · 外框殘破/擊邊) are applied to the outer rim.
     """
     size_px = max(64, int(size_px))
     matrix = encode_qr_matrix(url, ecc="L")
     n_mod = matrix.shape[0]
 
-    # Supersample at 10px per module for authentic stone-carving & cinnabar texture
-    scale = 10
-    quiet_mods = 1.0 if n_mod >= 33 else 1.2      # Tight seal quiet zone like traditional 朱文印 while 100% scannable
-    border_mods = 0.8 if n_mod >= 33 else 1.0     # Carved stone seal outer rim thickness
-    pad_mods = 0.8                                # Clean paper margin outside rim so scanners see full quiet zone
-    total_mods = n_mod + 2 * (quiet_mods + border_mods + pad_mods)
-    canvas_sz = int(round(total_mods * scale))
+    cinnabar_r = 186.0
+    cinnabar_g = 28.0
+    cinnabar_b = 22.0
 
-    rng_seed = int(hashlib.sha256(url.encode("utf-8")).hexdigest()[:8], 16)
-    rng = np.random.default_rng(rng_seed)
+    if n_mod <= 33:
+        # For standard/short URLs (<=33 modules, versions 1-4):
+        # Exact integer module scaling eliminates fractional Moiré and phase distortion,
+        # ensuring 100% scannability across all canvas sizes.
+        m = 2
+        if n_mod * 3 + 24 <= size_px:
+            m = 3
 
-    outer_lo = int(round(pad_mods * scale))
-    outer_hi = canvas_sz - outer_lo
-    inner_lo = int(round((pad_mods + border_mods) * scale))
-    inner_hi = canvas_sz - inner_lo
-    qr_origin = int(round((pad_mods + border_mods + quiet_mods) * scale))
+        qr_w = n_mod * m
+        remaining = size_px - qr_w
+        half_rem = remaining // 2
 
-    # 1. Draw thick outer stone border with slightly rounded chiselled seal corners
-    border_img = Image.new("L", (canvas_sz, canvas_sz), 0)
-    bdraw = ImageDraw.Draw(border_img)
-    bdraw.rounded_rectangle(
-        [outer_lo, outer_lo, outer_hi - 1, outer_hi - 1],
-        radius=int(scale * 1.1),
-        fill=255,
-    )
-    bdraw.rounded_rectangle(
-        [inner_lo, inner_lo, inner_hi - 1, inner_hi - 1],
-        radius=int(scale * 0.45),
-        fill=0,
-    )
-    border_mask = np.asarray(border_img, dtype=np.float32) / 255.0
+        quiet_px = max(2 * m, int(round(half_rem * 0.52)))
+        rem_bp = max(4, half_rem - quiet_px)
+        pad_px = max(1, int(round(rem_bp * 0.35)))
+        border_px = max(2, rem_bp - pad_px)
+        quiet_px = half_rem - pad_px - border_px
 
-    # Apply natural stone-carving breaks (外框殘破 / 擊邊崩缺) to the outer frame
-    break_img = Image.new("L", (canvas_sz, canvas_sz), 255)
-    kdraw = ImageDraw.Draw(break_img)
-    border_w = inner_lo - outer_lo
+        outer_lo = pad_px + (remaining % 2) // 2
+        outer_hi = outer_lo + qr_w + 2 * (quiet_px + border_px)
+        border_w = border_px
+        inner_lo = outer_lo + border_w
+        inner_hi = outer_hi - border_w
+        qr_origin = inner_lo + quiet_px
 
-    # Jagged stone-fracture breaks along the 4 edges (both full-through gaps and outer chips)
-    rim_breaks = [
-        # (side, fractional_pos, length_in_scales, depth_fraction)
-        ("top", 0.18, 2.6, 1.15),
-        ("top", 0.52, 1.8, 0.72),
-        ("top", 0.79, 2.9, 1.15),
-        ("right", 0.24, 2.8, 1.15),
-        ("right", 0.61, 1.7, 0.68),
-        ("right", 0.85, 2.5, 1.15),
-        ("bottom", 0.16, 2.3, 0.78),
-        ("bottom", 0.44, 1.9, 1.15),
-        ("bottom", 0.72, 3.1, 1.15),
-        ("left", 0.22, 2.1, 0.75),
-        ("left", 0.54, 2.7, 1.15),
-        ("left", 0.83, 1.9, 0.72),
-    ]
-    span = outer_hi - outer_lo
-    for side, frac, len_sc, depth_frac in rim_breaks:
-        half_len = int(len_sc * scale * 0.5)
-        depth = int(border_w * depth_frac)
-        center = outer_lo + int(span * frac)
-        j = rng.integers(-4, 5, size=8)
-        if side == "top":
-            poly = [
-                (center - half_len + j[0], outer_lo - 4),
-                (center + half_len + j[1], outer_lo - 4),
-                (center + int(half_len * 0.8) + j[2], outer_lo + int(depth * 0.6)),
-                (center + int(half_len * 0.3) + j[3], outer_lo + depth),
-                (center - int(half_len * 0.4) + j[4], outer_lo + int(depth * 0.9)),
-                (center - int(half_len * 0.85) + j[5], outer_lo + int(depth * 0.5)),
-            ]
-        elif side == "bottom":
-            poly = [
-                (center - half_len + j[0], outer_hi + 4),
-                (center + half_len + j[1], outer_hi + 4),
-                (center + int(half_len * 0.8) + j[2], outer_hi - int(depth * 0.55)),
-                (center + int(half_len * 0.25) + j[3], outer_hi - depth),
-                (center - int(half_len * 0.45) + j[4], outer_hi - int(depth * 0.88)),
-                (center - int(half_len * 0.85) + j[5], outer_hi - int(depth * 0.45)),
-            ]
-        elif side == "left":
-            poly = [
-                (outer_lo - 4, center - half_len + j[0]),
-                (outer_lo - 4, center + half_len + j[1]),
-                (outer_lo + int(depth * 0.55), center + int(half_len * 0.8) + j[2]),
-                (outer_lo + depth, center + int(half_len * 0.3) + j[3]),
-                (outer_lo + int(depth * 0.88), center - int(half_len * 0.4) + j[4]),
-                (outer_lo + int(depth * 0.5), center - int(half_len * 0.85) + j[5]),
-            ]
-        else:
-            poly = [
-                (outer_hi + 4, center - half_len + j[0]),
-                (outer_hi + 4, center + half_len + j[1]),
-                (outer_hi - int(depth * 0.55), center + int(half_len * 0.8) + j[2]),
-                (outer_hi - depth, center + int(half_len * 0.3) + j[3]),
-                (outer_hi - int(depth * 0.88), center - int(half_len * 0.4) + j[4]),
-                (outer_hi - int(depth * 0.5), center - int(half_len * 0.85) + j[5]),
-            ]
-        kdraw.polygon(poly, fill=0)
+        S = 2
+        canvas_sz = size_px * S
+        s_outer_lo = outer_lo * S
+        s_outer_hi = outer_hi * S
+        s_inner_lo = inner_lo * S
+        s_inner_hi = inner_hi * S
+        s_border_w = border_w * S
+        s_qr_origin = qr_origin * S
+        s_m = m * S
 
-    # Angular stone corner fractures (印角殘破)
-    for cx, cy, sx_dir, sy_dir in [
-        (outer_lo, outer_lo, 1, 1),
-        (outer_hi, outer_lo, -1, 1),
-        (outer_lo, outer_hi, 1, -1),
-        (outer_hi, outer_hi, -1, -1),
-    ]:
-        c_len1 = int(border_w * rng.uniform(0.9, 1.55))
-        c_len2 = int(border_w * rng.uniform(0.85, 1.45))
-        c_mid = int(border_w * rng.uniform(0.45, 0.85))
-        poly = [
-            (cx - sx_dir * 4, cy - sy_dir * 4),
-            (cx + sx_dir * c_len1, cy - sy_dir * 2),
-            (cx + sx_dir * c_mid, cy + sy_dir * c_mid),
-            (cx - sx_dir * 2, cy + sy_dir * c_len2),
-        ]
-        kdraw.polygon(poly, fill=0)
+        rng_seed = int(hashlib.sha256(url.encode("utf-8")).hexdigest()[:8], 16)
+        rng = np.random.default_rng(rng_seed)
 
-    # Small angular chisel nicks along both outer and inner edges of the border frame
-    for _ in range(44):
-        side = rng.choice(["top", "bottom", "left", "right"])
-        inner_edge = bool(rng.random() < 0.38)
-        pos_c = int(rng.uniform(outer_lo + border_w, outer_hi - border_w))
-        w_nick = int(rng.uniform(3, border_w * 0.75))
-        d_nick = int(rng.uniform(3, border_w * 0.62))
-        if side == "top":
-            base_y = inner_lo if inner_edge else outer_lo
-            d_y = -d_nick if inner_edge else d_nick
-            poly = [(pos_c - w_nick, base_y), (pos_c + w_nick, base_y), (pos_c + int(rng.uniform(-3, 4)), base_y + d_y)]
-        elif side == "bottom":
-            base_y = inner_hi if inner_edge else outer_hi
-            d_y = d_nick if inner_edge else -d_nick
-            poly = [(pos_c - w_nick, base_y), (pos_c + w_nick, base_y), (pos_c + int(rng.uniform(-3, 4)), base_y + d_y)]
-        elif side == "left":
-            base_x = inner_lo if inner_edge else outer_lo
-            d_x = -d_nick if inner_edge else d_nick
-            poly = [(base_x, pos_c - w_nick), (base_x, pos_c + w_nick), (base_x + d_x, pos_c + int(rng.uniform(-3, 4)))]
-        else:
-            base_x = inner_hi if inner_edge else outer_hi
-            d_x = d_nick if inner_edge else -d_nick
-            poly = [(base_x, pos_c - w_nick), (base_x, pos_c + w_nick), (base_x + d_x, pos_c + int(rng.uniform(-3, 4)))]
-        kdraw.polygon(poly, fill=0)
-
-    break_mask = np.asarray(break_img, dtype=np.float32) / 255.0
-    edge_noise = rng.normal(0.0, 1.0, (canvas_sz // 3, canvas_sz // 3)).astype(np.float32)
-    edge_noise = cv2.GaussianBlur(edge_noise, (3, 3), 0.9)
-    edge_noise = cv2.resize(edge_noise, (canvas_sz, canvas_sz), interpolation=cv2.INTER_CUBIC)
-    border_mask = np.clip(border_mask * break_mask + 0.18 * edge_noise * (border_mask > 0.05), 0.0, 1.0)
-    border_mask = (border_mask > 0.46).astype(np.float32)
-    border_mask = cv2.GaussianBlur(border_mask, (3, 3), 0.55)
-
-    # 2. Render QR modules aligned symmetrically on the scale grid
-    qr_mask = np.zeros((canvas_sz, canvas_sz), dtype=np.float32)
-    core_keep = np.zeros((canvas_sz, canvas_sz), dtype=bool)
-    core_clear = np.zeros((canvas_sz, canvas_sz), dtype=bool)
-
-    def _is_finder(r: int, c: int) -> bool:
-        return (
-            (r < 7 and c < 7)
-            or (r < 7 and c >= n_mod - 7)
-            or (r >= n_mod - 7 and c < 7)
+        border_img = Image.new("L", (canvas_sz, canvas_sz), 0)
+        bdraw = ImageDraw.Draw(border_img)
+        bdraw.rounded_rectangle(
+            [s_outer_lo, s_outer_lo, s_outer_hi - 1, s_outer_hi - 1],
+            radius=int(s_border_w * 0.8),
+            fill=255,
         )
+        bdraw.rounded_rectangle(
+            [s_inner_lo, s_inner_lo, s_inner_hi - 1, s_inner_hi - 1],
+            radius=max(1, s_border_w // 3),
+            fill=0,
+        )
+        border_mask = np.asarray(border_img, dtype=np.float32) / 255.0
 
-    for r in range(n_mod):
-        for c in range(n_mod):
-            x0 = qr_origin + c * scale
-            x1 = qr_origin + (c + 1) * scale
-            y0 = qr_origin + r * scale
-            y1 = qr_origin + (r + 1) * scale
-            if matrix[r, c]:
-                qr_mask[y0:y1, x0:x1] = 1.0
-                if n_mod >= 37:
-                    m_base = 0
-                elif _is_finder(r, c):
-                    m_base = 1
-                else:
-                    m_base = 2
-                # Connect core seamlessly across adjacent dark modules so strokes have no internal grid lines
-                ml = 0 if (c > 0 and matrix[r, c - 1]) else m_base
-                mr = 0 if (c + 1 < n_mod and matrix[r, c + 1]) else m_base
-                mt = 0 if (r > 0 and matrix[r - 1, c]) else m_base
-                mb = 0 if (r + 1 < n_mod and matrix[r + 1, c]) else m_base
-                core_keep[y0 + mt : y1 - mb, x0 + ml : x1 - mr] = True
+        break_img = Image.new("L", (canvas_sz, canvas_sz), 255)
+        kdraw = ImageDraw.Draw(break_img)
+        span = s_outer_hi - s_outer_lo
+        rim_breaks = [
+            ("top", 0.22, 2.2, 1.15),
+            ("top", 0.76, 2.4, 1.15),
+            ("right", 0.26, 2.5, 1.15),
+            ("right", 0.80, 2.2, 1.15),
+            ("bottom", 0.20, 2.1, 1.15),
+            ("bottom", 0.72, 2.6, 1.15),
+            ("left", 0.24, 2.0, 1.15),
+            ("left", 0.60, 2.3, 1.15),
+        ]
+        for side, frac, len_sc, depth_frac in rim_breaks:
+            half_len = max(3, int(round(len_sc * s_m * 0.5)))
+            depth = int(round(s_border_w * depth_frac))
+            center = s_outer_lo + int(round(span * frac))
+            j = rng.integers(-2, 3, size=4)
+            if side == "top":
+                poly = [
+                    (center - half_len, s_outer_lo - 2),
+                    (center + half_len, s_outer_lo - 2),
+                    (center + half_len // 2 + j[0], s_outer_lo + depth),
+                    (center - half_len // 2 + j[1], s_outer_lo + depth),
+                ]
+            elif side == "bottom":
+                poly = [
+                    (center - half_len, s_outer_hi + 2),
+                    (center + half_len, s_outer_hi + 2),
+                    (center + half_len // 2 + j[0], s_outer_hi - depth),
+                    (center - half_len // 2 + j[1], s_outer_hi - depth),
+                ]
+            elif side == "left":
+                poly = [
+                    (s_outer_lo - 2, center - half_len),
+                    (s_outer_lo - 2, center + half_len),
+                    (s_outer_lo + depth, center + half_len // 2 + j[0]),
+                    (s_outer_lo + depth, center - half_len // 2 + j[1]),
+                ]
             else:
-                if n_mod >= 37:
-                    m_base = 0
-                elif _is_finder(r, c):
-                    m_base = 1
-                else:
-                    m_base = 2
-                ml = 0 if (c > 0 and not matrix[r, c - 1]) else m_base
-                mr = 0 if (c + 1 < n_mod and not matrix[r, c + 1]) else m_base
-                mt = 0 if (r > 0 and not matrix[r - 1, c]) else m_base
-                mb = 0 if (r + 1 < n_mod and not matrix[r + 1, c]) else m_base
-                core_clear[y0 + mt : y1 - mb, x0 + ml : x1 - mr] = True
+                poly = [
+                    (s_outer_hi + 2, center - half_len),
+                    (s_outer_hi + 2, center + half_len),
+                    (s_outer_hi - depth, center + half_len // 2 + j[0]),
+                    (s_outer_hi - depth, center - half_len // 2 + j[1]),
+                ]
+            kdraw.polygon(poly, fill=0)
 
-    # Apply subtle stone-carving organic edge texture to outer module boundaries
-    qr_smooth = cv2.GaussianBlur(qr_mask, (5, 5), 0.85)
-    mod_wobble = rng.normal(0.0, 1.0, (canvas_sz // 3, canvas_sz // 3)).astype(np.float32)
-    mod_wobble = cv2.GaussianBlur(mod_wobble, (3, 3), 0.8)
-    mod_wobble = cv2.resize(mod_wobble, (canvas_sz, canvas_sz), interpolation=cv2.INTER_CUBIC)
-    qr_mask = np.clip(qr_smooth + 0.16 * mod_wobble * (qr_smooth > 0.05) * (qr_smooth < 0.95), 0.0, 1.0)
-    qr_mask = (qr_mask > 0.48).astype(np.float32)
-    qr_mask[core_keep] = 1.0
-    qr_mask[core_clear] = 0.0
+        for cx, cy, sx_dir, sy_dir in [
+            (s_outer_lo, s_outer_lo, 1, 1),
+            (s_outer_hi, s_outer_lo, -1, 1),
+            (s_outer_lo, s_outer_hi, 1, -1),
+            (s_outer_hi, s_outer_hi, -1, -1),
+        ]:
+            c_len = int(round(s_border_w * 1.25))
+            poly = [
+                (cx - sx_dir * 2, cy - sy_dir * 2),
+                (cx + sx_dir * c_len, cy - sy_dir * 2),
+                (cx - sx_dir * 2, cy + sy_dir * c_len),
+            ]
+            kdraw.polygon(poly, fill=0)
 
-    ink_coverage = np.maximum(border_mask, qr_mask)
+        break_mask = np.asarray(break_img, dtype=np.float32) / 255.0
+        border_mask = border_mask * break_mask
 
-    # 3. Cinnabar Ink Paste Texture (朱砂印泥斑駁與飛白)
-    speckle_hi = rng.random((canvas_sz // 2, canvas_sz // 2), dtype=np.float32)
-    speckle_hi = cv2.resize(speckle_hi, (canvas_sz, canvas_sz), interpolation=cv2.INTER_LINEAR)
-    mottle_lo = rng.normal(0.0, 1.0, (canvas_sz // 7, canvas_sz // 7)).astype(np.float32)
-    mottle_lo = cv2.GaussianBlur(mottle_lo, (5, 5), 1.2)
-    mottle_lo = cv2.resize(mottle_lo, (canvas_sz, canvas_sz), interpolation=cv2.INTER_CUBIC)
+        qr_mask = np.zeros((canvas_sz, canvas_sz), dtype=np.float32)
+        for r in range(n_mod):
+            y0 = s_qr_origin + r * s_m
+            y1 = y0 + s_m
+            for c in range(n_mod):
+                if matrix[r, c]:
+                    x0 = s_qr_origin + c * s_m
+                    x1 = x0 + s_m
+                    qr_mask[y0:y1, x0:x1] = 1.0
 
-    void_field = speckle_hi + 0.28 * mottle_lo
-    border_voids = (void_field > 0.78) & (border_mask > 0.2)
-    qr_edge_voids = (void_field > 0.82) & (qr_mask > 0.2) & (~core_keep)
-    ink_density = ink_coverage.copy()
-    ink_density[border_voids] *= 0.10
-    ink_density[qr_edge_voids] *= 0.20
-    # Inside core_keep, add realistic cinnabar pigment mottling & tiny stone pores (0.72 - 1.0)
-    core_variation = np.clip(0.92 + 0.08 * mottle_lo - 0.18 * (speckle_hi > 0.91), 0.72, 1.0)
-    ink_density = np.where(core_keep, ink_density * core_variation, ink_density)
+        ink_coverage = np.maximum(border_mask, qr_mask)
+        ink_density = ink_coverage.copy()
 
-    # Colorize cinnabar ink: rich antique vermilion with subtle darker pooling at true stroke edges
-    edge_ring = np.clip(cv2.GaussianBlur(ink_coverage, (5, 5), 1.1) - ink_coverage * 0.78, 0.0, 1.0)
-    cinnabar_r = np.clip(182.0 + 16.0 * mottle_lo - 20.0 * edge_ring, 148.0, 208.0)
-    cinnabar_g = np.clip(36.0 + 8.0 * mottle_lo - 10.0 * edge_ring, 18.0, 52.0)
-    cinnabar_b = np.clip(26.0 + 6.0 * mottle_lo - 8.0 * edge_ring, 12.0, 38.0)
+        out_r = np.full((canvas_sz, canvas_sz), cinnabar_r, dtype=np.float32)
+        out_g = np.full((canvas_sz, canvas_sz), cinnabar_g, dtype=np.float32)
+        out_b = np.full((canvas_sz, canvas_sz), cinnabar_b, dtype=np.float32)
+        out_a = np.clip(ink_density * 255.0, 0.0, 255.0)
 
-    pr, pg, pb = paper_rgb
-    paper_grain = rng.normal(0.0, 1.6, (canvas_sz // 2, canvas_sz // 2)).astype(np.float32)
-    paper_grain = cv2.resize(paper_grain, (canvas_sz, canvas_sz), interpolation=cv2.INTER_LINEAR)
-    bg_r = np.clip(pr + paper_grain, 0, 255)
-    bg_g = np.clip(pg + paper_grain * 0.9, 0, 255)
-    bg_b = np.clip(pb + paper_grain * 0.8, 0, 255)
-
-    out_r = bg_r * (1.0 - ink_density) + cinnabar_r * ink_density
-    out_g = bg_g * (1.0 - ink_density) + cinnabar_g * ink_density
-    out_b = bg_b * (1.0 - ink_density) + cinnabar_b * ink_density
-    # Alpha is the cinnabar ink density itself so when stamped onto Xuan paper, only red ink is deposited!
-    out_a = np.clip(ink_density * 255.0, 0.0, 255.0)
-
-    rgba = np.stack([out_r, out_g, out_b, out_a], axis=-1).astype(np.uint8)
-    stamp = Image.fromarray(rgba, mode="RGBA")
-    if size_px != canvas_sz:
+        rgba = np.stack([out_r, out_g, out_b, out_a], axis=-1).astype(np.uint8)
+        stamp = Image.fromarray(rgba, mode="RGBA")
         stamp = stamp.resize((size_px, size_px), Image.Resampling.BOX)
-    return stamp
+        return stamp
+
+    else:
+        # For dense URLs (>33 modules, e.g. long share_url with 41 modules):
+        # 10x supersampling with clean, crisp modules and authentic outer breaks
+        scale = 10
+        quiet_mods = 1.0
+        border_mods = 0.8
+        pad_mods = 0.8
+        total_mods = n_mod + 2 * (quiet_mods + border_mods + pad_mods)
+        canvas_sz = int(round(total_mods * scale))
+
+        rng_seed = int(hashlib.sha256(url.encode("utf-8")).hexdigest()[:8], 16)
+        rng = np.random.default_rng(rng_seed)
+
+        outer_lo = int(round(pad_mods * scale))
+        outer_hi = canvas_sz - outer_lo
+        inner_lo = int(round((pad_mods + border_mods) * scale))
+        inner_hi = canvas_sz - inner_lo
+        qr_origin = int(round((pad_mods + border_mods + quiet_mods) * scale))
+
+        border_img = Image.new("L", (canvas_sz, canvas_sz), 0)
+        bdraw = ImageDraw.Draw(border_img)
+        bdraw.rounded_rectangle(
+            [outer_lo, outer_lo, outer_hi - 1, outer_hi - 1],
+            radius=int(scale * 1.1),
+            fill=255,
+        )
+        bdraw.rounded_rectangle(
+            [inner_lo, inner_lo, inner_hi - 1, inner_hi - 1],
+            radius=int(scale * 0.45),
+            fill=0,
+        )
+        border_mask = np.asarray(border_img, dtype=np.float32) / 255.0
+
+        break_img = Image.new("L", (canvas_sz, canvas_sz), 255)
+        kdraw = ImageDraw.Draw(break_img)
+        border_w = inner_lo - outer_lo
+        span = outer_hi - outer_lo
+
+        rim_breaks = [
+            ("top", 0.18, 2.6, 1.15),
+            ("top", 0.52, 1.8, 0.72),
+            ("top", 0.79, 2.9, 1.15),
+            ("right", 0.24, 2.8, 1.15),
+            ("right", 0.61, 1.7, 0.68),
+            ("right", 0.85, 2.5, 1.15),
+            ("bottom", 0.16, 2.3, 0.78),
+            ("bottom", 0.44, 1.9, 1.15),
+            ("bottom", 0.72, 3.1, 1.15),
+            ("left", 0.22, 2.1, 0.75),
+            ("left", 0.54, 2.7, 1.15),
+            ("left", 0.83, 1.9, 0.72),
+        ]
+        for side, frac, len_sc, depth_frac in rim_breaks:
+            half_len = int(len_sc * scale * 0.5)
+            depth = int(border_w * depth_frac)
+            center = outer_lo + int(span * frac)
+            j = rng.integers(-4, 5, size=8)
+            if side == "top":
+                poly = [
+                    (center - half_len + j[0], outer_lo - 4),
+                    (center + half_len + j[1], outer_lo - 4),
+                    (center + int(half_len * 0.8) + j[2], outer_lo + int(depth * 0.6)),
+                    (center + int(half_len * 0.3) + j[3], outer_lo + depth),
+                    (center - int(half_len * 0.4) + j[4], outer_lo + int(depth * 0.9)),
+                    (center - int(half_len * 0.85) + j[5], outer_lo + int(depth * 0.5)),
+                ]
+            elif side == "bottom":
+                poly = [
+                    (center - half_len + j[0], outer_hi + 4),
+                    (center + half_len + j[1], outer_hi + 4),
+                    (center + int(half_len * 0.8) + j[2], outer_hi - int(depth * 0.55)),
+                    (center + int(half_len * 0.25) + j[3], outer_hi - depth),
+                    (center - int(half_len * 0.45) + j[4], outer_hi - int(depth * 0.88)),
+                    (center - int(half_len * 0.85) + j[5], outer_hi - int(depth * 0.45)),
+                ]
+            elif side == "left":
+                poly = [
+                    (outer_lo - 4, center - half_len + j[0]),
+                    (outer_lo - 4, center + half_len + j[1]),
+                    (outer_lo + int(depth * 0.55), center + int(half_len * 0.8) + j[2]),
+                    (outer_lo + depth, center + int(half_len * 0.3) + j[3]),
+                    (outer_lo + int(depth * 0.88), center - int(half_len * 0.4) + j[4]),
+                    (outer_lo + int(depth * 0.5), center - int(half_len * 0.85) + j[5]),
+                ]
+            else:
+                poly = [
+                    (outer_hi + 4, center - half_len + j[0]),
+                    (outer_hi + 4, center + half_len + j[1]),
+                    (outer_hi - int(depth * 0.55), center + int(half_len * 0.8) + j[2]),
+                    (outer_hi - depth, center + int(half_len * 0.3) + j[3]),
+                    (outer_hi - int(depth * 0.88), center - int(half_len * 0.4) + j[4]),
+                    (outer_hi - int(depth * 0.5), center - int(half_len * 0.85) + j[5]),
+                ]
+            kdraw.polygon(poly, fill=0)
+
+        for cx, cy, sx_dir, sy_dir in [
+            (outer_lo, outer_lo, 1, 1),
+            (outer_hi, outer_lo, -1, 1),
+            (outer_lo, outer_hi, 1, -1),
+            (outer_hi, outer_hi, -1, -1),
+        ]:
+            c_len1 = int(border_w * rng.uniform(0.9, 1.55))
+            c_len2 = int(border_w * rng.uniform(0.85, 1.45))
+            c_mid = int(border_w * rng.uniform(0.45, 0.85))
+            poly = [
+                (cx - sx_dir * 4, cy - sy_dir * 4),
+                (cx + sx_dir * c_len1, cy - sy_dir * 2),
+                (cx + sx_dir * c_mid, cy + sy_dir * c_mid),
+                (cx - sx_dir * 2, cy + sy_dir * c_len2),
+            ]
+            kdraw.polygon(poly, fill=0)
+
+        break_mask = np.asarray(break_img, dtype=np.float32) / 255.0
+        edge_noise = rng.normal(0.0, 1.0, (canvas_sz // 3, canvas_sz // 3)).astype(np.float32)
+        edge_noise = cv2.GaussianBlur(edge_noise, (3, 3), 0.9)
+        edge_noise = cv2.resize(edge_noise, (canvas_sz, canvas_sz), interpolation=cv2.INTER_CUBIC)
+        border_mask = np.clip(border_mask * break_mask + 0.18 * edge_noise * (border_mask > 0.05), 0.0, 1.0)
+        border_mask = (border_mask > 0.46).astype(np.float32)
+        border_mask = cv2.GaussianBlur(border_mask, (3, 3), 0.55)
+
+        qr_mask = np.zeros((canvas_sz, canvas_sz), dtype=np.float32)
+        for r in range(n_mod):
+            for c in range(n_mod):
+                if matrix[r, c]:
+                    x0 = qr_origin + c * scale
+                    x1 = qr_origin + (c + 1) * scale
+                    y0 = qr_origin + r * scale
+                    y1 = qr_origin + (r + 1) * scale
+                    qr_mask[y0:y1, x0:x1] = 1.0
+
+        ink_coverage = np.maximum(border_mask, qr_mask)
+        ink_density = ink_coverage.copy()
+
+        out_r = np.full((canvas_sz, canvas_sz), cinnabar_r, dtype=np.float32)
+        out_g = np.full((canvas_sz, canvas_sz), cinnabar_g, dtype=np.float32)
+        out_b = np.full((canvas_sz, canvas_sz), cinnabar_b, dtype=np.float32)
+        out_a = np.clip(ink_density * 255.0, 0.0, 255.0)
+
+        rgba = np.stack([out_r, out_g, out_b, out_a], axis=-1).astype(np.uint8)
+        stamp = Image.fromarray(rgba, mode="RGBA")
+        stamp = stamp.resize((size_px, size_px), Image.Resampling.BOX)
+        return stamp
 
 
 # ============================================================================
@@ -815,17 +858,17 @@ def compute_stamp_placement(
     inner_left, inner_top, inner_right, inner_bottom = grid["inner_box"]
     n_lanes = max(1, len(lane_centers))
 
-    # Dense share URLs (41x41 matrix) require ~92px; default URLs (29x29 matrix) scan at 80-84px
+    # Dense share URLs (41x41 matrix) require ~92px; default URLs (29x29 matrix) scan at 70-84px
     is_dense_url = bool(stamp_url and len(stamp_url) > 80)
     ideal_sz = 92 if is_dense_url else 84
 
     if lane_width > 0:
         # Keep inside lane width with breathing room so it never touches or crosses the lines
-        max_fit = int(round(lane_width * 0.78))
+        max_fit = int(round(lane_width * 0.88))
         target_sz = min(ideal_sz, max_fit)
-        stamp_sz = max(72, min(ideal_sz, target_sz)) if max_fit >= 72 else max(64, max_fit)
+        stamp_sz = 92 if is_dense_url else max(68, min(ideal_sz, target_sz))
     else:
-        stamp_sz = max(72, min(ideal_sz, int(round(short_side * 0.09))))
+        stamp_sz = 92 if is_dense_url else max(68, min(ideal_sz, int(round(short_side * 0.09))))
 
     half = stamp_sz * 0.5
     pad_along = max(8.0, stamp_sz * 0.10)
@@ -891,7 +934,8 @@ def compute_stamp_placement(
                 cx = lane_centers[last_lane - 1]
                 cy = max_cy
             else:
-                cx = lane_centers[0]
+                # Leftmost lane is full to the bottom: offset into the left margin to prevent collision with characters
+                cx = max(half + 4.0, inner_left - half - 4.0) if inner_left > half + 4.0 else lane_centers[0]
                 cy = max_cy
 
         sx, sy = _clamp_box(cx, cy)
@@ -953,7 +997,8 @@ def compute_stamp_placement(
                 cy = lane_centers[last_lane + 1]
                 cx = max_cx
             else:
-                cy = lane_centers[-1]
+                # Bottom row is full to the right: offset into bottom margin to prevent collision with characters
+                cy = min(height - half - 4.0, inner_bottom + half + 4.0) if inner_bottom + half + 4.0 < height - 4.0 else lane_centers[-1]
                 cx = max_cx
 
         sx, sy = _clamp_box(cx, cy)
@@ -1233,10 +1278,9 @@ def _cached_xuan_base(
             stamp_url=stamp_url,
         )
 
-        # Clear the ruling lines underneath the seal body so the border lines stop at the stamp edge
-        clear_pad = max(2, int(round(stamp_sz * 0.03)))
+        # Clear the ruling lines underneath the seal body so the border lines stop cleanly at the stamp edge
         odraw.rectangle(
-            [sx + clear_pad, sy + clear_pad, sx + stamp_sz - clear_pad, sy + stamp_sz - clear_pad],
+            [sx, sy, sx + stamp_sz - 1, sy + stamp_sz - 1],
             fill=(0, 0, 0, 0),
         )
 
