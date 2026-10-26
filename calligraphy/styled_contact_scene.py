@@ -36,6 +36,9 @@ class StyledContactScene(ContactScene):
         if not np.isfinite(time):
             raise ValueError('time must be finite')
         time = min(self.duration, max(0, time))
+        time_key = round(time, 4)
+        if getattr(self, '_cached_frame_time', None) == time_key and getattr(self, '_cached_frame_image', None) is not None:
+            return self._cached_frame_image.copy()
         if time < self._last_time:
             self._active = None
         self._last_time = time
@@ -55,15 +58,25 @@ class StyledContactScene(ContactScene):
             else:
                 patch = self._create_patch(self._partial(index, entry, time), entry['size'])
             paste_patch(page, entry, patch)
+        self._cached_frame_time = time_key
+        self._cached_frame_image = page.copy()
         return page
 
     def frame_svg(self, time):
         # Same deposited pixels as PNG/video; SVG is a raster container here.
+        time_key = round(float(time), 4)
+        if getattr(self, '_cached_svg_time', None) == time_key and getattr(self, '_cached_svg_content', None) is not None:
+            return self._cached_svg_content
         stream = io.BytesIO()
-        self.frame(time).save(stream, format='PNG')
+        self.frame(time).save(stream, format='PNG', compress_level=1)
         payload = base64.b64encode(stream.getvalue()).decode()
-        characters = ''.join(f'<g data-character="{item["character"]}"/>' for item in self.plan['schedule'])
-        return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" '
-                f'viewBox="0 0 {self.width} {self.height}" data-engine="{self.engine_type}">'
-                f'<image width="{self.width}" height="{self.height}" href="data:image/png;base64,{payload}"/>'
-                f'{characters}</svg>')
+        characters = getattr(self, '_characters_tag', None)
+        if characters is None:
+            characters = self._characters_tag = ''.join(f'<g data-character="{item["character"]}"/>' for item in self.plan['schedule'])
+        res = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" '
+               f'viewBox="0 0 {self.width} {self.height}" data-engine="{self.engine_type}">'
+               f'<image width="{self.width}" height="{self.height}" href="data:image/png;base64,{payload}"/>'
+               f'{characters}</svg>')
+        self._cached_svg_time = time_key
+        self._cached_svg_content = res
+        return res

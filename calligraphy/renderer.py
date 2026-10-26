@@ -59,12 +59,21 @@ class TemplateScene:
 
     def frame_svg(self, time: float) -> str:
         t = _clamp(float(time), 0.0, self.duration)
+        time_key = round(t, 4)
+        if getattr(self, '_cached_svg_time', None) == time_key and getattr(self, '_cached_svg_content', None) is not None:
+            return self._cached_svg_content
         paper_hex = f"#{self.appearance.paper_color[0]:02x}{self.appearance.paper_color[1]:02x}{self.appearance.paper_color[2]:02x}"
         ink_hex = f"#{self.appearance.ink_color[0]:02x}{self.appearance.ink_color[1]:02x}{self.appearance.ink_color[2]:02x}"
 
         marks = []
+        if not hasattr(self, '_completed_marks'):
+            self._completed_marks = {}
         for entry in self.plan.schedule:
             if t <= entry["start"]:
+                continue
+            idx = entry.get("index", id(entry))
+            if t >= entry["end"] and idx in self._completed_marks:
+                marks.append(self._completed_marks[idx])
                 continue
             char = entry["character"]
             data = self.glyph_records[char]
@@ -108,21 +117,31 @@ class TemplateScene:
                 f'translate(-512 388) '
                 f'scale(1 -1)'
             )
-            marks.append(
-                f'<g data-character="{char}" transform="{transform}">{strokes_content}</g>'
-            )
+            mark = f'<g data-character="{char}" transform="{transform}">{strokes_content}</g>'
+            if t >= entry["end"]:
+                self._completed_marks[idx] = mark
+            marks.append(mark)
 
         inner = "".join(marks)
-        return (
+        res = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" '
             f'viewBox="0 0 {self.width} {self.height}">'
             f'<rect width="100%" height="100%" fill="{paper_hex}"/>{inner}</svg>'
         )
+        self._cached_svg_time = time_key
+        self._cached_svg_content = res
+        return res
 
     def frame(self, time: float) -> Image.Image:
+        time_key = round(float(time), 4)
+        if getattr(self, '_cached_frame_time', None) == time_key and getattr(self, '_cached_frame_image', None) is not None:
+            return self._cached_frame_image.copy()
         svg = self.frame_svg(time)
         png_bytes = cairosvg.svg2png(bytestring=svg.encode("utf-8"), output_width=self.width, output_height=self.height)
-        return Image.open(io.BytesIO(png_bytes)).convert("RGB")
+        img = Image.open(io.BytesIO(png_bytes)).convert("RGB")
+        self._cached_frame_time = time_key
+        self._cached_frame_image = img.copy()
+        return img
 
 
 def export_svg(scene: Any, output: Union[str, Path], time: Optional[float] = None) -> None:

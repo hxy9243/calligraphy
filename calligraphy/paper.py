@@ -1047,7 +1047,7 @@ def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 # Traditional Xuan Stationery Paper (仿古宣紙信箋 · 多款背景與印章對齊)
 # ============================================================================
 
-@lru_cache(maxsize=32)
+@lru_cache(maxsize=128)
 def _cached_xuan_base(
     width: int,
     height: int,

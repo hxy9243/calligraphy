@@ -15,6 +15,7 @@ from typing import Any, Dict, Optional
 from calligraphy.renderer import create_scene, export_still, export_svg, export_video
 from .composition import scene_spec_from_params
 from .database import Database, get_db
+from .editor_preview import glyph_worker_count
 from .retention import get_retention_seconds, job_share_url
 from .style_catalog import downloaded_catalog_entry
 
@@ -162,8 +163,8 @@ def execute_job(job: Dict[str, Any], db: Database) -> bool:
         db.update_job(job_id, progress=0.3)
 
         _auto_prepare_font(style, text)
-
-        scene = create_scene(scene_spec, fetch_missing=True)
+        g_workers = glyph_worker_count() if job_type == "preview" else max(1, min(4, os.cpu_count() or 1))
+        scene = create_scene(scene_spec, fetch_missing=True, glyph_workers=g_workers)
 
         db.update_job(job_id, progress=0.5)
 

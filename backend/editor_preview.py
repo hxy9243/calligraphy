@@ -120,11 +120,11 @@ def render_pixels(params):
     # Scaling geometry first changes wrapping, rounding, margins and brush ink.
     image.thumbnail((640, 640), Image.Resampling.LANCZOS)
     output = io.BytesIO()
-    image.save(output, format='PNG')
+    image.save(output, format='PNG', compress_level=1)
     return output.getvalue()
 
 
-@lru_cache(maxsize=32)
+@lru_cache(maxsize=128)
 def cached_preview(payload):
     # A child process bounds font parsing / built-in rendering time and memory lifetime.
     with tempfile.TemporaryDirectory(prefix='calligraphy-editor-') as temp:

@@ -1179,16 +1179,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (paperStyleSelect) {
-    paperStyleSelect.addEventListener('change', () => scheduleEditorPreview());
+    paperStyleSelect.addEventListener('change', () => scheduleEditorPreview({ immediate: true }));
   }
   if (zigzagToggle) {
-    zigzagToggle.addEventListener('change', () => scheduleEditorPreview());
+    zigzagToggle.addEventListener('change', () => scheduleEditorPreview({ immediate: true }));
   }
   if (stampToggle) {
     stampToggle.addEventListener('change', () => {
       currentStampMeta = null;
       updateStampDragHandlePosition();
-      scheduleEditorPreview();
+      scheduleEditorPreview({ immediate: true });
     });
   }
   if (stampPositionSelect) {
@@ -1199,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stampRow = null;
       }
       updateStampDragHandlePosition();
-      scheduleEditorPreview({ delay: 80 });
+      scheduleEditorPreview({ immediate: true });
     });
   }
 
