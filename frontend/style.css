@@ -191,6 +191,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 .canvas-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 .canvas-meta { font-size: 12px; color: var(--muted); }
 .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--seal); vertical-align: middle; margin-left: 2px; }
+.canvas-title-group { display: inline-flex; align-items: center; gap: 8px; }
+.btn-jump-preview, .btn-jump-text { display: none !important; }
 
 .action-bar { display: flex; gap: 10px; position: sticky; bottom: 12px; z-index: 5; padding: 10px; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .action-bar .btn { flex: 1; }
@@ -500,6 +502,33 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
   #card-output { order: 5; }
   .action-bar { order: 6; }
   .detail-body { grid-template-columns: 1fr; }
+  .canvas, #card-text { scroll-margin-top: calc(var(--topbar-h) + 12px); }
+  .btn-jump-preview {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .btn-jump-text {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    line-height: 1.5;
+    transition: background .15s;
+  }
+  .btn-jump-text:hover {
+    background: color-mix(in srgb, var(--accent-soft) 80%, var(--accent));
+  }
 }
 
 /* ---------- Mobile ---------- */
@@ -523,8 +552,9 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
   body[data-view="history"] .tabbar [data-nav="history"],
   body[data-view="fonts"] .tabbar [data-nav="fonts"] { color: var(--accent); font-weight: 700; }
 
-  .action-bar { position: fixed; left: 8px; right: 8px; bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); border-radius: 14px; z-index: 35; }
-  .action-bar .btn { min-width: 0; padding: 10px 8px; font-size: 14px; }
+  .action-bar { position: fixed; left: 8px; right: 8px; bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); border-radius: 14px; z-index: 35; gap: 6px; padding: 8px; }
+  .action-bar .btn { min-width: 0; padding: 10px 6px; font-size: 13px; }
+  .btn-jump-preview { padding: 10px 10px; }
   .card, .canvas { padding: 12px; }
   .card-head, .field-foot, .label-row { flex-wrap: wrap; }
   .field-foot .counter, .label-row output { margin-left: auto; }

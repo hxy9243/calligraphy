@@ -219,6 +219,10 @@
 
         <p class="creation-note">每分鐘最多創建 3 次 · 未分享作品保留 <span data-retention-duration>30 天</span> · 已分享作品與視頻永久保留</p>
         <div class="action-bar">
+          <button type="button" id="btn-jump-preview" class="btn btn-secondary btn-jump-preview" title="跳至排版預覽" aria-label="跳至排版預覽">
+            <span class="jump-icon" aria-hidden="true">👁</span>
+            <span class="jump-label">預覽</span>
+          </button>
           <button type="button" id="btn-preview" class="btn btn-secondary">▢ 導出靜圖</button>
           <button type="button" id="btn-render" class="btn btn-primary">▶ 生成書寫視頻</button>
         </div>
@@ -227,7 +231,10 @@
       <!-- Right: canvas -->
       <div class="canvas">
         <div class="canvas-head">
-          <strong>排版預覽</strong>
+          <div class="canvas-title-group">
+            <strong>排版預覽</strong>
+            <button type="button" id="btn-jump-text" class="btn-jump-text" title="返回文字輸入" aria-label="返回文字輸入">↑ 返回輸入</button>
+          </div>
           <span class="canvas-meta" id="canvas-meta"></span>
         </div>
 

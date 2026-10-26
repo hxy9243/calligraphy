@@ -1868,6 +1868,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Mobile jump to preview / return to text
+  const btnJumpPreview = document.getElementById('btn-jump-preview');
+  const btnJumpText = document.getElementById('btn-jump-text');
+  const canvasEl = document.querySelector('.canvas');
+  const cardText = document.getElementById('card-text');
+
+  let isCanvasActive = false;
+  function setPreviewJumpState(active) {
+    if (isCanvasActive === active) return;
+    isCanvasActive = active;
+    if (!btnJumpPreview) return;
+    const iconEl = btnJumpPreview.querySelector('.jump-icon');
+    const labelEl = btnJumpPreview.querySelector('.jump-label');
+    if (active) {
+      if (iconEl) iconEl.textContent = '✍️';
+      if (labelEl) labelEl.textContent = '輸入';
+      btnJumpPreview.title = '返回文字輸入';
+      btnJumpPreview.setAttribute('aria-label', '返回文字輸入');
+    } else {
+      if (iconEl) iconEl.textContent = '👁';
+      if (labelEl) labelEl.textContent = '預覽';
+      btnJumpPreview.title = '跳至排版預覽';
+      btnJumpPreview.setAttribute('aria-label', '跳至排版預覽');
+    }
+  }
+
+  function jumpToPreview() {
+    if (canvasEl && typeof canvasEl.scrollIntoView === 'function') {
+      canvasEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function jumpToText() {
+    if (cardText && typeof cardText.scrollIntoView === 'function') {
+      cardText.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  if (btnJumpPreview) {
+    btnJumpPreview.addEventListener('click', () => {
+      if (isCanvasActive) {
+        jumpToText();
+      } else {
+        jumpToPreview();
+      }
+    });
+  }
+
+  if (btnJumpText) {
+    btnJumpText.addEventListener('click', () => {
+      jumpToText();
+    });
+  }
+
+  if (typeof IntersectionObserver !== 'undefined' && canvasEl) {
+    try {
+      const observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          setPreviewJumpState(entry.isIntersecting && entry.intersectionRatio >= 0.25);
+        }
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1.0] });
+      observer.observe(canvasEl);
+    } catch (_) {}
+  }
+
   let jobsRefreshTimer = null;
   let jobsLoadVersion = 0;
   let hasActiveJobs = false;

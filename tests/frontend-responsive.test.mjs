@@ -110,3 +110,33 @@ test('vertical paper fits the measured content box below 260px and keeps its asp
   ui.document.getElementById('btn-horizontal').click();
   assert.ok(parseFloat(paper.style.width) > clientWidth - 28, 'wide horizontal artwork retains intentional local scrolling');
 });
+
+test('mobile preview jump button toggles and scrolls to canvas and back to text', async t => {
+  const scrolled = [];
+  const ui = await createFrontend({
+    setup(window) {
+      window.HTMLElement.prototype.scrollIntoView = function(options) {
+        scrolled.push({ id: this.id || this.className, options });
+      };
+    }
+  });
+  t.after(ui.close);
+  await ui.tickTimeouts(500);
+
+  const btnJumpPreview = ui.document.getElementById('btn-jump-preview');
+  const btnJumpText = ui.document.getElementById('btn-jump-text');
+  assert.ok(btnJumpPreview, 'btn-jump-preview exists in action-bar');
+  assert.ok(btnJumpText, 'btn-jump-text exists in canvas-head');
+
+  // Initial state: not viewing canvas
+  assert.equal(btnJumpPreview.querySelector('.jump-label')?.textContent, '預覽');
+
+  // Clicking jump to preview scrolls to canvas
+  btnJumpPreview.click();
+  assert.ok(scrolled.some(s => s.id.includes('canvas')), 'scrolls to canvas');
+
+  // Clicking jump text scrolls to card-text
+  scrolled.length = 0;
+  btnJumpText.click();
+  assert.ok(scrolled.some(s => s.id === 'card-text'), 'scrolls to card-text');
+});
