@@ -153,7 +153,7 @@ def cached_preview(payload):
 
 
 def editor_preview(params):
-    if not _SLOT.acquire(blocking=False):
+    if not _SLOT.acquire(timeout=0.8):
         raise BlockingIOError('预览服务繁忙，请稍后重试 / Preview busy; please retry.')
     try:
         return cached_preview(json.dumps(params, sort_keys=True, ensure_ascii=False))

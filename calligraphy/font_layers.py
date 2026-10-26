@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from .font_fitting import registered_fields, smooth_decomposition
 from .font_pipeline import target_masks, TIGHTNESS_CANDIDATES
 from .spec import RenderPlan, Appearance, Transforms
 
@@ -21,6 +20,7 @@ def prepare_character_layers(
     Returns:
       (layers, phases, max_reconstruction_error)
     """
+    from .font_fitting import registered_fields, smooth_decomposition
     gray = np.uint8(np.clip(255 * (1 - cv2.resize(target, (160, 160))), 0, 255))
     tightness_candidates = TIGHTNESS_CANDIDATES
     for attempt, tightness in enumerate(tightness_candidates):

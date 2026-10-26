@@ -517,6 +517,13 @@ def render_qr_seal_stamp(
         break_mask = np.asarray(break_img, dtype=np.float32) / 255.0
         border_mask = border_mask * break_mask
 
+        # Organic edge contour & fiber ink bleeding for hand-carved stone cinnabar seal
+        edge_noise = rng.normal(0.0, 1.0, (canvas_sz // 2, canvas_sz // 2)).astype(np.float32)
+        edge_noise = cv2.GaussianBlur(edge_noise, (3, 3), 0.8)
+        edge_noise = cv2.resize(edge_noise, (canvas_sz, canvas_sz), interpolation=cv2.INTER_CUBIC)
+        border_mask = np.clip(border_mask + 0.14 * edge_noise * (border_mask > 0.05), 0.0, 1.0)
+        border_mask = cv2.GaussianBlur(border_mask, (3, 3), 0.5)
+
         qr_mask = np.zeros((canvas_sz, canvas_sz), dtype=np.float32)
         for r in range(n_mod):
             y0 = s_qr_origin + r * s_m
@@ -530,9 +537,10 @@ def render_qr_seal_stamp(
         ink_coverage = np.maximum(border_mask, qr_mask)
         ink_density = ink_coverage.copy()
 
-        out_r = np.full((canvas_sz, canvas_sz), cinnabar_r, dtype=np.float32)
-        out_g = np.full((canvas_sz, canvas_sz), cinnabar_g, dtype=np.float32)
-        out_b = np.full((canvas_sz, canvas_sz), cinnabar_b, dtype=np.float32)
+        color_jitter = rng.uniform(-3.0, 3.0, (canvas_sz, canvas_sz)).astype(np.float32)
+        out_r = np.clip(cinnabar_r + color_jitter, 160.0, 210.0)
+        out_g = np.clip(cinnabar_g + color_jitter * 0.4, 15.0, 45.0)
+        out_b = np.clip(cinnabar_b + color_jitter * 0.3, 10.0, 35.0)
         out_a = np.clip(ink_density * 255.0, 0.0, 255.0)
 
         rgba = np.stack([out_r, out_g, out_b, out_a], axis=-1).astype(np.uint8)
@@ -743,10 +751,48 @@ def render_qr_seal_stamp_svg(
         iw = inner_hi - inner_lo
         ih = inner_hi - inner_lo
 
-        border_d = f"M{bx},{by}h{bw}v{bh}h-{bw}ZM{ix},{iy}v{ih}h{iw}v-{ih}Z"
-
         rng_seed = int(hashlib.sha256(url.encode("utf-8")).hexdigest()[:8], 16)
         rng = np.random.default_rng(rng_seed)
+
+        c_r = max(1.5, round(border_w * 0.45, 1))
+        # Outer rim with subtle stone blade bevels and weathered corners
+        outer_pts = [
+            f"M{bx + c_r},{by}",
+            f"L{bx + bw * 0.35:.1f},{by + float(rng.uniform(-0.35, 0.35)):.1f}",
+            f"L{bx + bw * 0.70:.1f},{by + float(rng.uniform(-0.35, 0.35)):.1f}",
+            f"L{bx + bw - c_r},{by}",
+            f"Q{bx + bw},{by} {bx + bw},{by + c_r}",
+            f"L{bx + bw + float(rng.uniform(-0.35, 0.35)):.1f},{by + bh * 0.40:.1f}",
+            f"L{bx + bw + float(rng.uniform(-0.35, 0.35)):.1f},{by + bh * 0.75:.1f}",
+            f"L{bx + bw},{by + bh - c_r}",
+            f"Q{bx + bw},{by + bh} {bx + bw - c_r},{by + bh}",
+            f"L{bx + bw * 0.65:.1f},{by + bh + float(rng.uniform(-0.35, 0.35)):.1f}",
+            f"L{bx + bw * 0.30:.1f},{by + bh + float(rng.uniform(-0.35, 0.35)):.1f}",
+            f"L{bx + c_r},{by + bh}",
+            f"Q{bx},{by + bh} {bx},{by + bh - c_r}",
+            f"L{bx + float(rng.uniform(-0.35, 0.35)):.1f},{by + bh * 0.65:.1f}",
+            f"L{bx + float(rng.uniform(-0.35, 0.35)):.1f},{by + bh * 0.30:.1f}",
+            f"L{bx},{by + c_r}",
+            f"Q{bx},{by} {bx + c_r},{by}Z",
+        ]
+        i_r = max(1.0, round(border_w * 0.25, 1))
+        inner_pts = [
+            f"M{ix + i_r},{iy}",
+            f"Q{ix},{iy} {ix},{iy + i_r}",
+            f"L{ix + float(rng.uniform(-0.25, 0.25)):.1f},{iy + ih * 0.5:.1f}",
+            f"L{ix},{iy + ih - i_r}",
+            f"Q{ix},{iy + ih} {ix + i_r},{iy + ih}",
+            f"L{ix + iw * 0.5:.1f},{iy + ih + float(rng.uniform(-0.25, 0.25)):.1f}",
+            f"L{ix + iw - i_r},{iy + ih}",
+            f"Q{ix + iw},{iy + ih} {ix + iw},{iy + ih - i_r}",
+            f"L{ix + iw + float(rng.uniform(-0.25, 0.25)):.1f},{iy + ih * 0.5:.1f}",
+            f"L{ix + iw},{iy + i_r}",
+            f"Q{ix + iw},{iy} {ix + iw - i_r},{iy}",
+            f"L{ix + iw * 0.5:.1f},{iy + float(rng.uniform(-0.25, 0.25)):.1f}",
+            f"L{ix + i_r},{iy}Z",
+        ]
+        border_d = "".join(outer_pts) + "".join(inner_pts)
+
         span = outer_hi - outer_lo
         rim_breaks = [
             ("top", 0.22, 2.2, 1.15),
@@ -1373,7 +1419,7 @@ def get_stamp_placement_for_plan(
 # ============================================================================
 
 @lru_cache(maxsize=128)
-def _cached_xuan_base(
+def _cached_stationery_paper(
     width: int,
     height: int,
     paper_color: Tuple[int, int, int],
@@ -1383,21 +1429,24 @@ def _cached_xuan_base(
     row_centers_tuple: Tuple[float, ...],
     cell_size: float,
     gap: float,
-    stamp_enabled: bool,
-    stamp_position: str,
-    stamp_col: Optional[int],
-    stamp_row: Optional[float],
-    stamp_url: str,
-    first_box: Optional[Tuple[float, float, float]],
-    last_box: Optional[Tuple[float, float, float]],
-) -> Image.Image:
-    """Render and cache the stationery background (paper texture + evenly distributed rules + QR seal stamp)."""
+) -> Tuple[Image.Image, Dict[str, Any]]:
+    """Render and cache the stationery paper texture and ruling grid (independent of stamp placement)."""
     r0, g0, b0 = paper_color
     is_dark = (r0 + g0 + b0) / 3.0 < 85.0
     short_side = min(width, height)
 
-    if paper_style == "plain" and (not stamp_enabled or not stamp_url or is_dark or short_side < 320):
-        return Image.new("RGB", (width, height), paper_color)
+    grid = compute_paper_grid(
+        width,
+        height,
+        direction=direction,
+        col_centers=col_centers_tuple,
+        row_centers=row_centers_tuple,
+        cell_size=cell_size,
+        gap=gap,
+    )
+
+    if paper_style == "plain" and (is_dark or short_side < 320):
+        return Image.new("RGB", (width, height), paper_color), grid
 
     rng = np.random.default_rng(width * 10007 + height * 31 + r0 * 7 + len(paper_style) * 13)
 
@@ -1484,15 +1533,6 @@ def _cached_xuan_base(
                 odraw.polygon(pts, fill=(226, 184, 92, alpha))
 
     # 3. Evenly Distributed Border Frame & Column/Row Dividers (朱絲欄 / 烏絲欄)
-    grid = compute_paper_grid(
-        width,
-        height,
-        direction=direction,
-        col_centers=col_centers_tuple,
-        row_centers=row_centers_tuple,
-        cell_size=cell_size,
-        gap=gap,
-    )
     outer_box = grid["outer_box"]
     inner_box = grid["inner_box"]
     dividers = grid["dividers"]
@@ -1537,47 +1577,80 @@ def _cached_xuan_base(
                             width=1,
                         )
 
-    # 4. Line-Aligned Cinnabar QR Seal Stamp (朱砂印章二維碼)
-    has_stamp = bool(stamp_enabled and stamp_url and not is_dark and short_side >= 320)
-    if has_stamp:
-        synthetic_schedule: List[Dict[str, Any]] = []
-        if first_box is not None:
-            synthetic_schedule.append({"x": first_box[0], "y": first_box[1], "size": first_box[2]})
-        if last_box is not None and last_box != first_box:
-            synthetic_schedule.append({"x": last_box[0], "y": last_box[1], "size": last_box[2]})
-
-        sx, sy, stamp_sz = compute_stamp_placement(
-            width,
-            height,
-            direction=direction,
-            grid=grid,
-            schedule=synthetic_schedule,
-            stamp_position=stamp_position,
-            stamp_col=stamp_col,
-            stamp_row=stamp_row,
-            stamp_url=stamp_url,
-        )
-
-        # Clear the ruling lines underneath the seal body so the border lines stop cleanly at the stamp edge
-        odraw.rectangle(
-            [sx, sy, sx + stamp_sz - 1, sy + stamp_sz - 1],
-            fill=(0, 0, 0, 0),
-        )
-
     page = Image.alpha_composite(page, overlay)
-
-    if has_stamp:
-        stamp_paper = (
-            max(226, min(246, int(round(r0 - 8)))),
-            max(216, min(238, int(round(g0 - 11)))),
-            max(200, min(226, int(round(b0 - 16)))),
-        )
-        stamp = render_qr_seal_stamp(stamp_url, size_px=stamp_sz, paper_rgb=stamp_paper)
-        page.paste(stamp, (sx, sy), stamp)
-
     result = page.convert("RGB")
     result.putpixel((0, 0), paper_color)
-    return result
+    return result, grid
+
+
+@lru_cache(maxsize=128)
+def _cached_xuan_base(
+    width: int,
+    height: int,
+    paper_color: Tuple[int, int, int],
+    paper_style: str,
+    direction: str,
+    col_centers_tuple: Tuple[float, ...],
+    row_centers_tuple: Tuple[float, ...],
+    cell_size: float,
+    gap: float,
+    stamp_enabled: bool,
+    stamp_position: str,
+    stamp_col: Optional[int],
+    stamp_row: Optional[float],
+    stamp_url: str,
+    first_box: Optional[Tuple[float, float, float]],
+    last_box: Optional[Tuple[float, float, float]],
+) -> Image.Image:
+    """Render the stationery background with line-aligned QR seal stamp using cached paper texture."""
+    r0, g0, b0 = paper_color
+    is_dark = (r0 + g0 + b0) / 3.0 < 85.0
+    short_side = min(width, height)
+
+    base_paper, grid = _cached_stationery_paper(
+        width=width,
+        height=height,
+        paper_color=paper_color,
+        paper_style=paper_style,
+        direction=direction,
+        col_centers_tuple=col_centers_tuple,
+        row_centers_tuple=row_centers_tuple,
+        cell_size=cell_size,
+        gap=gap,
+    )
+
+    has_stamp = bool(stamp_enabled and stamp_url and not is_dark and short_side >= 320)
+    if not has_stamp:
+        return base_paper
+
+    synthetic_schedule: List[Dict[str, Any]] = []
+    if first_box is not None:
+        synthetic_schedule.append({"x": first_box[0], "y": first_box[1], "size": first_box[2]})
+    if last_box is not None and last_box != first_box:
+        synthetic_schedule.append({"x": last_box[0], "y": last_box[1], "size": last_box[2]})
+
+    sx, sy, stamp_sz = compute_stamp_placement(
+        width,
+        height,
+        direction=direction,
+        grid=grid,
+        schedule=synthetic_schedule,
+        stamp_position=stamp_position,
+        stamp_col=stamp_col,
+        stamp_row=stamp_row,
+        stamp_url=stamp_url,
+    )
+
+    page = base_paper.copy()
+    stamp_paper = (
+        max(226, min(246, int(round(r0 - 8)))),
+        max(216, min(238, int(round(g0 - 11)))),
+        max(200, min(226, int(round(b0 - 16)))),
+    )
+    stamp = render_qr_seal_stamp(stamp_url, size_px=stamp_sz, paper_rgb=stamp_paper)
+    page.paste(stamp, (sx, sy), stamp)
+    page.putpixel((0, 0), paper_color)
+    return page
 
 
 def render_writing_paper(

@@ -511,16 +511,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     const delay = opts.delay != null ? opts.delay : (opts.immediate ? 0 : 800);
+    editorNextDelay = delay;
     editorTimer = setTimeout(refreshEditorPreview, delay);
   }
+
+  let editorAbortController = null;
+  let editorNextDelay = null;
 
   async function refreshEditorPreview() {
     if (editorInFlight || !textInput.value.trim()) return;
     const revision = editorRevision;
     editorInFlight = true;
+    editorAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
     try {
       const res = await fetch('/api/editor-preview', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
+        signal: editorAbortController?.signal,
         body: JSON.stringify({ text: textInput.value.trim(), style: styleSelect.value || 'kai',
           direction: currentDirection, punctuation: punctuationSelect?.value || 'omit',
           ...compositionSettings() }),
@@ -541,7 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
           fontGlyphWarning.hidden = false;
         }
         if (res.status === 503) {
-          editorTimer = setTimeout(refreshEditorPreview, 2000);
+          editorTimer = setTimeout(refreshEditorPreview, 250);
         }
         throw new Error(error.detail || '字體預覽暫時不可用');
       }
@@ -593,6 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (editorPreviewStatus) editorPreviewStatus.hidden = true;
       if (prevURL) URL.revokeObjectURL(prevURL);
     } catch (error) {
+      if (error && error.name === 'AbortError') return;
       if (revision === editorRevision) {
         if (!editorURL && editorPreviewStatus) {
           editorPreviewStatus.textContent = verifiedMissingGlyphs.length
@@ -601,7 +608,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       editorInFlight = false;
-      if (revision !== editorRevision) editorTimer = setTimeout(refreshEditorPreview, 800);
+      if (revision !== editorRevision) {
+        const delay = editorNextDelay != null ? editorNextDelay : 800;
+        editorNextDelay = null;
+        editorTimer = setTimeout(refreshEditorPreview, delay);
+      }
     }
   }
   const canvasMeta = document.getElementById('canvas-meta');
@@ -1445,7 +1456,7 @@ document.addEventListener('DOMContentLoaded', () => {
         draggingStamp = false;
         activePointerId = null;
         stampDragHandle.classList.remove('active-drag');
-        scheduleEditorPreview({ delay: 60 });
+        scheduleEditorPreview({ immediate: true });
       }
     }
 

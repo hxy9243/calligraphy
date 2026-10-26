@@ -1,75 +1,56 @@
 """Reusable geometry and brush engines for calligraphy rendering."""
+import importlib
 
-from .animation import (
-    STYLE_CONFIGS,
-    STYLE_PRESETS,
-    create_animation_gif,
-    get_style_config,
-    render_character_svg,
-    render_scene_svg,
-    render_style_comparison_svg,
-    render_timeline_images,
-    resolve_style_expansion,
-    trace_polyline,
-)
-from .brush_grammar import ContactBrush
-from .contact_renderer import ContactScene
-from .font_layers import FontLayerScene, LayerStore, prepare_character_layers
-from .paint_brush import BrushPainter
-from .renderer import (
-    TemplateScene,
-    create_scene,
-    export_png,
-    export_still,
-    export_svg,
-    export_video,
-)
-from .spec import Appearance, RenderPlan, SceneSpec, Transforms
-from .stroke_layers import compose_layers
-from .text import (
-    create_text_plan,
-    layout_text,
-    load_bundled_glyphs,
-    parse_text,
-    resolve_glyphs,
-    validate_glyph,
-)
-from .widget import create_vector_player
-
-__all__ = [
-    "Appearance",
-    "BrushPainter",
-    "ContactBrush",
-    "ContactScene",
-    "FontLayerScene",
-    "LayerStore",
-    "RenderPlan",
-    "STYLE_CONFIGS",
-    "STYLE_PRESETS",
-    "SceneSpec",
-    "TemplateScene",
-    "Transforms",
-    "compose_layers",
-    "create_animation_gif",
-    "create_scene",
-    "create_text_plan",
-    "create_vector_player",
-    "export_png",
-    "export_still",
-    "export_svg",
-    "export_video",
-    "get_style_config",
-    "layout_text",
-    "load_bundled_glyphs",
-    "parse_text",
-    "prepare_character_layers",
-    "render_character_svg",
-    "render_scene_svg",
-    "render_style_comparison_svg",
-    "render_timeline_images",
-    "resolve_glyphs",
-    "resolve_style_expansion",
-    "trace_polyline",
-    "validate_glyph",
-]
 __version__ = "0.1.0"
+
+_LAZY_MODULES = {
+    "Appearance": ".spec",
+    "BrushPainter": ".paint_brush",
+    "ContactBrush": ".brush_grammar",
+    "ContactScene": ".contact_renderer",
+    "FontLayerScene": ".font_layers",
+    "LayerStore": ".font_layers",
+    "RenderPlan": ".spec",
+    "STYLE_CONFIGS": ".animation",
+    "STYLE_PRESETS": ".animation",
+    "SceneSpec": ".spec",
+    "TemplateScene": ".renderer",
+    "Transforms": ".spec",
+    "compose_layers": ".stroke_layers",
+    "create_animation_gif": ".animation",
+    "create_scene": ".renderer",
+    "create_text_plan": ".text",
+    "create_vector_player": ".widget",
+    "export_png": ".renderer",
+    "export_still": ".renderer",
+    "export_svg": ".renderer",
+    "export_video": ".renderer",
+    "get_style_config": ".animation",
+    "layout_text": ".text",
+    "load_bundled_glyphs": ".text",
+    "parse_text": ".text",
+    "prepare_character_layers": ".font_layers",
+    "render_character_svg": ".animation",
+    "render_scene_svg": ".animation",
+    "render_style_comparison_svg": ".animation",
+    "render_timeline_images": ".animation",
+    "resolve_glyphs": ".text",
+    "resolve_style_expansion": ".animation",
+    "trace_polyline": ".animation",
+    "validate_glyph": ".text",
+}
+
+__all__ = sorted(_LAZY_MODULES.keys())
+
+
+def __getattr__(name: str):
+    if name in _LAZY_MODULES:
+        module = importlib.import_module(_LAZY_MODULES[name], __name__)
+        val = getattr(module, name)
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(list(globals().keys()) + list(_LAZY_MODULES.keys()))
