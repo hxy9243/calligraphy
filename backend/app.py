@@ -59,6 +59,7 @@ class PreviewRequest(BaseModel):
     stamp_position: Literal["after-text", "next-line", "before-text", "corner", "custom"] = "after-text"
     stamp_col: Optional[int] = Field(default=None, ge=0, le=64)
     stamp_row: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    stamp_url: Optional[str] = Field(default=None, max_length=1024)
     inscription: Optional[str] = Field(default=None, max_length=MAX_INPUT_CHARACTERS)
 
     @model_validator(mode="after")
@@ -117,6 +118,7 @@ class RenderRequest(BaseModel):
     stamp_position: Literal["after-text", "next-line", "before-text", "corner", "custom"] = "after-text"
     stamp_col: Optional[int] = Field(default=None, ge=0, le=64)
     stamp_row: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    stamp_url: Optional[str] = Field(default=None, max_length=1024)
     inscription: Optional[str] = Field(default=None, max_length=MAX_INPUT_CHARACTERS)
     outro: Optional[float] = Field(default=None, ge=0.0, le=60.0)
 
@@ -378,6 +380,8 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         params["stamp_col"] = req.stamp_col
     if req.stamp_row is not None:
         params["stamp_row"] = req.stamp_row
+    if req.stamp_url:
+        params["stamp_url"] = req.stamp_url
     if req.width:
         params["width"] = req.width
     if req.height:
@@ -489,6 +493,8 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         params["stamp_col"] = req.stamp_col
     if req.stamp_row is not None:
         params["stamp_row"] = req.stamp_row
+    if req.stamp_url:
+        params["stamp_url"] = req.stamp_url
     if req.width:
         params["width"] = req.width
     if req.height:

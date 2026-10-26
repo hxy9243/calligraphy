@@ -19,6 +19,7 @@ RENDER_PARAMETER_DEFAULTS = {
     "paper_style": "xuan", "zigzag": False,
     "stamp_enabled": True, "stamp_position": "after-text",
     "stamp_col": None, "stamp_row": None, "inscription": None,
+    "stamp_url": None,
 }
 
 

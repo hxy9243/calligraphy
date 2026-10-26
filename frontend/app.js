@@ -355,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const zigzagToggle = document.getElementById('zigzag-toggle');
   const stampToggle = document.getElementById('stamp-toggle');
   const stampPositionSelect = document.getElementById('stamp-position-select');
+  const stampUrlInput = document.getElementById('stamp-url-input');
   const stampOptionsRow = document.getElementById('stamp-options-row');
   const stampDragHandle = document.getElementById('stamp-drag-handle');
   const stageViewport = document.getElementById('stage-viewport');
@@ -389,6 +390,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stampPositionSelect?.value === 'custom') {
       if (stampCol !== null && Number.isFinite(stampCol)) settings.stamp_col = stampCol;
       if (stampRow !== null && Number.isFinite(stampRow)) settings.stamp_row = stampRow;
+    }
+    if (stampUrlInput && stampUrlInput.value.trim()) {
+      settings.stamp_url = stampUrlInput.value.trim();
     }
     if (inscriptionInput && inscriptionInput.value.trim()) {
       settings.inscription = inscriptionInput.value.trim();
@@ -1309,6 +1313,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       updateStampDragHandlePosition();
       scheduleEditorPreview({ immediate: true });
+    });
+  }
+  if (stampUrlInput) {
+    stampUrlInput.addEventListener('input', () => {
+      scheduleEditorPreview({ delay: 500 });
     });
   }
 

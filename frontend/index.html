@@ -170,17 +170,23 @@
           <div class="field stamp-controls-group">
             <label class="check">
               <input type="checkbox" id="stamp-toggle" checked>
-              <span>加蓋朱砂二維碼印章（指向分享連結）</span>
+              <span>加蓋朱砂二維碼印章</span>
             </label>
             <div id="stamp-options-row" class="stamp-options-row">
-              <label for="stamp-position-select">印章位置</label>
-              <select id="stamp-position-select" class="select-field">
-                <option value="after-text" selected>文末緊隨（末行字後或次行）</option>
-                <option value="next-line">另起一行（落款位）</option>
-                <option value="before-text">文首引首（首行起首）</option>
-                <option value="corner">壓角閒章（左下／右下角）</option>
-                <option value="custom">自訂位置</option>
-              </select>
+              <div class="stamp-option-item">
+                <label for="stamp-position-select" class="field-label">印章位置</label>
+                <select id="stamp-position-select" class="select-field">
+                  <option value="after-text" selected>文末緊隨（末行字後或次行）</option>
+                  <option value="next-line">另起一行（落款位）</option>
+                  <option value="before-text">文首引首（首行起首）</option>
+                  <option value="corner">壓角閒章（左下／右下角）</option>
+                  <option value="custom">自訂位置（可在畫布拖動）</option>
+                </select>
+              </div>
+              <div class="stamp-option-item" style="margin-top: 8px;">
+                <label for="stamp-url-input" class="field-label">印章二維碼連結（選填自訂網址）</label>
+                <input type="url" id="stamp-url-input" class="text-input" placeholder="留空則默認自動生成視頻專屬分享網址" spellcheck="false" style="width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px;" />
+              </div>
             </div>
           </div>
         </section>
