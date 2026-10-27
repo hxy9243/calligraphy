@@ -1,6 +1,8 @@
 # Studio preview display and direction
 
 The studio in `frontend/` uses server-rendered raster images for live font previews.
+Live editor preview rendering has a 120-second process timeout. The browser does
+not impose a shorter deadline; timed-out rendering processes are terminated.
 The creation canvas contains only the live layout preview; there is no latest-result tab.
 Generated still previews open in a modal. Completed history images/videos open in a
 work modal without navigating away from history or changing its filter/search state.
@@ -177,7 +179,7 @@ The editor also reduces this budget for CPU affinity, Linux cgroup CPU quotas,
 and small cgroup memory limits. Native math pools in the preview subprocess and
 OpenCV threads in fitting children are limited to one. The existing single-editor
 admission slot bounds concurrent requests in the deployed one-worker server;
-its 30-second process-group deadline also kills fitting descendants. Per-glyph
+its 120-second process-group deadline also kills fitting descendants. Per-glyph
 file locks and atomic SQLite writes preserve shared-cache safety. Failures cancel
 queued fits and propagate without publishing a partial preview.
 

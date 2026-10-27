@@ -159,7 +159,7 @@ def cached_preview(payload):
             env={**os.environ, 'OMP_NUM_THREADS': '1', 'OPENBLAS_NUM_THREADS': '1',
                  'MKL_NUM_THREADS': '1', 'NUMEXPR_NUM_THREADS': '1'})
         try:
-            _, error = process.communicate(payload.encode(), timeout=30)
+            _, error = process.communicate(payload.encode(), timeout=120)
         except subprocess.TimeoutExpired:
             os.killpg(process.pid, signal.SIGKILL)
             process.communicate()

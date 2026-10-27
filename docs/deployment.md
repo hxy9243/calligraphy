@@ -66,7 +66,7 @@ a raster image after editing pauses, using the source font for catalog styles
 and the scene renderer for built-in Kai/Yan. Font previews show actual glyphs;
 the inferred brush renderer used for exports can differ in texture and layout.
 Previews are bounded to 640 pixels per side, 256 characters, one concurrent
-preview process and a 30-second deadline. A 32-entry cache avoids repeated work.
+preview process and a 120-second deadline. A 32-entry cache avoids repeated work.
 Automatic editor previews do not create jobs or spend the export allowance.
 Rendering status sits outside the artwork viewport. A separate missing-character
 alert names missing glyphs and blocks exports until the text/font changes.
