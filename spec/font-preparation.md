@@ -318,8 +318,10 @@ Existing ownership corrections, missing templates, ambiguous/remaining collapses
 new compact-dot fallbacks, fitting failures or failed shape guards retain the original contacts with a skipped diagnostic.
 `continuityRepair` reports candidate strokes, status, method, retention and
 exact final-alpha preservation. Templates participate in derived-cache identity;
-engine source hashing invalidates older caches. Authored contact collections,
-explicit `font_layers` mode and static font output are unaffected.
+engine source hashing invalidates older caches. This legacy-bank recovery does
+not run for authored contact collections, explicit `font_layers` mode or static
+font output. Newly prepared `font_layers` fields do use the shared guarded
+registration retry; their exact source-alpha reconstruction contract is unchanged.
 
 Validation (2026-10-27): the pinned legacy MasaFont 風 fixture repairs stroke 2's
 body/curve/hook order while keeping complete glyph alpha byte-identical. Five
