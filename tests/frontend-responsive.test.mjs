@@ -49,7 +49,7 @@ test('narrow cards have identical width bounds independently of intrinsic conten
       assert.equal(layout.width, '100%', `${selector} at ${width}px`);
       assert.equal(layout['max-width'], '100%');
     }
-    assert.equal(rulesAt(width, '.creation-note').order, '5', 'text stays first, usage note follows output');
+    assert.equal(rulesAt(width, '.creation-note').order, '6', 'text stays first, usage note follows output');
   }
   assert.equal(rulesAt(1280, '.compose > .card').width, undefined);
 });

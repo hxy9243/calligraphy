@@ -9,17 +9,19 @@ The backend supplies owner-only retention metadata for history expiry labels.
   desktop masthead and bilingual folio line lead into a narrow editor and an open
   artwork stage. History, the font catalogue and dialogs share the same language.
 - Text and the current font stay visible. Native, keyboard-accessible disclosures
-  group inscription, poetry presets, layout/paper/seal settings and animation
+  group inscription, poetry presets, paper settings, layout/seal settings and animation
   settings. Existing inputs, IDs, defaults and render/export behavior are retained.
   The red rule over the preview is interface chrome, not part of exported artwork.
+  Sidebar section headers and secondary disclosure headings use a subtly darker,
+  theme-matched background with inset padding to distinguish them from controls.
 - Three hash-routed views: `#create` (working), `#history` (past jobs), `#fonts` (catalogue).
   Desktop (> 960px) uses a viewport-height 2-column layout (compose left,
   preview right), with independent scrolling in each pane. Scrolling controls
   keeps the preview in view; long artwork can be scrolled separately on the right.
-  Mobile and narrow viewports (<= 960px) place text input at the very top, followed by live preview, font, layout, and output controls.
+  Mobile and narrow viewports (<= 960px) place text input at the very top, followed by live preview, font, paper, layout, and output controls.
   Narrow cards stretch to the available width with explicit 100% bounds. Mobile cards share 12px internal padding; controls, grid tracks and long labels can shrink without widening the page. Chip strips keep their own horizontal scroll, and compact action buttons stay within the fixed bar. The usage note follows output controls rather than preceding text input. Vertical preview paper fits the stage content box after subtracting padding, including widths below 260px; horizontal artwork can still scroll within its stage.
   Viewports <= 640px use a bottom tab bar, a fixed floating action bar and bottom sheets.
-- Create flow: 1 text, 2 font, 3 layout, 4 output. Fonts are chosen in a searchable picker
+- Create flow: 1 text, 2 font, 3 paper, 4 layout, 5 output. Fonts are chosen in a searchable picker
   (category, script, favourites, recents) that previews the user's own text in each face.
 - Font entries merge `/api/styles` with `/api/font-catalog`; catalogue-only fonts are also
   exportable because the backend prepares them on demand.
@@ -56,9 +58,9 @@ record stores only the selected font/calligraphy style ID (`style`, the single
 font picker/export selection) and paper/background theme (`theme`). Those choices
 survive refreshes and switching Create, History and Fonts panels. Selecting from
 the picker, catalog, recent chips or history reuse updates the same preference;
-the theme selector stays synchronized. Rubbing selects dark artwork paper and
-white ink in editor/still/video requests; the two light themes retain the
-original export colors. This palette remains independent of the selected font.
+the sidebar theme selector stays synchronized. Rubbing selects dark artwork paper
+and white ink in editor/still/video requests. The gold preset selects actual gold
+paper texture. This palette remains independent of the selected font.
 
 Saved fonts are validated against `/api/styles` and `/api/font-catalog` as those
 requests arrive. A catalog-only font is not overwritten by the earlier styles
@@ -126,3 +128,22 @@ video decoder, or physical WeChat/iPhone handoff and download behavior.
   The editor uses multiply blending for lightweight placement feedback; exact
   paper/ink overlap is resolved by the unchanged still/video export renderer.
   Clients omitting `separate_stamp` continue to receive a complete PNG.
+
+## Paper studio
+
+The masthead and document title read 墨韵书法工坊. The sidebar's “纸 / Paper”
+section combines paper/ink theme, color, texture and botanical decoration; there
+is no header theme selector. Default, warm, cool and rose tones resolve to light
+paper or dark rubbing colors. New fiber, laid, mottled and silver textures are
+unruled and work with either palette; gold flecks also render on dark paper.
+Existing xuan/wusi/gold ruling remains aligned to the text layout.
+
+Botanical decoration is **off by default**, including on reload and when reusing
+old jobs. Optional 梅、蘭、竹、菊 motifs are faint, deterministic drawings at the
+lower paper corner. They are rendered below the writing, in the shared cached
+paper layer used by editor, still and video frames, never as CSS over artwork.
+`paper_tone` and `paper_decoration` are validated API fields, included in render
+identity and job parameters, and restored by history reuse. The resolved color
+and decoration are serialized in SceneSpec; cached backgrounds include the
+motif. Color, texture and decoration controls are per-draft choices; only theme
+and font persist in browser preferences. Existing jobs retain legacy defaults.

@@ -46,7 +46,9 @@ class PreviewRequest(BaseModel):
     style: str = Field(default="kai")
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     palette: Literal["light", "dark"] = "light"
-    paper_style: Literal["xuan", "wusi", "gold", "unruled", "plain"] = "xuan"
+    paper_style: Literal["xuan", "wusi", "gold", "unruled", "plain", "fiber", "laid", "mottled", "silver"] = "xuan"
+    paper_tone: Literal["default", "warm", "cool", "rose"] = "default"
+    paper_decoration: Literal["none", "plum", "orchid", "bamboo", "chrysanthemum"] = "none"
     paper_line_count: Optional[int] = Field(default=None, ge=1, le=32, strict=True)
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
@@ -106,7 +108,9 @@ class RenderRequest(BaseModel):
     style: str = Field(default="kai")
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     palette: Literal["light", "dark"] = "light"
-    paper_style: Literal["xuan", "wusi", "gold", "unruled", "plain"] = "xuan"
+    paper_style: Literal["xuan", "wusi", "gold", "unruled", "plain", "fiber", "laid", "mottled", "silver"] = "xuan"
+    paper_tone: Literal["default", "warm", "cool", "rose"] = "default"
+    paper_decoration: Literal["none", "plum", "orchid", "bamboo", "chrysanthemum"] = "none"
     paper_line_count: Optional[int] = Field(default=None, ge=1, le=32, strict=True)
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
@@ -374,6 +378,10 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
     }
     if req.paper_line_count is not None:
         params["paper_line_count"] = req.paper_line_count
+    if req.paper_tone != "default":
+        params["paper_tone"] = req.paper_tone
+    if req.paper_decoration != "none":
+        params["paper_decoration"] = req.paper_decoration
     if req.paper_style != "xuan":
         params["paper_style"] = req.paper_style
     if req.zigzag:
@@ -500,6 +508,10 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
     }
     if req.paper_line_count is not None:
         params["paper_line_count"] = req.paper_line_count
+    if req.paper_tone != "default":
+        params["paper_tone"] = req.paper_tone
+    if req.paper_decoration != "none":
+        params["paper_decoration"] = req.paper_decoration
     if req.paper_style != "xuan":
         params["paper_style"] = req.paper_style
     if req.zigzag:

@@ -8,6 +8,7 @@ def appearance_from_params(params):
     paper_style = params.get("paper_style", "xuan")
     stamp_kwargs = {
         "paper_style": paper_style,
+        "paper_decoration": params.get("paper_decoration", "none"),
         "paper_line_count": params.get("paper_line_count"),
         "stamp_enabled": params.get("stamp_enabled", True),
         "stamp_position": params.get("stamp_position", "after-text"),
@@ -15,15 +16,20 @@ def appearance_from_params(params):
         "stamp_row": params.get("stamp_row"),
         "stamp_url": params.get("stamp_url"),
     }
+    tone = params.get("paper_tone", "default")
+    tones = {"warm": ("#efe0c4", "#2e241f"), "cool": ("#e6eee7", "#172a30"), "rose": ("#f2e4e1", "#30212a")}
+    if tone not in ("default", *tones):
+        raise ValueError("unsupported paper_tone")
     if palette == "dark":
-        return Appearance.from_dict({"paper": "#141414", "ink": "#ffffff", **stamp_kwargs})
+        paper = tones[tone][1] if tone != "default" else "#141414"
+        return Appearance.from_dict({"paper": paper, "ink": "#ffffff", **stamp_kwargs})
     if palette != "light":
         raise ValueError("palette must be light or dark")
     # Old jobs may carry custom colors. The default/light palette retains those
     # values, while dark always selects the complete white-ink rubbing palette.
     default_paper = "#f4f1ea" if paper_style == "wusi" else ("#f6ecd8" if paper_style == "gold" else "#f8f3e9")
     return Appearance.from_dict({
-        "paper": params.get("paper", default_paper),
+        "paper": tones[tone][0] if tone != "default" else params.get("paper", default_paper),
         "ink": params.get("ink", "#1c1b18"),
         **stamp_kwargs,
     })

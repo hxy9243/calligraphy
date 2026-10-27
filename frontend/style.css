@@ -9,6 +9,7 @@
   --bg: #faf9f4;
   --surface: #faf9f4;
   --surface-2: #f0eee6;
+  --section-heading-bg: #efede5;
   --paper: #f8f3e9;
   --ink: #2d302a;
   --muted: #73756c;
@@ -29,9 +30,11 @@
 
 body.theme-gold {
   --bg: #f3edd9; --surface: #fdfaf3; --surface-2: #f4ebd2; --paper: #fbf5e6; --line: #ddcfba;
+  --section-heading-bg: #e8e0cb;
 }
 body.theme-rubbing {
   --bg: #1a1a1a; --surface: #242424; --surface-2: #2c2c2c; --paper: #141414;
+  --section-heading-bg: #141414;
   --ink: #ece7de; --muted: #9e9a93; --line: #3b3b3b;
   --accent: #b83324; --accent-hover: #cf4331; --accent-soft: #3d2420; --seal: #d94a38;
   --shadow: 0 2px 10px rgba(0, 0, 0, .35);
@@ -89,7 +92,6 @@ body[data-view="fonts"] [data-nav="fonts"] { color: var(--accent); }
 .github-star { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid transparent; white-space: nowrap; font-size: 12px; color: var(--muted); text-decoration: none; }
 .github-star span { color: #b98316; }
 .github-star:hover, .github-star:focus-visible { border-color: var(--accent); background: var(--surface-2); }
-.theme-picker select { background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 7px 0; font-size: 12px; max-width: 150px; }
 .job-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 5px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -496,13 +498,14 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
   .compose { display: contents; }
   /* Explicit bounds also cover display:contents children in mobile WebKit. */
   .compose > .card, .create-grid > .canvas { width: 100%; max-width: 100%; }
-  .creation-note { order: 5; }
+  .creation-note { order: 6; }
   #card-text { order: 1; }
   .canvas { order: 2; position: static; }
   #card-font { order: 3; }
-  #card-layout { order: 4; }
-  #card-output { order: 5; }
-  .action-bar { order: 6; }
+  #card-paper { order: 4; }
+  #card-layout { order: 5; }
+  #card-output { order: 6; }
+  .action-bar { order: 7; }
   .detail-body { grid-template-columns: 1fr; }
   .canvas, #card-text { scroll-margin-top: calc(var(--topbar-h) + 12px); }
   .btn-jump-preview {
@@ -539,12 +542,11 @@ dialog.sheet::backdrop { background: rgba(20, 15, 10, .5); backdrop-filter: blur
   .brand-text small, .nav-tabs { display: none; }
   .topbar-inner { padding: 0; gap: 8px; }
   .topbar-tools { gap: 6px; min-width: 0; }
-  .brand, .brand-text, .theme-picker { min-width: 0; }
+  .brand, .brand-text { min-width: 0; }
   .seal, .github-star { flex-shrink: 0; }
   .brand-text strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .topbar-inner:has(.job-indicator:not([hidden])) .brand-text { display: none; }
   .views { padding: 18px 0 calc(var(--tabbar-h) + var(--safe-b) + 90px); }
-  .theme-picker select { max-width: 90px; }
 
   .tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: var(--safe-b); height: calc(var(--tabbar-h) + var(--safe-b)); }
   .tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: var(--muted); font-size: 12px; position: relative; }
@@ -662,6 +664,13 @@ textarea, .search, select, .font-current, .chip-row { min-width: 0; max-width: 1
 .secondary-settings summary::-webkit-details-marker, .control-section > summary::-webkit-details-marker { display: none; }
 .control-section > summary { cursor: pointer; list-style: none; margin: 0; min-height: 32px; }
 .control-section > summary h2 { flex: 1; }
+.compose .card-head,
+.compose .secondary-settings > summary {
+  background: var(--section-heading-bg);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+}
+.compose .secondary-settings > summary { padding: 6px 8px; }
 .section-hint { font-size: 11px; color: var(--muted); }
 .section-body { padding-top: 18px; }
 .presets-block .chip-row { margin-top: 8px; }
@@ -715,7 +724,6 @@ textarea, .search, select, .font-current, .chip-row { min-width: 0; max-width: 1
   .folio-mark, .github-star { display: none; }
   .folio-caption span:first-child { font-size: 9px; letter-spacing: .1em; }
   .folio-caption span:last-child { font-size: 10px; }
-  .theme-picker select { max-width: 106px; font-size: 11px; }
   .card, .canvas { padding: 16px 0; }
   .folio-side-label { display: none; }
   #text-input { font-size: 22px; min-height: 100px; }

@@ -367,6 +367,24 @@ class StudioCompositionTests(unittest.TestCase):
                     self.assertLess(self.palette_ink(frames[6], palette).sum(),
                                     self.palette_ink(frames[-1], palette).sum())
 
+    def test_decorated_paper_matches_editor_still_and_partial_frames(self):
+        for palette, motif in (('light', 'plum'), ('dark', 'bamboo')):
+            params = {**self.params(), 'palette': palette, 'paper_tone': 'cool',
+                      'paper_style': 'silver', 'paper_decoration': motif, 'stamp_enabled': False}
+            preview = Image.open(io.BytesIO(self.submit('/api/editor-preview', params).content)).convert('RGB')
+            still, job = self.still(params)
+            self.assertEqual(job['params']['paper_decoration'], motif)
+            np.testing.assert_array_equal(preview, still)
+            scene = self.create_scene(scene_spec_from_params(params['text'], 'kai', params))
+            np.testing.assert_array_equal(scene.frame(scene.duration), still)
+            plain = self.create_scene(scene_spec_from_params(params['text'], 'kai', {**params, 'paper_decoration': 'none'}))
+            for time in (0, .75, scene.duration):
+                frame = np.asarray(scene.frame(time))
+                undecorated = np.asarray(plain.frame(time))
+                # Decoration changes the background, never the ink mask or stroke progression.
+                np.testing.assert_array_equal(self.palette_ink(frame, palette), self.palette_ink(undecorated, palette))
+                self.assertTrue(np.any(frame != undecorated))
+
     def test_old_jobs_without_palette_keep_custom_paper_and_ink_pixels(self):
         params = {**self.params(), 'format': 'png', 'paper': '#f0e0d0', 'ink': '#123456'}
         job = self.db.create_job('legacy-colors', 'legacy-user', 'preview', '十十\n十', 'kai', params)

@@ -1279,7 +1279,7 @@ def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         fit=fit,
         zigzag=zigzag,
         inscription_lines=insc_lines,
-        ruled=params.get("paper_style", "xuan") not in ("plain", "unruled"),
+        ruled=params.get("paper_style", "xuan") in ("xuan", "wusi", "gold"),
         paper_line_count=params.get("paper_line_count"),
     )
 
@@ -1434,6 +1434,99 @@ def get_stamp_placement_for_plan(
 # Traditional Xuan Stationery Paper (仿古宣紙信箋 · 多款背景與印章對齊)
 # ============================================================================
 
+def _draw_botanical_decoration(overlay: Image.Image, motif: str, is_dark: bool) -> None:
+    """Quiet, deterministic botanical silhouettes in the lower paper margin.
+
+    Drawn beneath ink by the shared paper renderer; no font or external asset is
+    needed. Coordinates scale with the short side, preserving portrait/landscape.
+    """
+    if motif == "none":
+        return
+    draw = ImageDraw.Draw(overlay)
+    scale = min(overlay.size) / 550.0
+    ox, oy = 12 * scale, overlay.height - 14 * scale
+    alpha = 38 if is_dark else 43
+    stem = (117, 137, 113, alpha)
+    flower = {"plum": (191, 111, 117, alpha + 8),
+              "orchid": (139, 148, 170, alpha + 8),
+              "chrysanthemum": (185, 151, 83, alpha + 8)}.get(motif, stem)
+
+    def xy(p):
+        return (ox + p[0] * scale, oy - p[1] * scale)
+
+    def line(points, width=1.5, color=stem):
+        draw.line([xy(p) for p in points], fill=color, width=max(1, round(width * scale)), joint="curve")
+
+    def curve(a, b, c, width=1.5, color=stem):
+        points = [((1-t)**2*a[0]+2*(1-t)*t*b[0]+t*t*c[0],
+                   (1-t)**2*a[1]+2*(1-t)*t*b[1]+t*t*c[1]) for t in np.linspace(0, 1, 30)]
+        line(points, width, color)
+
+    def leaf(a, tip, breadth=5, color=stem):
+        dx, dy = tip[0]-a[0], tip[1]-a[1]
+        length = max(1, math.hypot(dx, dy))
+        normal = (-dy / length * breadth, dx / length * breadth)
+        mid = (a[0]+dx*.42, a[1]+dy*.42)
+        # Curving lanceolate leaves, tapering smoothly at both ends.
+        points = []
+        for sign in (1, -1):
+            ts = np.linspace(0, 1, 16) if sign == 1 else np.linspace(1, 0, 16)
+            for t in ts:
+                points.append(xy(((1-t)**2*a[0]+2*(1-t)*t*(mid[0]+sign*normal[0])+t*t*tip[0],
+                                  (1-t)**2*a[1]+2*(1-t)*t*(mid[1]+sign*normal[1])+t*t*tip[1])))
+        draw.polygon(points, fill=color)
+
+    def dot(x, y, radius, color):
+        cx, cy = xy((x, y)); r = radius * scale
+        draw.ellipse((cx-r, cy-r, cx+r, cy+r), fill=color)
+
+    if motif == "plum":
+        branch = (137, 116, 107, alpha)
+        line([(-15, 12), (24, 50), (39, 99), (66, 137), (88, 201)], 3, branch)
+        line([(30, 73), (76, 99), (116, 104), (146, 134)], 2, branch)
+        line([(54, 119), (25, 156), (18, 189)], 1.8, branch)
+        line([(71, 156), (112, 174), (129, 202)], 1.4, branch)
+        for x, y, size in [(24, 164, 5), (20, 190, 4), (59, 135, 6), (82, 183, 5),
+                           (89, 204, 4), (107, 176, 6), (128, 201, 4), (78, 100, 5),
+                           (115, 108, 6), (144, 136, 4), (40, 91, 4)]:
+            for angle in np.linspace(0, 2*math.pi, 5, endpoint=False):
+                dot(x+math.cos(angle)*size*.85, y+math.sin(angle)*size*.85, size*.68, flower)
+            dot(x, y, size*.3, branch)
+    elif motif == "bamboo":
+        for x, top, lean in [(24, 220, 18), (68, 185, -10), (105, 248, 12)]:
+            line([(x, 0), (x+lean, top)], 3)
+            for y in range(35, top, 39):
+                bx = x + lean*y/top
+                line([(bx-3, y), (bx+4, y+1)], 2)
+                side = -1 if (y//39) % 2 else 1
+                end = (bx+side*38, y+20)
+                curve((bx, y), (bx+side*18, y+24), end)
+                for offset, dy in [(12, 25), (25, 17), (35, -12)]:
+                    a = (bx+side*offset*.6, y+offset*.4)
+                    leaf(a, (a[0]+side*offset, a[1]+dy), 6)
+    elif motif == "orchid":
+        for tip, control in [((12, 164), (0, 152)), ((67, 199), (27, 195)),
+                             ((110, 154), (50, 183)), ((149, 84), (98, 143)),
+                             ((-4, 99), (14, 119)), ((94, 122), (83, 152))]:
+            curve((39, 4), control, tip, 2.5)
+        for x, y in [(57, 128), (86, 173), (120, 109)]:
+            curve((39, 4), (48, y-15), (x, y), 1.2)
+            for dx, dy in [(-19, 10), (2, 22), (20, 8), (13, -12), (-12, -10)]:
+                leaf((x, y), (x+dx, y+dy), 6, flower)
+            dot(x, y, 2, stem)
+    elif motif == "chrysanthemum":
+        for x, y, radius in [(52, 155, 24), (113, 113, 21), (92, 208, 16)]:
+            curve((39, 0), (x-20, y*.6), (x, y), 2)
+            for angle in np.linspace(0, 2*math.pi, 19, endpoint=False):
+                end = (x+math.cos(angle)*radius, y+math.sin(angle)*radius)
+                curve((x+math.cos(angle)*4, y+math.sin(angle)*4),
+                      (end[0]-math.sin(angle)*8, end[1]+math.cos(angle)*8), end, 2, flower)
+            dot(x, y, 4, flower)
+            for side in (-1, 1):
+                a = (x-12, y*.52)
+                leaf(a, (a[0]+side*29, a[1]+19), 13)
+
+
 @lru_cache(maxsize=128)
 def _cached_stationery_paper(
     width: int,
@@ -1447,6 +1540,7 @@ def _cached_stationery_paper(
     gap: float,
     paper_line_count: Optional[int] = None,
     paper_grid_json: Optional[str] = None,
+    paper_decoration: str = "none",
 ) -> Tuple[Image.Image, Dict[str, Any]]:
     """Render and cache the stationery paper texture and ruling grid (independent of stamp placement)."""
     r0, g0, b0 = paper_color
@@ -1464,7 +1558,7 @@ def _cached_stationery_paper(
         paper_line_count=paper_line_count,
     )
 
-    if paper_style == "plain" and (is_dark or short_side < 320):
+    if paper_style == "plain" and paper_decoration == "none" and (is_dark or short_side < 320):
         return Image.new("RGB", (width, height), paper_color), grid
 
     rng = np.random.default_rng(width * 10007 + height * 31 + r0 * 7 + len(paper_style) * 13)
@@ -1510,6 +1604,14 @@ def _cached_stationery_paper(
             base_b = np.clip(b0 + delta, 130, 255)
 
         canvas_arr = np.stack([base_r, base_g, base_b], axis=-1).astype(np.uint8)
+        if paper_style in ("laid", "mottled", "fiber"):
+            if paper_style == "laid":
+                detail = np.sin(np.arange(height)[:, None] * math.pi / 3) * 2.2 + np.sin(np.arange(width)[None, :] * math.pi / 4) * 0.8
+            elif paper_style == "mottled":
+                detail = cloud * 11 + grain * 3
+            else:
+                detail = grain * 4
+            canvas_arr = np.clip(canvas_arr.astype(float) + detail[..., None], 0, 255).astype(np.uint8)
         canvas_arr[0, 0] = paper_color
 
     page = Image.fromarray(canvas_arr, mode="RGB").convert("RGBA")
@@ -1551,13 +1653,27 @@ def _cached_stationery_paper(
                 alpha = int(rng.integers(75, 155))
                 odraw.polygon(pts, fill=(226, 184, 92, alpha))
 
+    if paper_style == "fiber":
+        for _ in range(max(80, width * height // 1800)):
+            x, y = rng.uniform(0, width), rng.uniform(0, height)
+            odraw.line([(x, y), (x + rng.uniform(-5, 5), y + rng.uniform(4, 22))],
+                       fill=(173, 159, 128, 30 if is_dark else 45), width=1)
+    if paper_style == "silver" or (is_dark and paper_style == "gold"):
+        for _ in range(max(60, width * height // 2500)):
+            x, y = rng.uniform(0, width), rng.uniform(0, height)
+            radius = rng.uniform(0.5, 1.8) * short_side / 480
+            color = (190, 182, 160, 65) if paper_style == "silver" else (210, 169, 85, 80)
+            odraw.ellipse((x-radius, y-radius, x+radius, y+radius), fill=color)
+
+    _draw_botanical_decoration(overlay, paper_decoration, is_dark)
+
     # 3. Evenly Distributed Border Frame & Column/Row Dividers (朱絲欄 / 烏絲欄)
     outer_box = grid["outer_box"]
     inner_box = grid["inner_box"]
     dividers = grid["dividers"]
     outer_w = max(2, int(round(short_side / 380.0))) if short_side >= 320 else 1
 
-    if paper_style not in ("unruled", "plain"):
+    if paper_style in ("xuan", "wusi", "gold"):
         if is_dark:
             outer_stroke = (165, 58, 46, 95 if short_side >= 240 else 48)
             inner_stroke = (165, 58, 46, 60 if short_side >= 240 else 30)
@@ -1622,6 +1738,7 @@ def _cached_xuan_base(
     last_box: Optional[Tuple[float, float, float]],
     paper_line_count: Optional[int] = None,
     paper_grid_json: Optional[str] = None,
+    paper_decoration: str = "none",
 ) -> Image.Image:
     """Render the stationery background with line-aligned QR seal stamp using cached paper texture."""
     r0, g0, b0 = paper_color
@@ -1640,6 +1757,7 @@ def _cached_xuan_base(
         gap=gap,
         paper_line_count=paper_line_count,
         paper_grid_json=paper_grid_json,
+        paper_decoration=paper_decoration,
     )
 
     has_stamp = bool(stamp_enabled and stamp_url and not is_dark and short_side >= 320)
@@ -1759,6 +1877,7 @@ def render_writing_paper(
         last_box,
         getattr(appearance, "paper_line_count", None),
         json.dumps(paper_grid, sort_keys=True) if paper_grid else None,
+        getattr(appearance, "paper_decoration", "none"),
     )
     return base.copy()
 

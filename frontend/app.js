@@ -352,6 +352,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const spacingVal = document.getElementById('spacing-val');
   const fitToggle = document.getElementById('fit-toggle');
   const paperStyleSelect = document.getElementById('paper-style-select');
+  const paperToneSelect = document.getElementById('paper-tone-select');
+  const paperDecorationSelect = document.getElementById('paper-decoration-select');
   const zigzagToggle = document.getElementById('zigzag-toggle');
   const stampToggle = document.getElementById('stamp-toggle');
   const stampPositionSelect = document.getElementById('stamp-position-select');
@@ -413,6 +415,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (paperStyleSelect && paperStyleSelect.value && paperStyleSelect.value !== 'xuan') {
       settings.paper_style = paperStyleSelect.value;
     }
+    if (paperToneSelect?.value !== 'default') settings.paper_tone = paperToneSelect.value;
+    if (paperDecorationSelect?.value !== 'none') settings.paper_decoration = paperDecorationSelect.value;
     if (canvasFormat === 'custom' && !paperLines?.disabled && paperLines?.value && paperLines.validity.valid) {
       settings.paper_line_count = Number(paperLines.value);
     }
@@ -2116,7 +2120,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function restoreJobSettings(job) {
     const params = job.params && typeof job.params === 'object' && !Array.isArray(job.params) ? job.params : {};
     const notices = [];
-    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps', 'palette', 'paper_style', 'paper_line_count', 'zigzag', 'stamp_enabled', 'stamp_position', 'stamp_col', 'stamp_row']);
+    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps', 'palette', 'paper_style', 'paper_tone', 'paper_decoration', 'paper_line_count', 'zigzag', 'stamp_enabled', 'stamp_position', 'stamp_col', 'stamp_row']);
     const readNumber = (key, fallback, min, max, integer = false) => {
       const value = params[key];
       if (value === undefined || value === null) return fallback;
@@ -2182,8 +2186,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (paperStyleSelect) {
       const ps = params.paper_style ?? 'xuan';
-      paperStyleSelect.value = ['xuan', 'wusi', 'gold', 'unruled', 'plain'].includes(ps) ? ps : 'xuan';
+      paperStyleSelect.value = Array.from(paperStyleSelect.options).some(option => option.value === ps) ? ps : 'xuan';
     }
+    paperToneSelect.value = ['default', 'warm', 'cool', 'rose'].includes(params.paper_tone) ? params.paper_tone : 'default';
+    paperDecorationSelect.value = ['plum', 'orchid', 'bamboo', 'chrysanthemum'].includes(params.paper_decoration) ? params.paper_decoration : 'none';
     if (zigzagToggle) {
       zigzagToggle.checked = Boolean(params.zigzag);
     }
@@ -2217,7 +2223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!['light', 'dark'].includes(palette)) notices.push('紙墨配色無效，改用淺紙深墨');
     // Old jobs predate palette selection and were rendered on light paper.
     selectTheme(palette === 'dark' ? 'theme-rubbing' :
-      (themeSelect?.value === 'theme-gold' ? 'theme-gold' : 'theme-xuan'));
+      (params.paper_style === 'gold' ? 'theme-gold' : 'theme-xuan'));
 
     // Custom legacy colors and transforms still have no editor controls.
     const implicitDefaults = { paper: '#f8f3e9', ink: '#1c1b18', stroke_seconds: 0.18,
@@ -2936,10 +2942,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
   });
 
-  // Rubbing changes actual artwork pixels; both light themes retain legacy paper.
+  // Paper controls share the artwork composition used by previews and exports.
   // Font/style stays independent of this paper-and-ink selection.
   const themeSelect = document.getElementById('theme-select');
-  function selectTheme(theme, { persist = true } = {}) {
+  function selectTheme(theme, { persist = true, applyPreset = false } = {}) {
     if (!themeIds.includes(theme)) return;
     const nextPalette = theme === 'theme-rubbing' ? 'dark' : 'light';
     const paletteChanged = nextPalette !== artworkPalette;
@@ -2950,14 +2956,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.theme-btn').forEach(button => {
       button.classList.toggle('active', button.dataset.theme === theme);
     });
+    for (const select of [paperToneSelect, paperStyleSelect]) {
+      for (const option of select.options) {
+        if (option.dataset.light) option.textContent = option.dataset[nextPalette];
+      }
+    }
+    if (applyPreset && theme === 'theme-gold') {
+      paperStyleSelect.value = 'gold';
+      paperToneSelect.value = 'default';
+    }
     if (persist) savePreferences({ theme });
-    if (paletteChanged) scheduleEditorPreview();
+    if (paletteChanged || applyPreset) scheduleEditorPreview();
   }
-  selectTheme(preferences.theme || 'theme-xuan', { persist: false });
-  themeSelect?.addEventListener('change', () => selectTheme(themeSelect.value));
+  selectTheme(preferences.theme || 'theme-xuan', { persist: false, applyPreset: preferences.theme === 'theme-gold' });
+  themeSelect?.addEventListener('change', () => selectTheme(themeSelect.value, { applyPreset: true }));
   document.querySelectorAll('.theme-btn').forEach(button => {
     button.addEventListener('click', () => selectTheme(button.dataset.theme));
   });
+
+  for (const select of [paperToneSelect, paperDecorationSelect]) {
+    select.addEventListener('change', () => scheduleEditorPreview({ immediate: true }));
+  }
 
   // Font picker modal
   const fontPicker = document.getElementById('font-picker');

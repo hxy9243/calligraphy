@@ -42,6 +42,26 @@ class BackendPaletteTests(unittest.TestCase):
         self.execute.assert_not_called()
         self.runner.notify.assert_not_called()
 
+    def test_paper_choices_are_validated_forwarded_and_separate_render_identity(self):
+        choices = dict(palette='dark', paper_style='silver', paper_tone='cool', paper_decoration='bamboo')
+        response = self.client.post('/api/editor-preview', json={'text': '永', **choices})
+        self.assertEqual(response.status_code, 200)
+        for key, value in choices.items():
+            self.assertEqual(self.editor.call_args.args[0][key], value)
+        ids = []
+        for decoration in ('none', 'plum', 'bamboo', 'plum'):
+            response = self.client.post('/api/renders', json={'text': '永', **choices, 'paper_decoration': decoration})
+            self.assertEqual(response.status_code, 202)
+            ids.append(response.json()['job_id'])
+        self.assertEqual(len(set(ids)), 3)
+        self.assertEqual(ids[1], ids[3])
+        job = Database(self.db.db_url).get_job(ids[2])
+        for key, value in choices.items():
+            self.assertEqual(job['params'][key], value)
+        for endpoint in ('/api/editor-preview', '/api/previews', '/api/renders'):
+            for key in ('paper_style', 'paper_tone', 'paper_decoration'):
+                self.assertEqual(self.client.post(endpoint, json={'text': '永', key: 'invalid'}).status_code, 422)
+
     def test_openapi_includes_palette_enum_and_legacy_light_default(self):
         schemas = self.client.get('/openapi.json').json()['components']['schemas']
         for name in ('EditorPreviewRequest', 'PreviewRequest', 'RenderRequest'):

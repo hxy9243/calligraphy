@@ -26,7 +26,7 @@ def _parse_color(color: Any, name: str) -> Tuple[int, int, int]:
     raise ValueError(f"{name} must be a valid hex color (#RRGGBB) or RGB tuple (r, g, b)")
 
 
-VALID_PAPER_STYLES = ("xuan", "wusi", "gold", "unruled", "plain")
+VALID_PAPER_STYLES = ("xuan", "wusi", "gold", "unruled", "plain", "fiber", "laid", "mottled", "silver")
 VALID_STAMP_POSITIONS = ("after-text", "next-line", "before-text", "corner", "custom")
 
 
@@ -41,6 +41,7 @@ class Appearance:
     stamp_row: Optional[float] = None
     stamp_url: Optional[str] = None
     paper_line_count: Optional[int] = None
+    paper_decoration: str = "none"
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "Appearance":
@@ -49,6 +50,9 @@ class Appearance:
         paper_style = str(data.get("paper_style", "xuan"))
         if paper_style not in VALID_PAPER_STYLES:
             raise ValueError(f"paper_style must be one of {VALID_PAPER_STYLES}")
+        paper_decoration = data.get("paper_decoration", "none")
+        if paper_decoration not in ("none", "plum", "orchid", "bamboo", "chrysanthemum"):
+            raise ValueError("unsupported paper_decoration")
         paper_line_count = data.get("paper_line_count")
         if paper_line_count is not None and (type(paper_line_count) is not int or not 1 <= paper_line_count <= 32):
             raise ValueError("paper_line_count must be an integer between 1 and 32")
@@ -68,6 +72,7 @@ class Appearance:
             paper_color=paper,
             ink_color=ink,
             paper_style=paper_style,
+            paper_decoration=paper_decoration,
             paper_line_count=paper_line_count,
             stamp_enabled=stamp_enabled,
             stamp_position=stamp_position,
@@ -83,6 +88,8 @@ class Appearance:
         }
         if self.paper_line_count is not None:
             result["paper_line_count"] = self.paper_line_count
+        if self.paper_decoration != "none":
+            result["paper_decoration"] = self.paper_decoration
         if self.paper_style != "xuan":
             result["paper_style"] = self.paper_style
         if not self.stamp_enabled:
@@ -240,7 +247,7 @@ class RenderPlan:
             scene_spec.text,
             stroke_counts=stroke_counts,
             layout={**scene_spec.layout,
-                    "ruled": scene_spec.appearance.paper_style not in ("plain", "unruled"),
+                    "ruled": scene_spec.appearance.paper_style in ("xuan", "wusi", "gold"),
                     "paper_line_count": scene_spec.appearance.paper_line_count},
             timing=scene_spec.timing,
             punctuation=scene_spec.punctuation,

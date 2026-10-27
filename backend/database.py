@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 RENDER_PARAMETER_DEFAULTS = {
     "fps": 24, "speed": 1.0, "spacing": 0.18, "direction": "vertical-rl",
     "font_size": None, "fit": True, "palette": "light",
-    "paper_style": "xuan", "zigzag": False,
+    "paper_style": "xuan", "paper_tone": "default", "paper_decoration": "none", "zigzag": False,
     "stamp_enabled": True, "stamp_position": "after-text",
     "stamp_col": None, "stamp_row": None, "inscription": None,
     "stamp_url": None,

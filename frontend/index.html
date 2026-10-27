@@ -4,16 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#faf9f4">
-  <title>書法工坊 | Calligraphy Workbench</title>
-  <link rel="stylesheet" href="/style.css?v=vermilion-preview-5">
+  <title>墨韵书法工坊 | Calligraphy Workbench</title>
+  <link rel="stylesheet" href="/style.css?v=paper-studio-headers-7">
 </head>
 <body class="theme-xuan" data-view="create">
 
 <!-- ============ Top bar ============ -->
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="#create" aria-label="書法工坊">
-      <span class="brand-text"><strong>書法工坊</strong></span>
+    <a class="brand" href="#create" aria-label="墨韵书法工坊">
+      <span class="brand-text"><strong>墨韵书法工坊</strong></span>
     </a>
 
     <nav class="nav-tabs" aria-label="主導航">
@@ -26,14 +26,6 @@
       <a class="job-indicator" href="#history" id="job-indicator" hidden>
         <span class="spinner" aria-hidden="true"></span><span id="job-indicator-text">渲染中</span>
       </a>
-      <label class="theme-picker" title="宣紙意境">
-        <span class="sr-only">宣紙意境</span>
-        <select id="theme-select" aria-label="宣紙意境">
-          <option value="theme-xuan">澄心堂宣紙</option>
-          <option value="theme-gold">灑金熟宣</option>
-          <option value="theme-rubbing">碑帖拓片（深底白字）</option>
-        </select>
-      </label>
       <a class="github-star" href="https://github.com/hxy9243/calligraphy" target="_blank" rel="noopener noreferrer" aria-label="Star this project on GitHub"><span aria-hidden="true">★</span> Star</a>
     </div>
     <span class="folio-mark" aria-hidden="true">書.</span>
@@ -113,12 +105,65 @@
           <select id="style-select" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1" aria-label="字體選擇"></select>
         </section>
 
+        <section class="card" id="card-paper">
+          <details class="control-section" open>
+            <summary class="card-head">
+              <h2>纸 <small>/ Paper</small></h2>
+              <span class="section-hint">紙色・肌理・花箋</span>
+            </summary>
+            <div class="section-body">
+              <div class="field">
+                <label for="theme-select" class="field-label">紙墨意境</label>
+                <select id="theme-select" class="select-field" aria-label="紙墨意境">
+                  <option value="theme-xuan">宣紙 · 淺紙深墨</option>
+                  <option value="theme-gold">灑金 · 暖箋金屑</option>
+                  <option value="theme-rubbing">拓文 · 深底白字</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="paper-tone-select" class="field-label">底色</label>
+                <select id="paper-tone-select" class="select-field">
+                  <option value="default" data-light="宣白" data-dark="玄黑">宣白</option>
+                  <option value="warm" data-light="米黃" data-dark="赭墨">米黃</option>
+                  <option value="cool" data-light="青瓷" data-dark="青黛">青瓷</option>
+                  <option value="rose" data-light="藕荷" data-dark="紫煙">藕荷</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="paper-style-select" class="field-label">箋紙肌理</label>
+                <select id="paper-style-select" class="select-field">
+                  <option value="xuan" selected>朱絲欄</option>
+                  <option value="wusi">烏絲欄</option>
+                  <option value="gold">灑金欄箋</option>
+                  <option value="unruled">素箋無欄</option>
+                  <option value="fiber" data-light="楮皮纖維" data-dark="古拓纖紋">楮皮纖維</option>
+                  <option value="laid" data-light="竹簾細紋" data-dark="絹紋拓底">竹簾細紋</option>
+                  <option value="mottled" data-light="雲母斑箋" data-dark="風化石紋">雲母斑箋</option>
+                  <option value="silver" data-light="灑銀素箋" data-dark="銀砂拓片">灑銀素箋</option>
+                  <option value="plain">純色</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="paper-decoration-select" class="field-label">淡彩花箋</label>
+                <select id="paper-decoration-select" class="select-field" aria-describedby="paper-decoration-help">
+                  <option value="none" selected>無 · 關閉</option>
+                  <option value="plum">梅 · 疏枝淡紅</option>
+                  <option value="orchid">蘭 · 幽葉淺青</option>
+                  <option value="bamboo">竹 · 清影淡綠</option>
+                  <option value="chrysanthemum">菊 · 秋英淺金</option>
+                </select>
+                <p class="note" id="paper-decoration-help">預設關閉。淡彩點綴紙角，隨作品一同匯出。</p>
+              </div>
+            </div>
+          </details>
+        </section>
+
         <section class="card" id="card-layout">
           <p id="history-reuse-notice" class="note" role="status" hidden></p>
           <details class="control-section">
           <summary class="card-head">
             <h2>章 <small>/ Layout</small></h2>
-            <span class="section-hint">版式・紙箋・印章</span>
+            <span class="section-hint">版式・行距・印章</span>
           </summary>
           <div class="section-body">
           <div class="field">
@@ -167,16 +212,6 @@
           <div class="field">
             <div class="label-row"><label for="spacing-slider">字距</label><output id="spacing-val">0.18em</output></div>
             <input type="range" id="spacing-slider" min="0" max="0.8" step="0.02" value="0.18">
-          </div>
-          <div class="field">
-            <div class="label-row"><label for="paper-style-select">箋紙樣式</label></div>
-            <select id="paper-style-select" class="select-field">
-              <option value="xuan" selected>朱絲欄宣紙 (默認)</option>
-              <option value="wusi">烏絲欄素箋</option>
-              <option value="gold">灑金朱欄箋</option>
-              <option value="unruled">素箋無欄 (仿古宣紙)</option>
-              <option value="plain">純色底紙</option>
-            </select>
           </div>
           <label class="check">
             <input type="checkbox" id="fit-toggle" checked>
@@ -552,6 +587,6 @@
 <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
 <script src="/vendor/opencc.js"></script>
-<script src="/app.js?v=vermilion-preview-5"></script>
+<script src="/app.js?v=paper-studio-6"></script>
 </body>
 </html>

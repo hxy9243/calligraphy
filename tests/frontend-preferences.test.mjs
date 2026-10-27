@@ -139,7 +139,7 @@ test('catalog, recent-chip and history reuse choices update the same font prefer
   ui.document.querySelector('[data-job-id="saved"] .job-text').click();
   byId(ui, 'detail-reuse').click();
   await flush();
-  assertChoices(ui, 'tw-sung', 'theme-gold');
+  assertChoices(ui, 'tw-sung', 'theme-xuan'); // Legacy work restores its actual paper.
   assert.equal(stored(ui).style, 'tw-sung');
   assert.equal(byId(ui, 'text-input').value, '舊作品');
   assert.doesNotMatch(ui.window.localStorage.getItem(key), /舊作品/);
