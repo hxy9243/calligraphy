@@ -1,4 +1,5 @@
 """Unified scene composition and multi-format export for Calligraphy Studio."""
+import base64
 import io
 import math
 from pathlib import Path
@@ -164,6 +165,94 @@ class TemplateScene:
         return img
 
 
+class StaticFontScene:
+    """Fast, deterministic static scene for font styles bypassing stroke fitting engine."""
+
+    def __init__(self, plan: RenderPlan, font_path: Union[str, Path]):
+        self.plan = plan
+        self.font_path = Path(font_path)
+        self.appearance = plan.scene_spec.appearance
+        self.transforms = plan.scene_spec.transforms
+        self.style = plan.scene_spec.style
+        self.width = plan.width
+        self.height = plan.height
+        self.duration = plan.duration
+        self.render_warning = None
+        self._cached_frame_image = None
+        self._cached_svg_content = None
+        # Pre-validate and load masks immediately so missing glyphs raise ValueError as expected
+        from .font_pipeline import target_masks
+        self.mask_dict = dict(target_masks(self.font_path, self.plan.scene_spec.unique_characters))
+
+    def frame(self, time: Optional[float] = None) -> Image.Image:
+        if self._cached_frame_image is not None:
+            return self._cached_frame_image.copy()
+
+        from types import SimpleNamespace
+        from .font_layers import FontLayerScene
+        from .paper import render_writing_paper
+        from .styled_contact_scene import paste_patch
+
+        painter = SimpleNamespace(appearance=self.appearance, transforms=self.transforms)
+        patches = {}
+        for placement in self.plan.schedule:
+            char = placement['character']
+            sz = placement['size']
+            key = (char, sz)
+            if key not in patches and char in self.mask_dict:
+                patches[key] = FontLayerScene._create_patch(painter, self.mask_dict[char], sz)
+        image = render_writing_paper(self.width, self.height, self.appearance, self.plan, include_stamp=True)
+        for placement in self.plan.schedule:
+            key = (placement['character'], placement['size'])
+            if key in patches:
+                paste_patch(image, placement, patches[key])
+        self._cached_frame_image = image
+        return image.copy()
+
+    def frame_svg(self, time: Optional[float] = None) -> str:
+        if self._cached_svg_content is not None:
+            return self._cached_svg_content
+        from types import SimpleNamespace
+        from .font_layers import FontLayerScene
+        from .paper import render_writing_paper, get_stamp_placement_for_plan, render_qr_seal_stamp_svg, get_default_stamp_url
+        from .styled_contact_scene import paste_patch
+
+        painter = SimpleNamespace(appearance=self.appearance, transforms=self.transforms)
+        patches = {}
+        for placement in self.plan.schedule:
+            char = placement['character']
+            sz = placement['size']
+            key = (char, sz)
+            if key not in patches and char in self.mask_dict:
+                patches[key] = FontLayerScene._create_patch(painter, self.mask_dict[char], sz)
+        # Render paper without stamp so the stamp can be overlaid as vector SVG
+        base_page = render_writing_paper(self.width, self.height, self.appearance, self.plan, include_stamp=False)
+        for placement in self.plan.schedule:
+            key = (placement['character'], placement['size'])
+            if key in patches:
+                paste_patch(base_page, placement, patches[key])
+
+        stream = io.BytesIO()
+        base_page.save(stream, format='PNG', compress_level=1)
+        payload = base64.b64encode(stream.getvalue()).decode()
+        characters = ''.join(f'<g data-character="{item["character"]}"/>' for item in self.plan.schedule)
+
+        stamp_svg = ""
+        stamp_placement = get_stamp_placement_for_plan(self.width, self.height, self.appearance, self.plan)
+        if stamp_placement is not None:
+            sx, sy, stamp_sz = stamp_placement
+            stamp_url = getattr(self.appearance, "stamp_url", None) or get_default_stamp_url()
+            stamp_svg = render_qr_seal_stamp_svg(stamp_url, size_px=stamp_sz, sx=sx, sy=sy)
+
+        res = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" '
+               f'viewBox="0 0 {self.width} {self.height}" data-engine="static-font">'
+               f'<image width="{self.width}" height="{self.height}" href="data:image/png;base64,{payload}" '
+               f'image-rendering="pixelated" style="image-rendering: pixelated; image-rendering: crisp-edges;"/>'
+               f'{characters}{stamp_svg}</svg>')
+        self._cached_svg_content = res
+        return res
+
+
 def export_svg(scene: Any, output: Union[str, Path], time: Optional[float] = None) -> None:
     if not hasattr(scene, "frame_svg"):
         raise ValueError(f"Scene {scene} does not support SVG export")
@@ -302,8 +391,9 @@ def create_scene(
       - 'template': vector TemplateScene (kai, yan).
       - 'contact': ContactScene for contact styles or registered font banks.
       - 'font_layers': FontLayerScene for exact font silhouette reconstruction.
+      - 'static': fast, deterministic static scene without stroke fitting engine.
     """
-    if mode not in ("auto", "template", "stroke_ir", "contact", "font_layers"):
+    if mode not in ("auto", "template", "stroke_ir", "contact", "font_layers", "static"):
         raise ValueError(f"Unknown renderer mode: {mode}")
     style = scene_spec.style
     if mode == "stroke_ir" and style != "kai":
@@ -344,6 +434,17 @@ def create_scene(
         scene = StyledContactScene(plan.to_dict(), prepared, scene_spec.appearance, scene_spec.transforms)
         scene.smoothing_reports = reports
         return scene
+
+    if mode == "static":
+        resolved_font = font_path
+        if not resolved_font:
+            try:
+                resolved_font = load_bank(style)["font"]["path"]
+            except Exception:
+                pass
+        if resolved_font:
+            plan = RenderPlan.create(scene_spec, stroke_counts={c: 1 for c in scene_spec.unique_characters})
+            return StaticFontScene(plan, resolved_font)
 
     # Registered font bank
     try:
