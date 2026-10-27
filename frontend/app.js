@@ -366,11 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fontGlyphWarning = document.getElementById('font-glyph-warning');
   const renderOverlay = document.getElementById('preview-render-overlay');
   const renderLabel = document.getElementById('preview-render-label');
-  const rendering = new Map();
-  let pendingVideoId = null;
-  function setPreviewRendering(key, message) {
-    if (message) rendering.set(key, message); else rendering.delete(key);
-    const label = rendering.get('video') || rendering.get('still') || rendering.get('editor');
+  function setPreviewRendering(label) {
     if (renderOverlay) renderOverlay.hidden = !label;
     if (renderLabel && label) renderLabel.textContent = label;
     stageViewport?.setAttribute('aria-busy', String(Boolean(label)));
@@ -568,10 +564,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function refreshEditorPreview() {
     if (editorInFlight) return;
-    if (!textInput.value.trim()) { setPreviewRendering('editor', null); return; }
+    if (!textInput.value.trim()) { setPreviewRendering(null); return; }
     const revision = editorRevision;
     editorInFlight = true;
-    setPreviewRendering('editor', '正在渲染預覽…');
+    setPreviewRendering('正在渲染預覽…');
     editorAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
     try {
       const res = await fetch('/api/editor-preview', {
@@ -673,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       editorInFlight = false;
-      if (revision === editorRevision || !textInput.value.trim()) setPreviewRendering('editor', null);
+      if (revision === editorRevision || !textInput.value.trim()) setPreviewRendering(null);
       if (revision !== editorRevision) {
         const delay = editorNextDelay != null ? editorNextDelay : 800;
         editorNextDelay = null;
@@ -776,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Sync text input with live calligraphy stage
-  function updateText() {
+  function updateText({ updatePreview = true } = {}) {
     const rawText = textInput.value;
     const len = rawText.length;
     if (charCountEl) charCountEl.textContent = len;
@@ -813,7 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
           charLimitWarning.textContent = `總字數達 ${len} 字，超出 ${MAX_CHARS} 字上限，請刪減`;
         }
       }
-      if (typeof updateCanvasDimDisplay === 'function') updateCanvasDimDisplay();
+      if (typeof updateCanvasDimDisplay === 'function') updateCanvasDimDisplay({ updatePreview });
       return false;
     } else if (missingChars.length > 0) {
       if (charCounterEl) charCounterEl.classList.remove('exceeded');
@@ -828,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetScript = activeSupport === 'trad' ? '繁體' : '簡體';
         charLimitWarning.textContent = `當前字體（${fontName}）缺少字符【${sample}${more}】，無法生成；請切換字體或點擊上方“${targetScript}”轉換`;
       }
-      if (typeof updateCanvasDimDisplay === 'function') updateCanvasDimDisplay();
+      if (typeof updateCanvasDimDisplay === 'function') updateCanvasDimDisplay({ updatePreview });
       return true;
     } else {
       if (charCounterEl) charCounterEl.classList.remove('exceeded');
@@ -837,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
         charLimitWarning.classList.add('hidden');
         charLimitWarning.hidden = true;
       }
-      if (typeof updateCanvasDimDisplay === 'function') updateCanvasDimDisplay();
+      if (typeof updateCanvasDimDisplay === 'function') updateCanvasDimDisplay({ updatePreview });
       return true;
     }
   }
@@ -1303,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function updateCanvasDimDisplay() {
+  function updateCanvasDimDisplay({ updatePreview = true } = {}) {
     if (canvasAutoLen || canvasFormat === 'auto') {
       calcAutoCanvasDim();
     }
@@ -1334,7 +1330,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     layoutStagePaper();
-    fitStage();
+    fitStage(updatePreview);
   }
 
   function updateDirectionControls() {
@@ -1837,7 +1833,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus('請輸入要書寫的文本', 'error');
       return;
     }
-    if (!updateText() || !updateInscriptionText()) {
+    if (!updateText({ updatePreview: false }) || !updateInscriptionText()) {
       showStatus(`輸入字符數量已超出限制，請修改後再預覽`, 'error');
       return;
     }
@@ -1857,7 +1853,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const presentationVersion = ++previewPresentationVersion;
     btnPreview.disabled = true;
-    setPreviewRendering('still', '正在渲染高精度靜圖…');
     showStatus('正在生成高精度靜圖預覽...', 'info');
 
     try {
@@ -1910,7 +1905,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus(`預覽失敗: ${e.message}`, 'error');
     } finally {
       btnPreview.disabled = false;
-      setPreviewRendering('still', null);
     }
   });
 
@@ -1922,7 +1916,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus('請輸入要書寫的文本', 'error');
       return;
     }
-    if (!updateText() || !updateInscriptionText()) {
+    if (!updateText({ updatePreview: false }) || !updateInscriptionText()) {
       showStatus(`輸入字符數量已超出限制，請刪減後再生成`, 'error');
       return;
     }
@@ -1944,7 +1938,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const fps = parseInt(fpsSelect.value, 10);
 
     btnRender.disabled = true;
-    setPreviewRendering('video', '正在提交書寫視頻…');
     hideStatus();
 
     try {
@@ -1980,9 +1973,7 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(detail);
       }
 
-      const submitted = await res.json();
-      pendingVideoId = submitted.job_id;
-      setPreviewRendering('video', '正在渲染書寫視頻…');
+      await res.json();
       // Only submission owns the button. Progress belongs to the job card,
       // and a repeated request can reuse the same active server-side job.
       hasActiveJobs = true;
@@ -1992,7 +1983,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus(`提交失敗: ${e.message}`, 'error');
     } finally {
       btnRender.disabled = false;
-      if (!pendingVideoId) setPreviewRendering('video', null);
     }
   });
 
@@ -2578,16 +2568,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       updateRetentionDuration(data.retention_seconds);
       cachedJobs = data.jobs || [];
-      if (pendingVideoId) {
-        const pending = cachedJobs.find(job => job.job_id === pendingVideoId);
-        if (pending && !activeJobStatuses.has(pending.status)) {
-          pendingVideoId = null;
-          setPreviewRendering('video', null);
-        } else if (pending) {
-          const percent = Math.round(Math.max(0, Math.min(1, pending.progress || 0)) * 100);
-          setPreviewRendering('video', pending.status === 'queued' ? '視頻排隊中…' : `正在渲染書寫視頻… ${percent}%`);
-        }
-      }
       if (jobDetail?.open) {
         const current = cachedJobs.find(job => job.job_id === jobDetail.dataset.jobId);
         if (current) {

@@ -98,9 +98,11 @@ video decoder, or physical WeChat/iPhone handoff and download behavior.
 
 - The text field uses a pale vermilion surface, a solid left accent and an inset
   focus border, avoiding clipping inside the independently scrolling editor.
-- Live preview updates, still exports and submitted video jobs show a translucent
-  rendering overlay over the artwork. The previous image stays visible; failures
-  clear the overlay and keep an error message. Video status follows job polling.
+- Only live editor preview updates show a translucent rendering overlay. The
+  previous image stays visible; failures clear the overlay and keep an error message.
+  SVG/still exports and video jobs run in the background; export validation does
+  not start a redundant editor render. Existing status messages and job cards
+  report export progress without changing the live preview overlay.
 - Ctrl+wheel/pinch gestures over the live artwork and exported SVG affect only artwork
   zoom (50–300%). Live zoom buttons include a 100% reset. Zoom does not change
   composition, exported dimensions or trigger a render. Plain wheel gestures scroll.

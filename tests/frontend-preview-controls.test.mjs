@@ -79,7 +79,7 @@ test('editor overlay covers an existing image and clears after success or failur
   assert.equal(d.getElementById('editor-preview-status').hidden, false);
 });
 
-test('video overlay remains through queue polling and clears on failure', async t => {
+test('background video queue polling never covers the live preview', async t => {
   let jobs = [];
   const ui = await createFrontend({fetch: ({url}) => {
     if (url === '/api/renders') { jobs = [{job_id:'video',status:'queued',job_type:'render',text:'永',params:{}}]; return jsonResponse({job_id:'video'},202); }
@@ -87,7 +87,11 @@ test('video overlay remains through queue polling and clears on failure', async 
   }}); t.after(ui.close);
   await ui.tickTimeouts(800);
   ui.document.getElementById('btn-render').click(); await flush();
-  assert.equal(ui.document.getElementById('preview-render-overlay').hidden, false);
+  await ui.tickTimeouts(800);
+  assert.equal(ui.document.getElementById('preview-render-overlay').hidden, true);
+  jobs = [{...jobs[0],status:'running',progress:.5}];
+  await ui.tickTimeouts(1000);
+  assert.equal(ui.document.getElementById('preview-render-overlay').hidden, true);
   jobs = [{...jobs[0],status:'failed',error_message:'Fixture failure'}];
   await ui.tickTimeouts(1000);
   assert.equal(ui.document.getElementById('preview-render-overlay').hidden, true);
@@ -165,3 +169,35 @@ test('layered stamp follows pointer immediately without requesting another rende
   assert.equal(body.stamp_position, 'custom');
   assert.ok(body.stamp_row > 0);
 });
+
+
+for (const [button, endpoint, result] of [
+  ['btn-preview','/api/previews',{svg:'<svg></svg>'}],
+  ['btn-render','/api/renders',{job_id:'background',status:'queued'}],
+]) {
+  test(`${endpoint} stays in the background and cannot clear an active editor overlay`, async t => {
+    let finishExport, finishEditor, blockEditor = false;
+    const ui = await createFrontend({fetch: ({url}) => {
+      if (url === endpoint) return new Promise(resolve => { finishExport = resolve; });
+      if (url === '/api/editor-preview' && blockEditor) return new Promise(resolve => { finishEditor = resolve; });
+    }}); t.after(ui.close);
+    await ui.tickTimeouts(800);
+    const {document:d, window:w} = ui;
+    const overlay = d.getElementById('preview-render-overlay');
+    const before = ui.requests.filter(r => r.url === '/api/editor-preview').length;
+    d.getElementById(button).click(); await flush();
+    await ui.tickTimeouts(800);
+    assert.equal(overlay.hidden, true);
+    assert.equal(ui.requests.filter(r => r.url === '/api/editor-preview').length, before,
+      'export validation must not start an editor render');
+    assert.equal(d.getElementById('text-input').disabled, false);
+    blockEditor = true;
+    d.getElementById('text-input').dispatchEvent(new w.Event('input'));
+    const pending = ui.tickTimeouts(800); await flush();
+    assert.equal(overlay.hidden, false);
+    finishExport(jsonResponse(result)); await flush();
+    assert.equal(overlay.hidden, false, 'export completion must not clear the editor overlay');
+    finishEditor({ok:true,blob:async()=>new w.Blob(['png'])}); await pending;
+    assert.equal(overlay.hidden, true);
+  });
+}
