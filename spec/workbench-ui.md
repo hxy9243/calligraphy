@@ -147,3 +147,12 @@ identity and job parameters, and restored by history reuse. The resolved color
 and decoration are serialized in SceneSpec; cached backgrounds include the
 motif. Color, texture and decoration controls are per-draft choices; only theme
 and font persist in browser preferences. Existing jobs retain legacy defaults.
+
+The chrysanthemum uses broad, asymmetrically lobed leaves with pale overlapping
+washes and fine branching veins. Staggered petioles attach to the curved flower
+stems; leaves vary in size and facing instead of forming mirrored pairs. This
+procedural interpretation draws on Qi Baishi's *Three-Colored Chrysanthemums*
+([Beijing Fine Art Academy](https://english.bjaa.com.cn/artist.html?artist=58&clg=89&hcs=1))
+and the boneless leaf treatment described for Zhao Zhiqian's *Chrysanthemums*
+([Shanghai Museum](https://www.shanghaimuseum.net/mu/frontend/pg/m/article/id/CI00004545)).
+It preserves the faint background palette and does not reproduce either painting.

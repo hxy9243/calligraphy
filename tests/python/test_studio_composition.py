@@ -368,7 +368,9 @@ class StudioCompositionTests(unittest.TestCase):
                                     self.palette_ink(frames[-1], palette).sum())
 
     def test_decorated_paper_matches_editor_still_and_partial_frames(self):
-        for palette, motif in (('light', 'plum'), ('dark', 'bamboo')):
+        for palette, motif in (('light', 'plum'), ('dark', 'bamboo'),
+                               ('light', 'chrysanthemum'), ('dark', 'chrysanthemum')):
+            self.client.cookies.set('calligraphy_session', f'decorated-{palette}-{motif}')
             params = {**self.params(), 'palette': palette, 'paper_tone': 'cool',
                       'paper_style': 'silver', 'paper_decoration': motif, 'stamp_enabled': False}
             preview = Image.open(io.BytesIO(self.submit('/api/editor-preview', params).content)).convert('RGB')

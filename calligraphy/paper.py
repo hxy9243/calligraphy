@@ -1515,16 +1515,66 @@ def _draw_botanical_decoration(overlay: Image.Image, motif: str, is_dark: bool) 
                 leaf((x, y), (x+dx, y+dy), 6, flower)
             dot(x, y, 2, stem)
     elif motif == "chrysanthemum":
-        for x, y, radius in [(52, 155, 24), (113, 113, 21), (92, 208, 16)]:
+        def chrysanthemum_leaf(base, tip, breadth, turn, wash):
+            # Broad, unequally lobed blades, inspired by boneless ink leaves.
+            # Keep the edge unoutlined; veins and a second wash suggest folds.
+            dx, dy = tip[0] - base[0], tip[1] - base[1]
+            length = math.hypot(dx, dy)
+            nx, ny = -dy / length, dx / length
+
+            def blade(u, v):
+                across = breadth * (v * turn + .12 * math.sin(math.pi * u))
+                return (base[0] + dx * u + nx * across,
+                        base[1] + dy * u + ny * across)
+
+            contour = [(0, 0), (.13, -.23), (.08, -.43), (.27, -.35),
+                       (.29, -.66), (.46, -.43), (.53, -.72), (.65, -.43),
+                       (.79, -.46), (.76, -.23), (1, 0), (.78, .19),
+                       (.83, .34), (.64, .31), (.62, .59), (.46, .40),
+                       (.37, .67), (.27, .41), (.09, .44), (.16, .20)]
+            # Round each brush lobe slightly, retaining the deep uneven sinuses.
+            outline = []
+            for i, point in enumerate(contour):
+                previous, following = contour[i - 1], contour[(i + 1) % len(contour)]
+                start = tuple(.36 * a + .64 * b for a, b in zip(previous, point))
+                end = tuple(.64 * a + .36 * b for a, b in zip(point, following))
+                for t in np.linspace(0, 1, 5):
+                    u, v = ((1-t)**2 * a + 2*(1-t)*t*b + t*t*c
+                            for a, b, c in zip(start, point, end))
+                    outline.append(xy(blade(u, v)))
+            draw.polygon(outline, fill=(116, 139, 112, alpha + wash))
+            # Keep the inner wash inside the rounded silhouette, so its edge
+            # cannot turn the lobes into sharp, cut-out teeth.
+            fold = [(.05, 0), (.28, -.04), (.52, -.07), (.86, 0),
+                    (.64, .22), (.57, .34), (.43, .26), (.32, .39),
+                    (.25, .25), (.16, .20)]
+            draw.polygon([xy(blade(u, v)) for u, v in fold],
+                         fill=(128, 146, 117, alpha + wash - 7))
+            vein = (103, 123, 99, alpha + wash + 5)
+            curve(blade(0, 0), blade(.46, -.08), blade(.92, 0), .85, vein)
+            for u, v in ((.24, -.35), (.40, -.48), (.59, -.47),
+                         (.26, .38), (.43, .47), (.62, .39)):
+                curve(blade(u * .70, 0), blade(u * .90, v * .42),
+                      blade(u, v * .83), .55, (*vein[:3], vein[3] - 7))
+
+        leaf_groups = [((.40, -37, 15, 23, 1, 0), (.62, 30, 5, 20, -1, -3)),
+                       ((.45, 36, 17, 22, -1, 2), (.68, -27, -8, 17, 1, -5)),
+                       ((.34, -28, 11, 19, -1, -4), (.65, 31, 12, 22, 1, 1))]
+        for (x, y, radius), leaves in zip([(52, 155, 24), (113, 113, 21), (92, 208, 16)], leaf_groups):
             curve((39, 0), (x-20, y*.6), (x, y), 2)
+            for t, dx, dy, breadth, turn, wash in leaves:
+                # Attach staggered petioles to the actual curved flower stem.
+                anchor = ((1-t)**2 * 39 + 2*(1-t)*t*(x-20) + t*t*x,
+                          2*(1-t)*t*y*.6 + t*t*y)
+                base = (anchor[0] + dx * .17, anchor[1] + dy * .17)
+                tip = (anchor[0] + dx, anchor[1] + dy)
+                curve(anchor, (base[0], anchor[1] + 3), base, 1)
+                chrysanthemum_leaf(base, tip, breadth, turn, wash)
             for angle in np.linspace(0, 2*math.pi, 19, endpoint=False):
                 end = (x+math.cos(angle)*radius, y+math.sin(angle)*radius)
                 curve((x+math.cos(angle)*4, y+math.sin(angle)*4),
                       (end[0]-math.sin(angle)*8, end[1]+math.cos(angle)*8), end, 2, flower)
             dot(x, y, 4, flower)
-            for side in (-1, 1):
-                a = (x-12, y*.52)
-                leaf(a, (a[0]+side*29, a[1]+19), 13)
 
 
 @lru_cache(maxsize=128)
