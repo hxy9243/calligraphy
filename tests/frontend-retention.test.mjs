@@ -140,3 +140,24 @@ test('quota shows all saved works, preserves over-limit history, and explains br
     assert.match(note,used >= 30 ? /現有作品不會自動刪除/ : /分享現有作品不另占名額/);
   }
 });
+
+
+test('sharing policy copy explains permanent retention limits, combined quota and QR caveat', async t => {
+  const ui = await createFrontend(); t.after(ui.close);
+  const guide = ui.document.querySelector('.retention-guide').textContent;
+  assert.match(guide, /60 天/);
+  assert.match(guide, /刪除影片或停用分享/);
+  assert.match(guide, /恢復原本的保留期限/);
+  assert.match(guide, /不會重新計時/);
+  assert.match(guide, /未分享與已分享作品合計最多 30 件/);
+  assert.match(guide, /Cookie/);
+  assert.match(guide, /原印章二維碼可能無效/);
+  assert.match(guide, /最長 10 分鐘/);
+  assert.match(guide, /不延長作品保留期限/);
+  assert.match(guide, /不會轉移創作記錄/);
+  const dialog = ui.document.getElementById('video-share-description').textContent;
+  assert.match(dialog, /停用分享後恢復原本的保留期限/);
+  assert.match(dialog, /合計最多 30 件/);
+  assert.doesNotMatch(dialog, /只有明確取代/);
+  assert.doesNotMatch(guide + dialog, /原 72 小時限制|保留 1 天/);
+});
