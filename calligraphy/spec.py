@@ -40,6 +40,7 @@ class Appearance:
     stamp_col: Optional[int] = None
     stamp_row: Optional[float] = None
     stamp_url: Optional[str] = None
+    paper_line_count: Optional[int] = None
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "Appearance":
@@ -48,6 +49,9 @@ class Appearance:
         paper_style = str(data.get("paper_style", "xuan"))
         if paper_style not in VALID_PAPER_STYLES:
             raise ValueError(f"paper_style must be one of {VALID_PAPER_STYLES}")
+        paper_line_count = data.get("paper_line_count")
+        if paper_line_count is not None and (type(paper_line_count) is not int or not 1 <= paper_line_count <= 32):
+            raise ValueError("paper_line_count must be an integer between 1 and 32")
         default_paper = "#f4f1ea" if paper_style == "wusi" else ("#f6ecd8" if paper_style == "gold" else "#f8f3e9")
         paper = _parse_color(data.get("paper_color", data.get("paper", default_paper)), "paper_color")
         ink = _parse_color(data.get("ink_color", data.get("ink", "#1c1b18")), "ink_color")
@@ -64,6 +68,7 @@ class Appearance:
             paper_color=paper,
             ink_color=ink,
             paper_style=paper_style,
+            paper_line_count=paper_line_count,
             stamp_enabled=stamp_enabled,
             stamp_position=stamp_position,
             stamp_col=stamp_col,
@@ -76,6 +81,8 @@ class Appearance:
             "paper_color": list(self.paper_color),
             "ink_color": list(self.ink_color),
         }
+        if self.paper_line_count is not None:
+            result["paper_line_count"] = self.paper_line_count
         if self.paper_style != "xuan":
             result["paper_style"] = self.paper_style
         if not self.stamp_enabled:

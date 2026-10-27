@@ -38,7 +38,7 @@ test('narrow create cards stretch so long font labels and recents cannot set the
   }
   const desktop = rulesAt(1280);
   assert.equal(desktop.display, 'grid');
-  assert.equal(desktop['grid-template-columns'], 'minmax(340px, 400px) minmax(0, 1fr)');
+  assert.equal(desktop['grid-template-columns'], 'minmax(280px, 340px) minmax(0, 1fr)');
 });
 
 // These tests check the CSS contract only. JSDOM does not compute layout.

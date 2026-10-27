@@ -8,9 +8,9 @@ test('stamp drag handle bounds align exactly with X-Stamp-Bounds and snap to lan
   const ui = await createFrontend({
     fetch: ({ url }) => {
       if (url === '/api/editor-preview') {
-        const body = new Blob([samplePng], { type: 'image/png' });
+        const body = JSON.stringify({image: Buffer.from(samplePng).toString('base64'), stamp: Buffer.from(samplePng).toString('base64')});
         const headers = new Headers({
-          'Content-Type': 'image/png',
+          'Content-Type': 'application/json',
           'X-Stamp-Bounds': '243,684,64,720,960',
           'X-Stamp-Grid': '20,40,700,919,56.67,12',
           'X-Stamp-Centers': '48.33,105.00,161.67,218.33,275.00,331.67,388.33,445.00,501.67,558.33,615.00,671.67',
@@ -82,6 +82,9 @@ test('stamp drag handle bounds align exactly with X-Stamp-Bounds and snap to lan
   await ui.tickTimeouts();
   await flush();
 
+  // Drag is local; a subsequent text update retains the chosen export position.
+  document.getElementById('text-input').dispatchEvent(new window.Event('input', {bubbles:true}));
+  await ui.tickTimeouts(800);
   // Subsequent request contains custom position and col=1
   const lastPreviewReq = ui.requests.filter(r => r.url === '/api/editor-preview').at(-1);
   assert.ok(lastPreviewReq);
@@ -95,9 +98,9 @@ test('horizontal-lr: stamp handle bounds align with response and snap to horizon
   const ui = await createFrontend({
     fetch: ({ url }) => {
       if (url === '/api/editor-preview') {
-        const body = new Blob([samplePng], { type: 'image/png' });
+        const body = JSON.stringify({image: Buffer.from(samplePng).toString('base64'), stamp: Buffer.from(samplePng).toString('base64')});
         const headers = new Headers({
-          'Content-Type': 'image/png',
+          'Content-Type': 'application/json',
           'X-Stamp-Bounds': '560,180,64,960,640',
           'X-Stamp-Grid': '40,20,919,620,68.00,8',
           'X-Stamp-Centers': '54.00,122.00,190.00,258.00,326.00,394.00,462.00,530.00',
@@ -159,6 +162,8 @@ test('horizontal-lr: stamp handle bounds align with response and snap to horizon
   await ui.tickTimeouts();
   await flush();
 
+  document.getElementById('text-input').dispatchEvent(new window.Event('input', {bubbles:true}));
+  await ui.tickTimeouts(800);
   const lastReq = ui.requests.filter(r => r.url === '/api/editor-preview').at(-1);
   assert.ok(lastReq);
   assert.equal(lastReq.body.stamp_position, 'custom');

@@ -84,6 +84,23 @@ def glyph_worker_count():
     return workers
 
 
+def stamp_preview_layer(params):
+    """Small transparent seal for immediate editor placement; exports remain canonical."""
+    from calligraphy.paper import get_stamp_preview_meta, get_default_stamp_url, render_qr_seal_stamp
+    from .composition import appearance_from_params
+    meta = get_stamp_preview_meta(params)
+    if not meta or not meta['enabled'] or params.get('palette') == 'dark' or min(meta['cw'], meta['ch']) < 320:
+        return None
+    color = appearance_from_params(params).paper_color
+    paper_rgb = tuple(max(lo, min(hi, c - offset)) for c, lo, hi, offset in
+                      zip(color, (226, 216, 200), (246, 238, 226), (8, 11, 16)))
+    stamp = render_qr_seal_stamp(params.get('stamp_url') or get_default_stamp_url(),
+                                 size_px=meta['sz'], paper_rgb=paper_rgb)
+    output = io.BytesIO()
+    stamp.save(output, format='PNG', compress_level=1)
+    return output.getvalue()
+
+
 def render_pixels(params):
     style = validate_style(params['style'])
     spec = scene_spec_from_params(params['text'], style, params)

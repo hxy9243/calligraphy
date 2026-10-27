@@ -1,4 +1,5 @@
 import json
+import base64
 import hashlib
 import secrets
 import time
@@ -46,6 +47,7 @@ class PreviewRequest(BaseModel):
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     palette: Literal["light", "dark"] = "light"
     paper_style: Literal["xuan", "wusi", "gold", "unruled", "plain"] = "xuan"
+    paper_line_count: Optional[int] = Field(default=None, ge=1, le=32, strict=True)
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
     punctuation: str = Field(default="omit")
@@ -92,6 +94,7 @@ class PreviewRequest(BaseModel):
 
 
 class EditorPreviewRequest(PreviewRequest):
+    separate_stamp: bool = False
     width: int = Field(default=480, ge=64, le=2400)
     height: int = Field(default=640, ge=64, le=2400)
     font_size: int = Field(default=48, ge=8, le=160)
@@ -104,6 +107,7 @@ class RenderRequest(BaseModel):
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
     palette: Literal["light", "dark"] = "light"
     paper_style: Literal["xuan", "wusi", "gold", "unruled", "plain"] = "xuan"
+    paper_line_count: Optional[int] = Field(default=None, ge=1, le=32, strict=True)
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
@@ -368,6 +372,8 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
         "fit": req.fit,
         "punctuation": chosen_punct,
     }
+    if req.paper_line_count is not None:
+        params["paper_line_count"] = req.paper_line_count
     if req.paper_style != "xuan":
         params["paper_style"] = req.paper_style
     if req.zigzag:
@@ -425,11 +431,17 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
 
 @app.post("/api/editor-preview")
 def render_editor_preview(req: EditorPreviewRequest):
-    params = req.model_dump()
+    params = req.model_dump(exclude={'separate_stamp'})
     params['style'] = checked_style(req.style)
     try:
         params['lines'] = parse_text(req.text, punctuation=req.punctuation)['lines']
-        pixels = editor_preview(params)
+        if req.separate_stamp:
+            # Stamp placement never changes the text or paper pixels in this cache.
+            base_params = {k: v for k, v in params.items() if not k.startswith('stamp_')}
+            base_params['stamp_enabled'] = False
+            pixels = editor_preview(base_params)
+        else:
+            pixels = editor_preview(params)
     except BlockingIOError as exc:
         raise HTTPException(status_code=503, detail=str(exc), headers={'Retry-After': '2'})
     except TimeoutError as exc:
@@ -448,6 +460,11 @@ def render_editor_preview(req: EditorPreviewRequest):
             headers['Access-Control-Expose-Headers'] = 'X-Stamp-Bounds, X-Stamp-Grid, X-Stamp-Centers, X-Stamp-Enabled'
     except Exception:
         pass
+    if req.separate_stamp:
+        from backend.editor_preview import stamp_preview_layer
+        stamp = stamp_preview_layer(params)
+        return JSONResponse({'image': base64.b64encode(pixels).decode('ascii'),
+                             'stamp': base64.b64encode(stamp).decode('ascii') if stamp else None}, headers=headers)
     return Response(pixels, media_type='image/png', headers=headers)
 
 
@@ -481,6 +498,8 @@ def submit_render(req: RenderRequest, request: Request, response: Response):
         "fit": req.fit,
         "punctuation": chosen_punct,
     }
+    if req.paper_line_count is not None:
+        params["paper_line_count"] = req.paper_line_count
     if req.paper_style != "xuan":
         params["paper_style"] = req.paper_style
     if req.zigzag:

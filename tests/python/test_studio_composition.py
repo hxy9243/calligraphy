@@ -94,6 +94,40 @@ class StudioCompositionTests(unittest.TestCase):
         self.assertEqual(job['status'], 'succeeded')
         return Image.open(job['output_path']).convert('RGB'), job
 
+    def test_manual_paper_ruling_preserves_text_plan_and_all_render_paths(self):
+        from calligraphy.paper import compute_paper_grid, render_writing_paper
+        from calligraphy.spec import Appearance
+        for direction in ('vertical-rl', 'horizontal-lr'):
+            self.client.cookies.clear()
+            self.client.cookies.set('calligraphy_session', 'manual-ruling-' + direction)
+            base = self.params()
+            base['direction'] = direction
+            base['stamp_enabled'] = False
+            manual = dict(base, paper_line_count=8)
+            normal_spec = scene_spec_from_params(base['text'], 'kai', base)
+            spec = scene_spec_from_params(manual['text'], 'kai', manual)
+            normal = RenderPlan.create(normal_spec, {'十': 2})
+            plan = RenderPlan.create(spec, {'十': 2})
+            self.assertEqual(normal.schedule, plan.schedule)
+            self.assertEqual(Appearance.from_dict(spec.appearance.to_dict()).paper_line_count, 8)
+            grid = compute_paper_grid(240, 320, direction=direction, paper_line_count=8)
+            self.assertEqual(grid['n_lanes'], 8)
+            self.assertEqual(len(grid['dividers']), 7)
+            before = render_writing_paper(240, 320, normal_spec.appearance, normal)
+            after = render_writing_paper(240, 320, spec.appearance, plan)
+            self.assertFalse(np.array_equal(before, after))
+            for endpoint in ('/api/editor-preview', '/api/previews', '/api/renders'):
+                response = self.submit(endpoint, manual)
+                if endpoint != '/api/editor-preview':
+                    job = self.db.get_job(response.json()['job_id'])
+                    self.assertEqual(job['params']['paper_line_count'], 8)
+            scene = self.create_scene(spec)
+            for time in (scene.duration * .5, scene.duration):
+                self.assertEqual(scene.frame(time).size, (240, 320))
+        for invalid in (0, 33, 1.5, True):
+            for endpoint in ('/api/editor-preview', '/api/previews', '/api/renders'):
+                self.assertEqual(self.client.post(endpoint, json=self.params(paper_line_count=invalid)).status_code, 422)
+
     def test_kai_editor_pixels_equal_downsampled_exports_in_both_directions(self):
         for index, (width, height, direction, size, fit) in enumerate([
             (240, 320, 'vertical-rl', 68, True),

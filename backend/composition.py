@@ -8,6 +8,7 @@ def appearance_from_params(params):
     paper_style = params.get("paper_style", "xuan")
     stamp_kwargs = {
         "paper_style": paper_style,
+        "paper_line_count": params.get("paper_line_count"),
         "stamp_enabled": params.get("stamp_enabled", True),
         "stamp_position": params.get("stamp_position", "after-text"),
         "stamp_col": params.get("stamp_col"),

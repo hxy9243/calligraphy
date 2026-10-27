@@ -357,17 +357,56 @@ document.addEventListener('DOMContentLoaded', () => {
   const stampPositionSelect = document.getElementById('stamp-position-select');
   const stampUrlInput = document.getElementById('stamp-url-input');
   const stampOptionsRow = document.getElementById('stamp-options-row');
+  const stampPreview = document.getElementById('stamp-preview');
   const stampDragHandle = document.getElementById('stamp-drag-handle');
   const stageViewport = document.getElementById('stage-viewport');
   const stageCaption = document.getElementById('stage-caption');
   const editorPreview = document.getElementById('editor-preview');
   const editorPreviewStatus = document.getElementById('editor-preview-status');
   const fontGlyphWarning = document.getElementById('font-glyph-warning');
+  const renderOverlay = document.getElementById('preview-render-overlay');
+  const renderLabel = document.getElementById('preview-render-label');
+  const rendering = new Map();
+  let pendingVideoId = null;
+  function setPreviewRendering(key, message) {
+    if (message) rendering.set(key, message); else rendering.delete(key);
+    const label = rendering.get('video') || rendering.get('still') || rendering.get('editor');
+    if (renderOverlay) renderOverlay.hidden = !label;
+    if (renderLabel && label) renderLabel.textContent = label;
+    stageViewport?.setAttribute('aria-busy', String(Boolean(label)));
+  }
+
+  function bindArtworkZoom(viewport, getArtwork, onChange = () => {}) {
+    let zoom = 1;
+    const setZoom = value => {
+      const artwork = getArtwork();
+      if (!artwork) return;
+      zoom = Math.max(.5, Math.min(3, value));
+      artwork.style.zoom = String(zoom);
+      onChange(zoom);
+    };
+    viewport?.addEventListener('wheel', event => {
+      if (!event.ctrlKey || !getArtwork() || !event.deltaY) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1);
+      setZoom(zoom * Math.exp(-Math.max(-200, Math.min(200, delta)) * .002));
+    }, { passive: false });
+    return { reset: () => setZoom(1), step: factor => setZoom(zoom * factor) };
+  }
+  const previewZoom = bindArtworkZoom(stageViewport, () => calligraphyStage, zoom => {
+    const button = document.getElementById('preview-zoom-reset');
+    if (button) button.textContent = `${Math.round(zoom * 100)}%`;
+  });
+  document.getElementById('preview-zoom-reset')?.addEventListener('click', () => previewZoom.reset());
+  document.getElementById('preview-zoom-out')?.addEventListener('click', () => previewZoom.step(1 / 1.2));
+  document.getElementById('preview-zoom-in')?.addEventListener('click', () => previewZoom.step(1.2));
+
   let stampCol = null;
   let stampRow = null;
   let verifiedMissingGlyphs = [];
   let verifiedGlyphKey = '';
-  let editorTimer, editorRevision = 0, editorInFlight = false, editorURL = null, currentStampMeta = null, draggingStamp = false;
+  let editorTimer, editorDisplayedRevision = -1, editorRevision = 0, editorInFlight = false, editorURL = null, currentStampMeta = null, draggingStamp = false;
 
   // One logical page contract for editor pixels, stills and videos. Display size
   // never changes composition; the editor endpoint only downsamples the image.
@@ -377,6 +416,9 @@ document.addEventListener('DOMContentLoaded', () => {
       spacing: Number(spacingSlider?.value || 0.18), fit: fitToggle?.checked ?? true };
     if (paperStyleSelect && paperStyleSelect.value && paperStyleSelect.value !== 'xuan') {
       settings.paper_style = paperStyleSelect.value;
+    }
+    if (canvasFormat === 'custom' && !paperLines?.disabled && paperLines?.value && paperLines.validity.valid) {
+      settings.paper_line_count = Number(paperLines.value);
     }
     if (zigzagToggle?.checked) {
       settings.zigzag = true;
@@ -427,6 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stampOptionsRow) stampOptionsRow.hidden = !enabled;
     if (!enabled || !meta.enabled) {
       stampDragHandle.hidden = true;
+      if (stampPreview) stampPreview.hidden = true;
       return;
     }
     stampDragHandle.hidden = false;
@@ -438,6 +481,10 @@ document.addEventListener('DOMContentLoaded', () => {
     stampDragHandle.style.top = `${topPct.toFixed(2)}%`;
     stampDragHandle.style.width = `${wPct.toFixed(2)}%`;
     stampDragHandle.style.height = `${hPct.toFixed(2)}%`;
+    if (stampPreview?.getAttribute('src')) {
+      stampPreview.hidden = false;
+      for (const key of ['left', 'top', 'width', 'height']) stampPreview.style[key] = stampDragHandle.style[key];
+    }
   }
 
   function updateStampDragHandlePosition() {
@@ -495,6 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function scheduleEditorPreview(opts = {}) {
+    syncPaperLines();
     editorRevision += 1;
     clearTimeout(editorTimer);
     updateStampDragHandlePosition();
@@ -519,9 +567,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let editorNextDelay = null;
 
   async function refreshEditorPreview() {
-    if (editorInFlight || !textInput.value.trim()) return;
+    if (editorInFlight) return;
+    if (!textInput.value.trim()) { setPreviewRendering('editor', null); return; }
     const revision = editorRevision;
     editorInFlight = true;
+    setPreviewRendering('editor', '正在渲染預覽…');
     editorAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
     try {
       const res = await fetch('/api/editor-preview', {
@@ -529,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
         signal: editorAbortController?.signal,
         body: JSON.stringify({ text: textInput.value.trim(), style: styleSelect.value || 'kai',
           direction: currentDirection, punctuation: punctuationSelect?.value || 'omit',
-          ...compositionSettings() }),
+          ...compositionSettings(), separate_stamp: true }),
       });
       if (revision !== editorRevision) return;
       if (!res.ok) {
@@ -574,7 +624,15 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       }
-      const blob = await res.blob();
+      let stampSource = null;
+      let blob;
+      if (res.headers?.get('Content-Type')?.includes('application/json')) {
+        const layers = await res.json();
+        blob = new Blob([Uint8Array.from(atob(layers.image), c => c.charCodeAt(0))], {type: 'image/png'});
+        stampSource = layers.stamp ? `data:image/png;base64,${layers.stamp}` : null;
+      } else {
+        blob = await res.blob();
+      }
       if (revision !== editorRevision) return;
       const newURL = URL.createObjectURL(blob);
       if (typeof window.Image === 'function') {
@@ -595,19 +653,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const prevURL = editorURL;
       editorURL = newURL;
       editorPreview.src = editorURL;
+      editorDisplayedRevision = revision;
+      if (stampPreview) {
+        if (stampSource) stampPreview.src = stampSource; else stampPreview.removeAttribute('src');
+        stampPreview.hidden = !stampSource;
+        if (currentStampMeta) applyStampHandleBounds(currentStampMeta);
+      }
       editorPreview.hidden = false;
       if (editorPreviewStatus) editorPreviewStatus.hidden = true;
       if (prevURL) URL.revokeObjectURL(prevURL);
     } catch (error) {
       if (error && error.name === 'AbortError') return;
       if (revision === editorRevision) {
-        if (!editorURL && editorPreviewStatus) {
+        if (editorPreviewStatus) {
+          editorPreviewStatus.hidden = false;
           editorPreviewStatus.textContent = verifiedMissingGlyphs.length
             ? '字體預覽無法更新：所選字體缺字或含空白字形。' : error.message;
         }
       }
     } finally {
       editorInFlight = false;
+      if (revision === editorRevision || !textInput.value.trim()) setPreviewRendering('editor', null);
       if (revision !== editorRevision) {
         const delay = editorNextDelay != null ? editorNextDelay : 800;
         editorNextDelay = null;
@@ -623,6 +689,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvasLenVal = document.getElementById('canvas-len-val');
   const canvasLenAxis = document.getElementById('canvas-len-axis');
   const canvasDimVal = document.getElementById('canvas-dim-val');
+  const paperLines = document.getElementById('paper-lines');
+  const paperLinesField = document.getElementById('paper-lines-field');
+  function syncPaperLines() {
+    if (!paperLines) return;
+    const punctuation = new Set('，。！？、；：,.!?;:「」『』（）()“”‘’《》〈〉…—·');
+    const count = value => {
+      const separated = [...value.replace(/\r\n?/g, '\n')].map(c =>
+        punctuationSelect?.value === 'break' && punctuation.has(c) ? '\n' : c).join('');
+      return separated.split('\n').filter(line => /\p{Script=Han}/u.test(line)).length;
+    };
+    const minimum = Math.max(1, count(textInput.value) + count(inscriptionInput?.value || ''));
+    paperLines.disabled = minimum > 32;
+    paperLines.min = String(Math.min(32, minimum));
+    const max = minimum + 2 * Math.floor((32 - minimum) / 2);
+    const value = Math.max(minimum, Math.min(max, minimum + 2 * Math.round((Number(paperLines.value) - minimum) / 2)));
+    paperLines.value = String(Math.min(32, value));
+    document.getElementById('paper-lines-value').textContent = paperLines.disabled ? '自動' : paperLines.value;
+    document.getElementById('paper-lines-help').textContent = paperLines.disabled
+      ? '文字超過 32 行，使用自動箋紙。'
+      : `最少 ${minimum} 行，每次增加兩行（最多 ${max} 行）；文字依輸入置中。`;
+  }
+  paperLines?.addEventListener('input', () => {
+    scheduleEditorPreview();
+  });
 
   let canvasAutoLen = true;
   let canvasFormat = 'auto';
@@ -638,6 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const videoContainer = document.getElementById('video-container');
   const resultVideo = document.getElementById('result-video');
   const resultZoom = document.getElementById('result-zoom');
+  const svgZoom = bindArtworkZoom(previewImageContainer, () => previewSvgContainer.querySelector('svg'));
   const resultDownload = document.getElementById('result-download');
   const jobsList = document.getElementById('jobs-list');
 
@@ -1218,6 +1309,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const isAuto = canvasAutoLen || canvasFormat === 'auto';
     const isVert = currentDirection === 'vertical-rl';
+    if (paperLinesField) paperLinesField.hidden = canvasFormat !== 'custom';
+    const paperLinesLabel = document.querySelector('label[for="paper-lines"]');
+    if (paperLinesLabel) paperLinesLabel.textContent = isVert ? '箋紙欄數' : '箋紙行數';
     const axis = isVert ? '高度' : '寬度';
     const len = isVert ? canvasHeight : canvasWidth;
 
@@ -1427,6 +1521,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function beginStampDrag(e) {
+      if (editorInFlight || editorDisplayedRevision !== editorRevision || !stampPreview?.getAttribute('src') || stampPreview.hidden) return;
       if (stampToggle && !stampToggle.checked) return;
       if (e.button != null && e.button !== 0) return;
       clearTimeout(longPressTimer);
@@ -1434,12 +1529,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const startX = e.clientX;
       const startY = e.clientY;
       const onHandle = e.target === stampDragHandle || stampDragHandle.contains(e.target);
-      const delayMs = onHandle ? 80 : 320;
-      longPressTimer = setTimeout(() => {
+      const startDrag = () => {
         draggingStamp = true;
         stampDragHandle.classList.add('active-drag');
         snapPointerToPaperLines(startX, startY);
-      }, delayMs);
+      };
+      if (onHandle) {
+        if (e.cancelable) e.preventDefault();
+        startDrag();
+      } else {
+        longPressTimer = setTimeout(startDrag, 320);
+      }
     }
 
     function moveStampDrag(e) {
@@ -1456,7 +1556,7 @@ document.addEventListener('DOMContentLoaded', () => {
         draggingStamp = false;
         activePointerId = null;
         stampDragHandle.classList.remove('active-drag');
-        scheduleEditorPreview({ immediate: true });
+        // The stamp is an independent editor layer; exports read the updated coordinates.
       }
     }
 
@@ -1627,6 +1727,7 @@ document.addEventListener('DOMContentLoaded', () => {
     previewSvgContainer.innerHTML = svgContent;
     previewSvgContainer.classList.remove('hidden');
     const svgEl = previewSvgContainer.querySelector('svg');
+    svgZoom.reset();
     if (svgEl) {
       svgEl.style.maxWidth = '88%';
       svgEl.style.maxHeight = '100%';
@@ -1675,6 +1776,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (resultZoom) {
     resultZoom.addEventListener('click', () => {
+      svgZoom.reset();
       if (exportOutputBox) {
         const actual = exportOutputBox.classList.toggle('actual');
         resultZoom.textContent = actual ? '適應窗口' : '實際大小';
@@ -1755,6 +1857,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const presentationVersion = ++previewPresentationVersion;
     btnPreview.disabled = true;
+    setPreviewRendering('still', '正在渲染高精度靜圖…');
     showStatus('正在生成高精度靜圖預覽...', 'info');
 
     try {
@@ -1807,6 +1910,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus(`預覽失敗: ${e.message}`, 'error');
     } finally {
       btnPreview.disabled = false;
+      setPreviewRendering('still', null);
     }
   });
 
@@ -1840,6 +1944,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fps = parseInt(fpsSelect.value, 10);
 
     btnRender.disabled = true;
+    setPreviewRendering('video', '正在提交書寫視頻…');
     hideStatus();
 
     try {
@@ -1875,7 +1980,9 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(detail);
       }
 
-      await res.json();
+      const submitted = await res.json();
+      pendingVideoId = submitted.job_id;
+      setPreviewRendering('video', '正在渲染書寫視頻…');
       // Only submission owns the button. Progress belongs to the job card,
       // and a repeated request can reuse the same active server-side job.
       hasActiveJobs = true;
@@ -1885,6 +1992,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus(`提交失敗: ${e.message}`, 'error');
     } finally {
       btnRender.disabled = false;
+      if (!pendingVideoId) setPreviewRendering('video', null);
     }
   });
 
@@ -2018,7 +2126,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function restoreJobSettings(job) {
     const params = job.params && typeof job.params === 'object' && !Array.isArray(job.params) ? job.params : {};
     const notices = [];
-    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps', 'palette', 'paper_style', 'zigzag', 'stamp_enabled', 'stamp_position', 'stamp_col', 'stamp_row']);
+    const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps', 'palette', 'paper_style', 'paper_line_count', 'zigzag', 'stamp_enabled', 'stamp_position', 'stamp_col', 'stamp_row']);
     const readNumber = (key, fallback, min, max, integer = false) => {
       const value = params[key];
       if (value === undefined || value === null) return fallback;
@@ -2072,6 +2180,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const format = Array.from(canvasFormats?.querySelectorAll('[data-w][data-h]') || [])
       .find(button => Number(button.dataset.w) === canvasWidth && Number(button.dataset.h) === canvasHeight);
     canvasFormat = format?.dataset.cf || 'custom';
+    if (paperLines) paperLines.value = params.paper_line_count == null ? '' : String(readNumber('paper_line_count', 6, 1, 32, true));
+    if (params.paper_line_count != null) canvasFormat = 'custom';
     if (canvasLenSlider) canvasLenSlider.step = '1';
     const fontSize = readNumber('font_size', 68, 8, 160, true);
     restoreRange(fontSizeSlider, fontSize, '字號');
@@ -2468,6 +2578,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       updateRetentionDuration(data.retention_seconds);
       cachedJobs = data.jobs || [];
+      if (pendingVideoId) {
+        const pending = cachedJobs.find(job => job.job_id === pendingVideoId);
+        if (pending && !activeJobStatuses.has(pending.status)) {
+          pendingVideoId = null;
+          setPreviewRendering('video', null);
+        } else if (pending) {
+          const percent = Math.round(Math.max(0, Math.min(1, pending.progress || 0)) * 100);
+          setPreviewRendering('video', pending.status === 'queued' ? '視頻排隊中…' : `正在渲染書寫視頻… ${percent}%`);
+        }
+      }
       if (jobDetail?.open) {
         const current = cachedJobs.find(job => job.job_id === jobDetail.dataset.jobId);
         if (current) {
@@ -2751,8 +2871,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         canvasAutoLen = false;
         canvasFormat = cf;
-        canvasWidth = parseInt(b.dataset.w, 10);
-        canvasHeight = parseInt(b.dataset.h, 10);
+        if (cf !== 'custom') {
+          canvasWidth = parseInt(b.dataset.w, 10);
+          canvasHeight = parseInt(b.dataset.h, 10);
+        }
       }
       updateCanvasDimDisplay();
     });
@@ -3089,7 +3211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (fontCurrentSub) fontCurrentSub.textContent = fontMeta ? `${fontMeta.style_display} · ${fontMeta.artist} (${fontMeta.dynasty_era})` : '';
     if (fontCurrentGlyph) fontCurrentGlyph.innerHTML = fontSampleMarkup(fontMeta);
     if (fontNote) fontNote.textContent = fontMeta ? (fontMeta.aesthetic_notes || '') : '';
-    if (!recentFonts.includes(styleId)) {
+    if (styleId && !recentFonts.includes(styleId)) {
       recentFonts = [styleId, ...recentFonts].slice(0, 5);
       renderRecentFonts();
     }

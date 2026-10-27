@@ -923,6 +923,7 @@ def compute_paper_grid(
     row_centers: Sequence[float] = (),
     cell_size: float = 0.0,
     gap: float = 0.18,
+    paper_line_count: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Compute outer/inner frames and evenly distributed ruling lines across the full page.
 
@@ -1034,6 +1035,19 @@ def compute_paper_grid(
 
         dividers = [inner_top + k * lane_width for k in range(1, n_lanes)]
         lane_centers = [inner_top + (k + 0.5) * lane_width for k in range(n_lanes)]
+
+    if paper_line_count is not None:
+        if type(paper_line_count) is not int or not 1 <= paper_line_count <= 32:
+            raise ValueError("paper_line_count must be an integer between 1 and 32")
+        # Manual ruling is independent of the centered text plan and its line breaks.
+        inner_left = float(base_margin + inset)
+        inner_top = float(base_margin + inset)
+        inner_right = float(width - 1 - base_margin - inset)
+        inner_bottom = float(height - 1 - base_margin - inset)
+        start, end = (inner_left, inner_right) if direction == "vertical-rl" else (inner_top, inner_bottom)
+        lane_width = (end - start) / paper_line_count
+        dividers = [start + k * lane_width for k in range(1, paper_line_count)]
+        lane_centers = [start + (k + .5) * lane_width for k in range(paper_line_count)]
 
     i_box = [
         int(round(inner_left)),
@@ -1296,6 +1310,7 @@ def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         row_centers=row_centers,
         cell_size=cell_size,
         gap=gap,
+        paper_line_count=params.get("paper_line_count"),
     )
 
     stamp_url = params.get("stamp_url") or get_default_stamp_url()
@@ -1393,6 +1408,7 @@ def get_stamp_placement_for_plan(
         row_centers=row_centers,
         cell_size=cell_size,
         gap=gap,
+        paper_line_count=getattr(appearance, "paper_line_count", None),
     )
 
     synthetic_schedule: List[Dict[str, Any]] = []
@@ -1429,6 +1445,7 @@ def _cached_stationery_paper(
     row_centers_tuple: Tuple[float, ...],
     cell_size: float,
     gap: float,
+    paper_line_count: Optional[int] = None,
 ) -> Tuple[Image.Image, Dict[str, Any]]:
     """Render and cache the stationery paper texture and ruling grid (independent of stamp placement)."""
     r0, g0, b0 = paper_color
@@ -1443,6 +1460,7 @@ def _cached_stationery_paper(
         row_centers=row_centers_tuple,
         cell_size=cell_size,
         gap=gap,
+        paper_line_count=paper_line_count,
     )
 
     if paper_style == "plain" and (is_dark or short_side < 320):
@@ -1601,6 +1619,7 @@ def _cached_xuan_base(
     stamp_url: str,
     first_box: Optional[Tuple[float, float, float]],
     last_box: Optional[Tuple[float, float, float]],
+    paper_line_count: Optional[int] = None,
 ) -> Image.Image:
     """Render the stationery background with line-aligned QR seal stamp using cached paper texture."""
     r0, g0, b0 = paper_color
@@ -1617,6 +1636,7 @@ def _cached_xuan_base(
         row_centers_tuple=row_centers_tuple,
         cell_size=cell_size,
         gap=gap,
+        paper_line_count=paper_line_count,
     )
 
     has_stamp = bool(stamp_enabled and stamp_url and not is_dark and short_side >= 320)
@@ -1731,6 +1751,7 @@ def render_writing_paper(
         stamp_url,
         first_box,
         last_box,
+        getattr(appearance, "paper_line_count", None),
     )
     return base.copy()
 

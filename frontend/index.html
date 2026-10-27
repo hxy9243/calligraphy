@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f7f4ed">
+  <meta name="theme-color" content="#faf9f4">
   <title>書法工坊 | Calligraphy Workbench</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=vermilion-preview-4">
 </head>
 <body class="theme-xuan" data-view="create">
 
@@ -13,14 +13,13 @@
 <header class="topbar">
   <div class="topbar-inner">
     <a class="brand" href="#create" aria-label="書法工坊">
-      <span class="seal">墨</span>
-      <span class="brand-text"><strong>書法工坊</strong><small>Calligraphy Workbench</small></span>
+      <span class="brand-text"><strong>書法工坊</strong></span>
     </a>
 
     <nav class="nav-tabs" aria-label="主導航">
-      <a href="#create" data-nav="create">✍ 創作</a>
-      <a href="#history" data-nav="history">🕮 歷史 <span class="badge-count" data-history-count hidden></span></a>
-      <a href="#fonts" data-nav="fonts">字 字庫</a>
+      <a href="#create" data-nav="create">創作</a>
+      <a href="#history" data-nav="history">作品 <span class="badge-count" data-history-count hidden></span></a>
+      <a href="#fonts" data-nav="fonts">字庫</a>
     </nav>
 
     <div class="topbar-tools">
@@ -37,8 +36,14 @@
       </label>
       <a class="github-star" href="https://github.com/hxy9243/calligraphy" target="_blank" rel="noopener noreferrer" aria-label="Star this project on GitHub"><span aria-hidden="true">★</span> Star</a>
     </div>
+    <span class="folio-mark" aria-hidden="true">書.</span>
   </div>
 </header>
+
+<div class="folio-caption" aria-hidden="true">
+  <span>THE CALLIGRAPHY WORKBENCH</span>
+  <span>文字與筆墨</span>
+</div>
 
 <main class="views">
 
@@ -50,22 +55,26 @@
       <!-- Left: compose -->
       <div class="compose">
 
+        <div class="compose-heading"><span class="vermilion-square" aria-hidden="true"></span><span>創作</span><small>COMPOSE</small></div>
+
         <section class="card" id="card-text">
           <header class="card-head">
-            <h2><span class="step">1</span> 文字</h2>
+            <h2>文 <small>/ Text</small></h2>
             <div class="seg" role="group" aria-label="字形">
               <button type="button" id="btn-trad" class="seg-btn active" data-script="trad" aria-pressed="true">繁體</button>
               <button type="button" id="btn-simp" class="seg-btn" data-script="simp" aria-pressed="false">簡體</button>
             </div>
           </header>
-          <textarea id="text-input" rows="3" spellcheck="false" aria-label="書寫文本"
+          <textarea id="text-input" rows="2" spellcheck="false" aria-label="書寫文本"
             placeholder="輸入要書寫的漢字，單行限20字內，支持換行分列（1–256 字）">明月松間照
 清泉石上流</textarea>
           <div class="field-foot">
             <span id="char-warning" class="warn" hidden></span>
             <span id="char-counter" class="counter"><span id="char-count">0</span>/256 · 單行≤20</span>
           </div>
-          <div class="field" style="margin-top: 14px;">
+          <details class="secondary-settings">
+            <summary>落款 / 署名</summary>
+          <div class="field">
             <div class="field-head">
               <label for="inscription-input" class="field-label">落款 / 署名</label>
               <span class="sub-label">半倍字號 · 逐字落筆</span>
@@ -77,19 +86,19 @@
               <span id="inscription-counter" class="counter"><span id="inscription-count">0</span>/64 · 單行≤20</span>
             </div>
           </div>
+          </details>
+          <details class="presets-block secondary-settings" open>
+            <summary>詩文範本</summary>
+            <div id="preset-list" class="chip-row wrap"></div>
+          </details>
           <button type="button" id="btn-convert-current" class="sr-only" style="display:none;" aria-hidden="true" tabindex="-1">轉爲繁簡</button>
-
           <p id="font-glyph-warning" class="warn" role="alert" hidden></p>
           <div id="status-message" class="status-message hidden"></div>
-          <div class="presets-block">
-            <span class="field-label">經典法帖範文：</span>
-            <div id="preset-list" class="chip-row wrap"></div>
-          </div>
         </section>
 
         <section class="card" id="card-font">
           <header class="card-head">
-            <h2><span class="step">2</span> 字體</h2>
+            <h2>字 <small>/ Type</small></h2>
           </header>
           <button type="button" id="font-current" class="font-current" aria-haspopup="dialog">
             <span class="font-current-glyph" id="font-current-glyph"><img src="/api/font-samples/kai" alt="永字樣" class="font-raster-sample" /></span>
@@ -105,10 +114,13 @@
         </section>
 
         <section class="card" id="card-layout">
-          <header class="card-head">
-            <h2><span class="step">3</span> 版式</h2>
-          </header>
           <p id="history-reuse-notice" class="note" role="status" hidden></p>
+          <details class="control-section">
+          <summary class="card-head">
+            <h2>章 <small>/ Layout</small></h2>
+            <span class="section-hint">版式・紙箋・印章</span>
+          </summary>
+          <div class="section-body">
           <div class="field">
             <span class="field-label">排版方向</span>
             <div class="seg full" role="group" aria-label="排版方向">
@@ -127,12 +139,18 @@
             <div class="label-row"><span class="field-label">畫幅形制</span><output id="canvas-dim-val">720 × 960</output></div>
             <div class="chip-row wrap" id="canvas-formats" role="group" aria-label="畫幅形制">
               <button type="button" class="chip active" data-cf="auto">自適應</button>
+              <button type="button" class="chip" data-cf="custom">自訂尺寸</button>
               <button type="button" class="chip" data-cf="3:4" data-w="720" data-h="960">3:4 標準條幅</button>
               <button type="button" class="chip" data-cf="9:16" data-w="720" data-h="1280">9:16 修長條屏</button>
               <button type="button" class="chip" data-cf="1:2" data-w="640" data-h="1280">1:2 加長條幅</button>
               <button type="button" class="chip" data-cf="1:1" data-w="960" data-h="960">1:1 正方斗方</button>
               <button type="button" class="chip" data-cf="16:9" data-w="1280" data-h="720">16:9 橫披畫幅</button>
             </div>
+          </div>
+          <div class="field" id="paper-lines-field" hidden>
+            <div class="label-row"><label for="paper-lines">箋紙欄數</label><output id="paper-lines-value" for="paper-lines"></output></div>
+            <input type="range" id="paper-lines" min="1" max="32" step="2" value="1" aria-describedby="paper-lines-help">
+            <p class="note" id="paper-lines-help">依正文與落款行數起算，每次增加兩行，文字依輸入置中。</p>
           </div>
           <div class="field">
             <div class="label-row">
@@ -185,16 +203,21 @@
               </div>
               <div class="stamp-option-item" style="margin-top: 8px;">
                 <label for="stamp-url-input" class="field-label">印章二維碼連結（選填自訂網址）</label>
-                <input type="url" id="stamp-url-input" class="text-input" placeholder="留空則默認自動生成視頻專屬分享網址" spellcheck="false" style="width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px;" />
+                <input type="url" id="stamp-url-input" class="text-input" placeholder="留空則默認自動生成視頻專屬分享網址" spellcheck="false" />
               </div>
             </div>
           </div>
+          </div>
+          </details>
         </section>
 
         <section class="card" id="card-output">
-          <header class="card-head">
-            <h2><span class="step">4</span> 輸出</h2>
-          </header>
+          <details class="control-section">
+          <summary class="card-head">
+            <h2>映 <small>/ Motion</small></h2>
+            <span class="section-hint">書寫速度・幀率</span>
+          </summary>
+          <div class="section-body">
           <div class="field-row">
             <div class="field">
               <span class="field-label">視頻速度</span>
@@ -221,24 +244,27 @@
               <option value="30">30</option>
             </select>
           </div>
+          </div>
+          </details>
         </section>
 
         <p class="creation-note">每分鐘最多創建 3 次 · 未分享作品保留 <span data-retention-duration>30 天</span> · 已分享作品與視頻永久保留</p>
         <div class="action-bar">
           <button type="button" id="btn-jump-preview" class="btn btn-secondary btn-jump-preview" title="跳至排版預覽" aria-label="跳至排版預覽">
-            <span class="jump-icon" aria-hidden="true">👁</span>
+            <span class="jump-icon" aria-hidden="true">↗</span>
             <span class="jump-label">預覽</span>
           </button>
-          <button type="button" id="btn-preview" class="btn btn-secondary">▢ 導出靜圖</button>
-          <button type="button" id="btn-render" class="btn btn-primary">▶ 生成書寫視頻</button>
+          <button type="button" id="btn-preview" class="btn btn-secondary">導出靜圖</button>
+          <button type="button" id="btn-render" class="btn btn-primary">書寫視頻 <span aria-hidden="true">↗</span></button>
         </div>
       </div>
 
       <!-- Right: canvas -->
       <div class="canvas">
+        <span class="folio-side-label" aria-hidden="true">書寫預覽 <small>INK ON PAPER</small></span>
         <div class="canvas-head">
           <div class="canvas-title-group">
-            <strong>排版預覽</strong>
+            <strong>作品預覽 <small>/ Preview</small></strong>
             <button type="button" id="btn-jump-text" class="btn-jump-text" title="返回文字輸入" aria-label="返回文字輸入">↑ 返回輸入</button>
           </div>
           <span class="canvas-meta" id="canvas-meta"></span>
@@ -251,15 +277,26 @@
 
         <!-- live stage -->
         <div id="pane-live" class="pane">
-          <p class="stage-hint">字體預覽 · 停止輸入後自動更新</p>
+          <div class="preview-toolbar"><p class="stage-hint">字體預覽 · 滾輪捲動 · Ctrl + 滾輪縮放畫作</p>
+            <div class="preview-zoom" role="group" aria-label="預覽縮放">
+              <button type="button" id="preview-zoom-out" aria-label="縮小預覽">−</button>
+              <button type="button" id="preview-zoom-reset" aria-label="重設預覽縮放">100%</button>
+              <button type="button" id="preview-zoom-in" aria-label="放大預覽">+</button>
+            </div></div>
           <p id="editor-preview-status" role="status" aria-live="polite">正在更新字體預覽…</p>
+          <div class="preview-frame">
           <div class="stage-viewport" id="stage-viewport">
             <div class="stage-paper vertical" id="calligraphy-stage">
               <img id="editor-preview" alt="所選字體的書法預覽" hidden />
+              <img id="stamp-preview" alt="" draggable="false" hidden />
               <div id="stamp-drag-handle" class="stamp-drag-handle" hidden></div>
               <div class="stage-text" id="calligraphy-text">明月松間照
 清泉石上流</div>
             </div>
+          </div>
+          <div id="preview-render-overlay" class="preview-render-overlay" role="status" aria-live="polite" hidden>
+            <span class="render-indicator" aria-hidden="true"></span><span id="preview-render-label">正在渲染預覽…</span>
+          </div>
           </div>
           <p class="stage-caption" id="stage-caption"></p>
         </div>
@@ -344,9 +381,9 @@
 
 <!-- ============ Bottom tab bar (mobile) ============ -->
 <nav class="tabbar" aria-label="主導航">
-  <a href="#create" data-nav="create"><i>✍</i><span>創作</span></a>
-  <a href="#history" data-nav="history"><i>🕮</i><span>歷史</span><b class="badge-count" data-history-count hidden></b></a>
-  <a href="#fonts" data-nav="fonts"><i>字</i><span>字庫</span></a>
+  <a href="#create" data-nav="create"><span>創作</span></a>
+  <a href="#history" data-nav="history"><span>作品</span><b class="badge-count" data-history-count hidden></b></a>
+  <a href="#fonts" data-nav="fonts"><span>字庫</span></a>
 </nav>
 
 <!-- ============ Font picker ============ -->
@@ -514,6 +551,6 @@
 <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
 <script src="/vendor/opencc.js"></script>
-<script src="/app.js"></script>
+<script src="/app.js?v=vermilion-preview-4"></script>
 </body>
 </html>

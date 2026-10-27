@@ -56,6 +56,7 @@ async function assertExportStyle(ui, style) {
 test('font/style and paper theme survive panels and reload without persisting draft or capabilities', async t => {
   const ui = await createFrontend({ fetch: fetchFixture });
   t.after(ui.close);
+  assert.ok([...byId(ui, 'font-recent').children].every(chip => chip.textContent.trim()), 'startup must not add a blank recent font');
   pick(ui, 'tw-sung');
   change(ui, 'theme-select', 'theme-rubbing');
   byId(ui, 'text-input').value = '私密草稿';
