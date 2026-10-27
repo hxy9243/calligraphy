@@ -156,3 +156,12 @@ procedural interpretation draws on Qi Baishi's *Three-Colored Chrysanthemums*
 and the boneless leaf treatment described for Zhao Zhiqian's *Chrysanthemums*
 ([Shanghai Museum](https://www.shanghaimuseum.net/mu/frontend/pg/m/article/id/CI00004545)).
 It preserves the faint background palette and does not reproduce either painting.
+
+## Optional analytics
+
+The workbench loads `frontend/analytics.js`, configured at runtime by
+`/api/analytics-config` from `GOOGLE_ANALYTICS_ID`. Only a validated GA4 ID is
+exposed; missing configuration disables tracking. The Google tag records normal
+pageviews with query/fragment-free page and referrer URLs. No custom artwork or
+text events are sent, and the watch/export capability-link viewers have no tag.
+Analytics failures do not block the editor. See `docs/deployment.md` for setup.

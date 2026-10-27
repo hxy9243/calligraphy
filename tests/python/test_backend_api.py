@@ -27,6 +27,16 @@ class BackendApiTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
+    def test_analytics_config_only_exposes_valid_measurement_id(self):
+        for value, expected in [("", None), ("invalid<script>", None), (" G-TEST123 ", "G-TEST123")]:
+            with self.subTest(value=value), patch.dict('os.environ', {
+                'GOOGLE_ANALYTICS_ID': value, 'PRIVATE_API_KEY': 'never-public',
+            }):
+                response = self.client.get('/api/analytics-config')
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {'measurement_id': expected})
+                self.assertEqual(response.headers['cache-control'], 'no-store')
+
     @patch('backend.app.registered_styles', return_value=[
         {'style': name, 'prepared': 1} for name in ('mashanzheng', 'i-yan-kai', 'qiji-kai')
     ])

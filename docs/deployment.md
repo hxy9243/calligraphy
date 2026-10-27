@@ -127,6 +127,20 @@ Disabling Secure cookies is only for local HTTP testing. Keep them enabled on
 Railway HTTPS. Test two-session isolation, font URLs returning 404, rate-limit
 responses, actual PNG and H.264 exports, reload during work and restart recovery.
 
+## Google Analytics
+
+Set `GOOGLE_ANALYTICS_ID` (a GA4 `G-...` measurement ID) in the Railway
+`calligraphy-demo` service's production variables. It is read at runtime through
+`GET /api/analytics-config`; no frontend rebuild or hardcoded ID is needed.
+An unset or invalid ID disables analytics. Restart/deploy after changing the
+environment variable. Keep the ID in Railway rather than the IaC manifest.
+
+The workbench loads the asynchronous Google tag and initializes pageview
+measurement. Query strings and fragments are omitted from its configured page
+URL and referrer. It does not send custom artwork, text or job events. The
+capability-link watch/export pages do not load analytics. A blocked Google tag
+or failed configuration request does not interrupt the workbench.
+
 ## Public URL
 
 Artwork QR seals and generated job share URLs default to

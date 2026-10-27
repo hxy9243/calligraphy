@@ -338,6 +338,14 @@ def sample_font(style: str):
     return Response(pixels, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
+@app.get("/api/analytics-config")
+def analytics_config():
+    measurement_id = os.environ.get("GOOGLE_ANALYTICS_ID", "").strip()
+    if not re.fullmatch(r"G-[A-Z0-9]+", measurement_id):
+        measurement_id = None
+    return JSONResponse({"measurement_id": measurement_id}, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/health")
 def health():
     get_db()._get_sqlite_conn().execute("SELECT 1").fetchone()
