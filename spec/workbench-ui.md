@@ -52,27 +52,38 @@ The backend supplies owner-only retention metadata for history expiry labels.
 - History cards clamp text and show the server-reported retention deadline, including active sharing extensions. The detail dialog shows full text, parameters, retention and separate share-link deadlines, and download options. Policy notes distinguish unshared 7-day retention, 72-hour sharing, and a ten-minute self-handoff link that does not extend retention.
 
 ## Persistence
-`localStorage` keys `calligraphy.direction` and `calligraphy.favorites` retain
-writing direction and favourite font IDs. The versioned `calligraphy.preferences`
-record stores only the selected font/calligraphy style ID (`style`, the single
-font picker/export selection) and paper/background theme (`theme`). Those choices
-survive refreshes and switching Create, History and Fonts panels. Selecting from
-the picker, catalog, recent chips or history reuse updates the same preference;
-the sidebar theme selector stays synchronized. Rubbing selects dark artwork paper
-and white ink in editor/still/video requests. The gold preset selects actual gold
-paper texture. This palette remains independent of the selected font.
+The versioned `calligraphy.editorDraft` localStorage record retains personal text,
+inscription (including intentionally empty values), custom seal URL, font/style,
+script, paper/theme/tone/decoration, direction, adaptive/fixed canvas dimensions,
+size, spacing, fit, paper lines, zigzag, seal visibility/position/coordinates,
+punctuation, speed and fps. Small synchronous writes on edits and `pagehide`
+preserve the last keystroke without waiting for a preview request or timer.
+Refreshes and browser restarts restore the same composition; clearing browser
+site data removes it. This is local to the browser profile, not account sync;
+private browsers may discard it when closed. Text is not encrypted locally.
+
+Existing `calligraphy.preferences` (font/theme), `calligraphy.direction` and
+`calligraphy.favorites` remain compatible; a valid newer editor snapshot takes
+precedence. Favorites are validated as font ID arrays. Missing, malformed,
+unsupported-version or invalid fields use normal defaults. Blocked reads/writes
+or a full storage quota leave the editor usable in memory. Only an explicit
+allowlist is serialized, never authentication, job history or generated sharing
+capabilities (these remain in sessionStorage). The seal URL is user-entered content.
+
+Opening history, viewing shared videos, panel navigation and loading a history
+composition for inspection do not overwrite the saved personal draft/preferences.
+An explicit edit after history reuse adopts that composition as the personal draft;
+simply refreshing before editing restores the previous draft. Preview zoom and
+transient dialogs/search filters are not artwork preferences and are not saved.
 
 Saved fonts are validated against `/api/styles` and `/api/font-catalog` as those
-requests arrive. A catalog-only font is not overwritten by the earlier styles
-response. An explicit new choice always wins over late startup responses. Once
-both lists load successfully, a removed font falls back to Kai (or the first
-available font). A failed metadata request preserves the saved ID for a later
-reload rather than treating it as removed. Restoring preferences never converts
-or saves draft text. Missing, malformed, unsupported-version or invalid fields
-use normal defaults; blocked reads/writes keep the editor usable in memory.
-Other controls remain in the current page, and share-link capabilities stay in
-sessionStorage only. Changing the default script does not rewrite saved
-preferences or history text.
+requests arrive. A catalog-only font survives the earlier styles response, and
+an explicit new choice wins over late startup responses. Once both lists load
+successfully, a removed font falls back to Kai (or the first available font).
+A failed metadata request preserves the saved ID for a later reload. Restoration
+never converts saved text. Gold/rubbing themes preserve their artwork palette
+independently of the selected font. Coverage: `tests/frontend-draft.test.mjs` and
+`tests/frontend-preferences.test.mjs`.
 
 
 Font selection and history detail/playback dialogs close when a click starts and

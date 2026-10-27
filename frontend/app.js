@@ -247,10 +247,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const inscriptionWarning = document.getElementById('inscription-warning');
   const styleSelect = document.getElementById('style-select');
 
-  // Persist only UI choices, never draft text, history, or share capabilities.
+  // Legacy font/theme preferences also seed the versioned personal editor draft.
   // Font and calligraphy style are the same selection in this workbench.
   const preferencesStorageKey = 'calligraphy.preferences';
   const themeIds = ['theme-xuan', 'theme-gold', 'theme-rubbing'];
+  let draftReady = false, transientReplay = false;
   let preferences = { version: 1 };
   try {
     const saved = JSON.parse(localStorage.getItem(preferencesStorageKey));
@@ -266,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let stylesLoaded = false, catalogLoaded = false;
 
   function savePreferences(changes) {
+    if (transientReplay) return;
     preferences = { ...preferences, ...changes };
     try { localStorage.setItem(preferencesStorageKey, JSON.stringify(preferences)); }
     catch (_) { /* The current page still keeps choices when storage is blocked. */ }
@@ -543,6 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function scheduleEditorPreview(opts = {}) {
     syncPaperLines();
+    saveEditorDraft();
     editorRevision += 1;
     clearTimeout(editorTimer);
     updateStampDragHandlePosition();
@@ -956,6 +959,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // High-precision Trad/Simp conversion with server-side OpenCC + client OpenCC fallback
   async function performScriptConversion(targetScript) {
+    // Picker script chips also convert the composition, not merely filter fonts.
+    transientReplay = false;
     invalidateScriptConversion();
     const requestVersion = scriptConversionVersion;
     const originalText = textInput.value;
@@ -1356,7 +1361,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDirectionControls();
     updateCanvasDimDisplay();
     try {
-      localStorage.setItem(directionStorageKey, direction);
+      if (!transientReplay) localStorage.setItem(directionStorageKey, direction);
     } catch (_) {
       // Exports still honor the selection when persistence is unavailable.
     }
@@ -1556,6 +1561,8 @@ document.addEventListener('DOMContentLoaded', () => {
         draggingStamp = false;
         activePointerId = null;
         stampDragHandle.classList.remove('active-drag');
+        transientReplay = false;
+        saveEditorDraft();
         // The stamp is an independent editor layer; exports read the updated coordinates.
       }
     }
@@ -2118,6 +2125,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function restoreJobSettings(job) {
+    // Inspect/replay work without replacing the personal browser draft. An explicit
+    // subsequent edit adopts this composition; merely navigating or reloading does not.
+    transientReplay = true;
     const params = job.params && typeof job.params === 'object' && !Array.isArray(job.params) ? job.params : {};
     const notices = [];
     const recognized = new Set(['width', 'height', 'font_size', 'fit', 'direction', 'spacing', 'gap', 'punctuation', 'speed', 'fps', 'palette', 'paper_style', 'paper_tone', 'paper_decoration', 'paper_line_count', 'zigzag', 'stamp_enabled', 'stamp_position', 'stamp_col', 'stamp_row']);
@@ -2996,7 +3006,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let favoriteFonts = ['kai', 'i-yan-kai', 'tw-sung', 'chill-qiuhong-kai'];
   try {
     const savedFav = localStorage.getItem('calligraphy.favorites');
-    if (savedFav) favoriteFonts = JSON.parse(savedFav);
+    const parsed = savedFav ? JSON.parse(savedFav) : null;
+    if (Array.isArray(parsed)) favoriteFonts = parsed.filter(id => typeof id === 'string' && id.length <= 200).slice(0, 500);
   } catch (_) {}
 
   function renderRecentFonts() {
@@ -3216,6 +3227,96 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Personal draft: an explicit allowlist, never history, authentication or share links.
+  // Synchronous small writes avoid losing the final keystroke on refresh/termination.
+  const draftStorageKey = 'calligraphy.editorDraft';
+  const draftControls = [textInput, inscriptionInput, fontSizeSlider, spacingSlider,
+    fitToggle, paperStyleSelect, paperToneSelect, paperDecorationSelect, zigzagToggle,
+    stampToggle, stampPositionSelect, stampUrlInput, paperLines, punctuationSelect,
+    speedSelect, fpsSelect];
+  function saveEditorDraft() {
+    if (!draftReady || transientReplay) return;
+    const controls = {};
+    for (const control of draftControls) {
+      if (control) controls[control.id] = control.type === 'checkbox' ? control.checked : control.value;
+    }
+    const draft = { version: 1, controls, style: pendingSavedStyle || styleSelect.value,
+      theme: themeSelect.value, script: currentScript, direction: currentDirection,
+      canvasAutoLen, canvasFormat, canvasWidth, canvasHeight, stampCol, stampRow };
+    try { localStorage.setItem(draftStorageKey, JSON.stringify(draft)); } catch (_) {
+      // Private mode, disabled storage or quota exhaustion must not break editing.
+    }
+  }
+  function restoreEditorDraft() {
+    let draft;
+    try { draft = JSON.parse(localStorage.getItem(draftStorageKey)); } catch (_) { return; }
+    if (!draft || Array.isArray(draft) || draft.version !== 1) return;
+    const controls = draft.controls;
+    if (controls && typeof controls === 'object' && !Array.isArray(controls)) {
+      for (const control of draftControls) {
+        const value = controls[control?.id];
+        if (!control) continue;
+        if (control.type === 'checkbox') {
+          if (typeof value === 'boolean') control.checked = value;
+        } else if (typeof value === 'string' && value.length <= 100000) {
+          if (control.tagName === 'SELECT') {
+            const n = Number(value);
+            const output = control === speedSelect ? [speedSeg, 'speed', 0.25, 4] :
+              control === fpsSelect ? [fpsSeg, 'fps', 1, 60] : null;
+            if (output && value !== '' && Number.isFinite(n) && n >= output[2] && n <= output[3]
+                && (control !== fpsSelect || Number.isInteger(n))
+                && !Array.from(control.options).some(option => option.value === value)) {
+              const option = new Option(value, value);
+              option.dataset.historyValue = '';
+              control.appendChild(option);
+              const button = document.createElement('button');
+              button.type = 'button'; button.className = 'seg-btn';
+              button.dataset[output[1]] = value; button.dataset.historyValue = '';
+              button.textContent = `${value}${output[1] === 'fps' ? ' fps' : '×'}`;
+              output[0].appendChild(button);
+            }
+            if (Array.from(control.options).some(option => option.value === value)) control.value = value;
+          } else if (control.type === 'range' || control.type === 'number') {
+            const n = Number(value);
+            const bounds = control === fontSizeSlider ? [8, 160] : control === spacingSlider ? [0, 2] : [1, 32];
+            if (value !== '' && Number.isFinite(n) && n >= bounds[0] && n <= bounds[1]
+                && (control === spacingSlider || Number.isInteger(n))) {
+              control.min = Math.min(Number(control.min), n);
+              control.max = Math.max(Number(control.max), n);
+              if (control !== paperLines) control.step = control === fontSizeSlider ? '1' : 'any';
+              control.value = value;
+            }
+          } else control.value = value; // Includes intentional empty text and inscription.
+        }
+      }
+    }
+    if (typeof draft.style === 'string' && draft.style.trim() && draft.style.length <= 200) pendingSavedStyle = draft.style;
+    if (themeIds.includes(draft.theme)) selectTheme(draft.theme, { persist: false });
+    if (['trad', 'simp'].includes(draft.script)) currentScript = draft.script;
+    if (['vertical-rl', 'horizontal-lr'].includes(draft.direction)) currentDirection = draft.direction;
+    if (typeof draft.canvasAutoLen === 'boolean') canvasAutoLen = draft.canvasAutoLen;
+    const formats = ['custom', ...Array.from(canvasFormats.querySelectorAll('[data-cf]'), el => el.dataset.cf)];
+    if (formats.includes(draft.canvasFormat)) canvasFormat = draft.canvasFormat;
+    if ([draft.canvasWidth, draft.canvasHeight].every(n => Number.isInteger(n) && n >= 64 && n <= 2400)
+        && draft.canvasWidth * draft.canvasHeight <= 2400 * 1280) {
+      canvasWidth = draft.canvasWidth; canvasHeight = draft.canvasHeight;
+    }
+    for (const key of ['stampCol', 'stampRow']) {
+      const value = draft[key];
+      if (value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 256)) {
+        if (key === 'stampCol') stampCol = value; else stampRow = value;
+      }
+    }
+    updateDirectionControls();
+    updateScriptButtons();
+    renderPresets();
+    selectOutputValue(speedSelect, speedSeg, 'speed', Number(speedSelect.value));
+    selectOutputValue(fpsSelect, fpsSeg, 'fps', Number(fpsSelect.value));
+    if (spacingVal) spacingVal.textContent = `${spacingSlider.value}em`;
+    if (calligraphyText) calligraphyText.style.letterSpacing = `${spacingSlider.value}em`;
+    if (stampOptionsRow) stampOptionsRow.hidden = !stampToggle.checked;
+  }
+
   // Initial loads
   if (inscriptionInput) {
     const dynInsc = computeDefaultInscription(new Date(), currentScript);
@@ -3224,9 +3325,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     inscriptionInput.placeholder = `落款或署名，可多行（例：${dynInsc}）`;
   }
+  restoreEditorDraft();
   updateCanvasDimDisplay();
   updateText();
   updateInscriptionText();
+  draftReady = true;
+  // Only actual editing controls adopt a replay, not panel navigation or dialogs.
+  const editingTarget = target => !target.closest?.('.star') && target.closest?.('#view-create .compose input, #view-create .compose textarea, #view-create .compose select, #view-create .compose .seg-btn, #view-create .compose .chip, #btn-convert-current, #font-picker .picker-item, #font-recent button, [data-font-id] .btn-use');
+  for (const eventName of ['input', 'change', 'click']) {
+    document.addEventListener(eventName, event => {
+      if (editingTarget(event.target) && (eventName !== 'click' || event.target.closest('button, .picker-item'))) transientReplay = false;
+    }, true);
+    document.addEventListener(eventName, event => {
+      if (editingTarget(event.target)) saveEditorDraft();
+    });
+  }
+  window.addEventListener('pagehide', saveEditorDraft);
 
   loadStyles();
   loadJobs();

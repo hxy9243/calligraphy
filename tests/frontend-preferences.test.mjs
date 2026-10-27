@@ -53,7 +53,7 @@ async function assertExportStyle(ui, style) {
   }
 }
 
-test('font/style and paper theme survive panels and reload without persisting draft or capabilities', async t => {
+test('legacy font/theme record remains compatible and excludes draft/capabilities', async t => {
   const ui = await createFrontend({ fetch: fetchFixture });
   t.after(ui.close);
   assert.ok([...byId(ui, 'font-recent').children].every(chip => chip.textContent.trim()), 'startup must not add a blank recent font');
@@ -126,7 +126,7 @@ test('a newer explicit style selection wins over late saved-font metadata', asyn
   assert.equal(stored(ui).style, 'yan');
 });
 
-test('catalog, recent-chip and history reuse choices update the same font preference', async t => {
+test('catalog and recent choices persist while history replay preserves personal preferences', async t => {
   const ui = await createFrontend({ fetch: fetchFixture, jobs: [{ job_id: 'saved', job_type: 'render',
     status: 'succeeded', style: 'tw-sung', text: '舊作品', params: {} }] });
   t.after(ui.close);
@@ -140,7 +140,8 @@ test('catalog, recent-chip and history reuse choices update the same font prefer
   byId(ui, 'detail-reuse').click();
   await flush();
   assertChoices(ui, 'tw-sung', 'theme-xuan'); // Legacy work restores its actual paper.
-  assert.equal(stored(ui).style, 'tw-sung');
+  assert.equal(stored(ui).style, 'kai');
+  assert.equal(stored(ui).theme, 'theme-gold');
   assert.equal(byId(ui, 'text-input').value, '舊作品');
   assert.doesNotMatch(ui.window.localStorage.getItem(key), /舊作品/);
 });

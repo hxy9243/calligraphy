@@ -57,7 +57,7 @@ test('reuse restores the whole editor and keeps saved dimensions through edits a
   assert.equal(byId(ui, 'punctuation-select').value, 'break');
   assert.equal(byId(ui, 'btn-horizontal').getAttribute('aria-pressed'), 'true');
   assert.equal(byId(ui, 'calligraphy-stage').classList.contains('horizontal'), true);
-  assert.equal(ui.window.localStorage.getItem('calligraphy.direction'), 'horizontal-lr');
+  assert.equal(ui.window.localStorage.getItem('calligraphy.direction'), null, 'replay must not replace personal direction');
   assertSegment(ui, 'speed-seg', 'speed', 1.5);
   assertSegment(ui, 'fps-seg', 'fps', 30);
   assert.equal(byId(ui, 'history-reuse-notice').hidden, true);
