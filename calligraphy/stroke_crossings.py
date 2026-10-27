@@ -256,14 +256,23 @@ def smooth_kai_contacts(strokes, *, inferred_corners=False):
     """Clean fitted Kai contacts, preserving scheduled strokes and major pieces.
 
     Tiny satellite pieces below 1% of their stroke and 128 canonical pixels are
-    fitting debris. Whole dots and substantial disconnected components survive.
-    Removed satellites are reported, never silently merged into another stroke.
+    fitting debris. For inferred fonts, also remove minor disconnected pieces
+    covered by another scheduled stroke's primary component. Whole dots and
+    unique disconnected ink survive. Removed pieces and owners are reported.
     """
     from .contact_stroke import complete_stroke
     from .stroke_fitting import _motion_checks, _iou
 
     source = copy.deepcopy(strokes)
     clean = copy.deepcopy(strokes)
+    # Ownership evidence must come from primary components that this pass never
+    # deletes, not from two satellites that could justify deleting one another.
+    primary = []
+    if inferred_corners:
+        for stroke in source:
+            pieces = [s['stroke'] for s in stroke['segments']] if 'segments' in stroke else [stroke]
+            masks = [complete(piece) > .5 for piece in pieces]
+            primary.append(max(masks, key=np.count_nonzero))
     removed = []
     for i, stroke in enumerate(clean):
         if 'segments' not in stroke:
@@ -275,7 +284,22 @@ def smooth_kai_contacts(strokes, *, inferred_corners=False):
             if area <= 128 and area < .01 * largest:
                 removed.append({'stroke': i + 1, 'segment': j + 1, 'pixels': area})
             else:
-                keep.append(segment)
+                owner = None
+                coverage = 0.
+                if inferred_corners and 0 < area < .25 * largest:
+                    mask = complete(segment['stroke']) > .5
+                    for k, support in enumerate(primary):
+                        if k == i:
+                            continue
+                        fraction = float(np.count_nonzero(mask & support) / area)
+                        if fraction > coverage:
+                            owner, coverage = k, fraction
+                if owner is not None and coverage >= .995:
+                    removed.append({'stroke': i + 1, 'segment': j + 1, 'pixels': area,
+                                    'reason': 'covered-by-other-stroke',
+                                    'ownerStroke': owner + 1, 'coverage': coverage})
+                else:
+                    keep.append(segment)
         stroke['segments'] = keep
     flat, locations = [], []
     for i, stroke in enumerate(clean):

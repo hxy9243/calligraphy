@@ -86,6 +86,98 @@ smoothing and contact-transfer studies. It accepts data directly and imports no
 lab files. Historical study runners remain reproducible; the lab's new animation
 audit imports the installed engine. Core deposition is unchanged for old banks.
 
+### Derived duplicate-fragment cleanup
+
+The default contact renderer also checks disconnected components in inferred
+font strokes. A component smaller than 25% of that stroke's largest component
+is removed from its early owner only when at least 99.5% of its binary ink is
+already covered by another scheduled stroke's primary component. The covering
+stroke retains its own schedule. Primary components cannot delete one another;
+whole dots, unique disconnected ink and authored segments are protected from
+this additional rule. Existing tiny-satellite cleanup remains separate.
+
+Reports record `removedSatellites`, `reason: covered-by-other-stroke`, the
+1-based `ownerStroke`, and measured coverage. The existing combined glyph
+retention gate still applies. This repairs duplicated detached fragments, not
+connected branches or incorrectly registered guide paths. It is a conservative
+ownership inference, not a semantic guarantee for every font.
+
+This runs on derived contacts, so existing registered banks benefit without
+refitting or overwriting their source geometry. The engine source hash changes
+the derived cache identity. Explicit `font_layers` mode retains its original
+decomposition and is not affected by this contact cleanup.
+
+## Reviewed attached-ink ownership
+
+After generic smoothing, inferred contacts for the registered Aa Shou Jin font
+have reviewed corrections for 明 stroke 5, 月 stroke 1 and 清 stroke 7. These
+are deliberately scoped edits, not automatic branch recognition. The font
+SHA-256, original glyph geometry hash and smoothed geometry hash must all match
+`contact_ownership.REVIEWS`; changed fits are left untouched with a skipped
+report. Authored contacts and explicit `font_layers` mode are unaffected.
+
+Editable rail intervals define the clean donor envelope. Only original pixels
+outside that envelope change owners; clipped pixels are reassigned among the
+reviewed neighboring strokes by distance. The recipient keeps each pixel's
+original alpha, so the union of completed masks must be **exactly equal** before
+and after. Source contacts, stroke count, metadata and segment schedules remain
+intact. 清 retains its pointed left entry and right terminal.
+
+Derived strokes may carry an `ownership` object with sparse canonical 480×480
+pixel records: `clip: [[flatIndex, maxAlpha], ...]` and
+`patches: [[flatIndex, alpha, revealProgress], ...]`. Indices are unique integers
+in range; alpha and progress are finite in [0,1]. Clipping caps the original
+contact deposition; transferred pixels reveal monotonically at the nearest
+recipient ink's first sampled solid coverage, alpha ≥ .5 (64 progress steps). This is an
+ownership/timing correction, not a newly inferred physical brush trajectory.
+It does not solve all residue in these glyphs or generalize to unreviewed fits.
+
+These records live only in the versioned derived cache. The review constants
+are Python source and therefore participate in engine source hashing and cache
+invalidation. Reports include review version, both geometry hashes, donor,
+recipient pixel counts and reveal ranges, and exact final-alpha equality.
+
+## Shared automatic attached-residue cleanup
+
+Every registered font in `auto` and `contact` mode runs
+`automatic_contact_ownership.automatic_ownership` after generic crossing
+smoothing and any exact-fit reviewed corrections. No font-name allowlist or
+per-character controls are used by this automatic pass. Existing registrations
+benefit on their next derived-cache miss; their source banks are not rewritten.
+Authored built-in contact collections, generic Kai/yan Stroke IR, direct static
+font output and explicit `font_layers` reconstruction retain their existing
+paths: they are not inferred font-contact ownership inputs.
+
+Candidate detection scales a morphological opening to local stroke width and
+looks for short outward excursions in the interior of a predominantly straight
+stroke. It protects the first/last 12% of the body, large turns, major area
+changes and disconnected pieces. A recipient must have nearby supporting ink;
+when multiple neighbors exist, the nearest must beat the next by at least four
+canonical pixels. An ambiguous proposal is left unchanged.
+
+Candidates are evaluated in deterministic area order, at most 16 per glyph.
+Each participating stroke may receive only one correction in this pass;
+reviewed or previously annotated strokes are reserved. This prevents reciprocal
+edits and overwriting a receiving stroke's earlier transferred pixels. The
+transfer helper explicitly rejects such overwrites.
+
+Before accepting each proposal, the complete accumulated result must retain
+exact final alpha and pass 65-step monotonic deposition, completed replay and
+partial-glyph connectivity checks. The check spans the earliest through latest
+changed stroke, including intervening strokes and previously accepted edits.
+New detached components of at least four binary pixels reject the proposal.
+Rejected proposals leave the current accepted result untouched.
+
+Reports under `automaticOwnership` record the method version, candidate and
+accepted counts, budget deferrals, donor/recipient indices, boundary interval,
+owner confidence, transfer details and rejection reasons. Derived clips and
+patches use the ownership representation above, shared by still and video
+replay. Engine source hashing invalidates old preparation caches automatically.
+
+This is a conservative automatic improvement, not a complete semantic stroke
+segmentation system. Small artifacts can remain, checks are sampled, and a
+preserved final glyph alone is not evidence of historically correct motion.
+
 ## Registry and geometry contract
 
 Default location: `~/.local/share/calligraphy/styles/`. Override with

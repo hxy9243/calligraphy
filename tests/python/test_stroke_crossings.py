@@ -65,6 +65,40 @@ class CornerMotionTests(unittest.TestCase):
 
 
 class InferredGeometryTests(unittest.TestCase):
+    def test_duplicate_fragment_waits_for_its_covering_stroke(self):
+        from calligraphy.stroke_crossings import smooth_kai_contacts
+        from calligraphy.contact_stroke import complete_stroke, ContactStroke
+        def rectangle(x0, x1, y0, y1):
+            return {'contacts': [[[x, y0], [x, y1]] for x in np.linspace(x0, x1, 5)],
+                    'corners': [], 'tension': 0}
+        body = rectangle(40, 220, 70, 100)
+        fragment = rectangle(300, 320, 250, 270)
+        owner = rectangle(280, 360, 240, 280)
+        first = {'segments': [{'start': 0, 'end': 1, 'stroke': body},
+                              {'start': .3, 'end': .6, 'stroke': fragment}]}
+        source = [first, owner]; snapshot = copy.deepcopy(source)
+        result, report = smooth_kai_contacts(source, inferred_corners=True)
+        self.assertEqual(source, snapshot)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['segments'], first['segments'][:1])
+        self.assertEqual(report['removedSatellites'][0]['reason'], 'covered-by-other-stroke')
+        self.assertEqual(report['removedSatellites'][0]['ownerStroke'], 2)
+        self.assertEqual(complete_stroke(result[0])[250:270,300:320].sum(), 0)
+        np.testing.assert_array_equal(np.maximum.reduce([complete_stroke(s) for s in source]),
+                                      np.maximum.reduce([complete_stroke(s) for s in result]))
+        painter = ContactStroke(result[0]); previous = np.zeros((480,480))
+        for p in np.linspace(0,1,11):
+            frame = painter.advance(p)
+            self.assertTrue(np.all(frame >= previous)); previous = frame.copy()
+        np.testing.assert_array_equal(previous, complete_stroke(result[0]))
+        # Authored segments, unique ink, and an entire dot are not duplicates.
+        protected, _ = smooth_kai_contacts(source)
+        self.assertEqual(protected[0], first)
+        unique, _ = smooth_kai_contacts([first], inferred_corners=True)
+        self.assertEqual(unique[0], first)
+        dot, _ = smooth_kai_contacts([fragment, owner], inferred_corners=True)
+        self.assertEqual(dot[0], fragment)
+
     def test_inferred_crossing_corner_is_repaired_but_authored_one_is_not(self):
         from calligraphy.stroke_crossings import repair_crossings
         from calligraphy.stroke_ir import compile_program

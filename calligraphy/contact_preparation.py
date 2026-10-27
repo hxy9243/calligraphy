@@ -7,6 +7,8 @@ from pathlib import Path
 from .artifact_cache import ArtifactCache
 from .engine_metadata import engine_metadata
 from .stroke_crossings import smooth_kai_contacts
+from .contact_ownership import apply_reviewed_ownership
+from .automatic_contact_ownership import automatic_ownership
 
 
 def prepare_contacts(glyphs, *, source, inferred_corners=False, cache_path=None):
@@ -26,6 +28,11 @@ def prepare_contacts(glyphs, *, source, inferred_corners=False, cache_path=None)
                 document = cache.get(key)
             except KeyError:
                 smoothed, report = smooth_kai_contacts(strokes, inferred_corners=inferred_corners)
+                if inferred_corners:
+                    smoothed, ownership = apply_reviewed_ownership(character, strokes, smoothed, source)
+                    if ownership is not None:
+                        report['reviewedOwnership'] = ownership
+                    smoothed, report['automaticOwnership'] = automatic_ownership(smoothed)
                 document = {'schemaVersion': 'smoothed-contact/1', 'identity': digest,
                             'strokes': smoothed, 'report': report,
                             'provenance': {'source': source, 'engine': metadata}}
