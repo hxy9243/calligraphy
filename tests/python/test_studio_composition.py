@@ -94,7 +94,7 @@ class StudioCompositionTests(unittest.TestCase):
         self.assertEqual(job['status'], 'succeeded')
         return Image.open(job['output_path']).convert('RGB'), job
 
-    def test_manual_paper_ruling_preserves_text_plan_and_all_render_paths(self):
+    def test_manual_paper_ruling_aligns_text_in_all_render_paths(self):
         from calligraphy.paper import compute_paper_grid, render_writing_paper
         from calligraphy.spec import Appearance
         for direction in ('vertical-rl', 'horizontal-lr'):
@@ -108,11 +108,18 @@ class StudioCompositionTests(unittest.TestCase):
             spec = scene_spec_from_params(manual['text'], 'kai', manual)
             normal = RenderPlan.create(normal_spec, {'十': 2})
             plan = RenderPlan.create(spec, {'十': 2})
-            self.assertEqual(normal.schedule, plan.schedule)
+            self.assertEqual([p['character'] for p in normal.schedule], [p['character'] for p in plan.schedule])
+            self.assertEqual([p['line'] for p in normal.schedule], [p['line'] for p in plan.schedule])
+            self.assertEqual(normal.duration, plan.duration)
             self.assertEqual(Appearance.from_dict(spec.appearance.to_dict()).paper_line_count, 8)
             grid = compute_paper_grid(240, 320, direction=direction, paper_line_count=8)
             self.assertEqual(grid['n_lanes'], 8)
             self.assertEqual(len(grid['dividers']), 7)
+            axis = 'x' if direction == 'vertical-rl' else 'y'
+            for placement in plan.schedule:
+                center = placement[axis] + placement['size'] / 2
+                self.assertLess(min(abs(center - lane) for lane in grid['lane_centers']), .01)
+                self.assertLess(placement['size'], grid['lane_width'])
             before = render_writing_paper(240, 320, normal_spec.appearance, normal)
             after = render_writing_paper(240, 320, spec.appearance, plan)
             self.assertFalse(np.array_equal(before, after))
@@ -122,6 +129,8 @@ class StudioCompositionTests(unittest.TestCase):
                     job = self.db.get_job(response.json()['job_id'])
                     self.assertEqual(job['params']['paper_line_count'], 8)
             scene = self.create_scene(spec)
+            preview = Image.open(io.BytesIO(self.submit('/api/editor-preview', manual).content)).convert('RGB')
+            np.testing.assert_array_equal(preview, scene.frame(scene.duration))
             for time in (scene.duration * .5, scene.duration):
                 self.assertEqual(scene.frame(time).size, (240, 320))
         for invalid in (0, 33, 1.5, True):

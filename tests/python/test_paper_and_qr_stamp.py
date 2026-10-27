@@ -115,10 +115,7 @@ class PaperAndQrStampTests(unittest.TestCase):
             frame = np.asarray(scene.frame(scene.duration))
             self.assertEqual(tuple(int(v) for v in frame[0, 0]), spec.appearance.paper_color)
             schedule = scene.plan["schedule"]
-            col_centers = tuple(sorted({round(float(e["x"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
-            row_centers = tuple(sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
-            cell_size = round(float(schedule[0]["size"]), 2)
-            grid = compute_paper_grid(720, 900, "vertical-rl", col_centers, row_centers, cell_size, 0.18)
+            grid = scene.plan["paperGrid"]
             sx, sy, stamp_sz = compute_stamp_placement(
                 720,
                 900,
@@ -182,10 +179,7 @@ class PaperAndQrStampTests(unittest.TestCase):
         mid_frame = np.asarray(scene.frame(writing_end * 0.5))
         # Compute stamp bounding box
         schedule = scene.plan["schedule"]
-        col_centers = tuple(sorted({round(float(e["x"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
-        row_centers = tuple(sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
-        cell_size = round(float(schedule[0]["size"]), 2)
-        grid = compute_paper_grid(720, 960, "vertical-rl", col_centers, row_centers, cell_size, 0.18)
+        grid = scene.plan["paperGrid"]
         sx, sy, stamp_sz = compute_stamp_placement(720, 960, "vertical-rl", grid, schedule, stamp_position="after-text")
         pad = 20
         crop_mid = cv2.cvtColor(mid_frame[max(0, sy-pad):min(960, sy+stamp_sz+pad), max(0, sx-pad):min(720, sx+stamp_sz+pad)], cv2.COLOR_RGB2BGR)

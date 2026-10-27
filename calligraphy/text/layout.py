@@ -40,6 +40,8 @@ def layout_text(
     fit: bool = True,
     zigzag: bool = False,
     inscription_lines: Optional[List[List[str]]] = None,
+    ruled: bool = False,
+    paper_line_count: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Fit lines of characters into page cell placements.
     
@@ -286,6 +288,42 @@ def layout_text(
                         }
                     )
 
+    paper_grid = None
+    if ruled:
+        from .ruling import ruled_page_grid
+
+        line_count = len(wrapped) + len(clean_insc_lines)
+        frame = ruled_page_grid(width, height, direction, 1)["inner_box"]
+        span = frame[2] - frame[0] if vertical else frame[3] - frame[1]
+        if paper_line_count is None:
+            lane_count = max(line_count, int(span / (cell * (1 + gap))))
+            # Equal empty lanes on both sides of the text block.
+            if (lane_count - line_count) % 2:
+                lane_count -= 1
+        else:
+            lane_count = _positive_integer(paper_line_count, "paper_line_count")
+            if lane_count > 32:
+                raise ValueError("paper_line_count must be between 1 and 32")
+            if lane_count < line_count:
+                raise ValueError("Paper needs at least one lane per text and inscription line")
+        paper_grid = ruled_page_grid(width, height, direction, lane_count)
+        lane_cell = (span / lane_count) / (1 + gap)
+        if cell > lane_cell + 1e-6:
+            if not fit:
+                raise ValueError("Text exceeds the ruled lanes; enable fit, reduce font size or use fewer paper lines")
+            # Refit along-line spacing as well as glyph size, retaining wrapping
+            # and punctuation slots. Then place each line in its assigned lane.
+            fitted = layout_text(lines, width, height, direction, per_line, margin,
+                                 gap, lane_cell, fit, zigzag, inscription_lines)
+            placements = fitted["placements"]
+        first_lane = (lane_count - line_count) // 2
+        for placement in placements:
+            lane = first_lane + placement["line"]
+            if vertical:
+                lane = lane_count - 1 - lane
+            axis = "x" if vertical else "y"
+            placement[axis] = paper_grid["lane_centers"][lane] - placement["size"] / 2
+
     return {
         "width": width,
         "height": height,
@@ -295,5 +333,6 @@ def layout_text(
         "rows": rows,
         "zigzag": zigzag,
         "placements": placements,
+        "paperGrid": paper_grid,
     }
 

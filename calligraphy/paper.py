@@ -1,6 +1,7 @@
 """Traditional Xuan writing paper (朱絲欄宣紙) and weathered cinnabar QR seal stamp (朱砂印章二維碼)."""
 from functools import lru_cache
 import hashlib
+import json
 import math
 import os
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -1039,15 +1040,8 @@ def compute_paper_grid(
     if paper_line_count is not None:
         if type(paper_line_count) is not int or not 1 <= paper_line_count <= 32:
             raise ValueError("paper_line_count must be an integer between 1 and 32")
-        # Manual ruling is independent of the centered text plan and its line breaks.
-        inner_left = float(base_margin + inset)
-        inner_top = float(base_margin + inset)
-        inner_right = float(width - 1 - base_margin - inset)
-        inner_bottom = float(height - 1 - base_margin - inset)
-        start, end = (inner_left, inner_right) if direction == "vertical-rl" else (inner_top, inner_bottom)
-        lane_width = (end - start) / paper_line_count
-        dividers = [start + k * lane_width for k in range(1, paper_line_count)]
-        lane_centers = [start + (k + .5) * lane_width for k in range(paper_line_count)]
+        from .text.ruling import ruled_page_grid
+        return ruled_page_grid(width, height, direction, paper_line_count)
 
     i_box = [
         int(round(inner_left)),
@@ -1285,9 +1279,12 @@ def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         fit=fit,
         zigzag=zigzag,
         inscription_lines=insc_lines,
+        ruled=params.get("paper_style", "xuan") not in ("plain", "unruled"),
+        paper_line_count=params.get("paper_line_count"),
     )
 
     schedule = plan.get("placements", [])
+    paper_grid = plan.get("paperGrid")
 
     if schedule and "column" in schedule[0] and "row" in schedule[0]:
         cols_by_idx: Dict[int, List[float]] = {}
@@ -1302,7 +1299,7 @@ def get_stamp_preview_meta(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         row_centers = tuple(sorted({round(float(e["y"]) + float(e["size"]) * 0.5, 1) for e in schedule}))
     cell_size = round(float(schedule[0]["size"]), 2) if schedule else 0.0
 
-    grid = compute_paper_grid(
+    grid = paper_grid or compute_paper_grid(
         width=width,
         height=height,
         direction=direction,
@@ -1365,12 +1362,15 @@ def get_stamp_placement_for_plan(
     stamp_row = getattr(appearance, "stamp_row", None)
 
     schedule: List[Dict[str, Any]] = []
+    paper_grid = None
     direction = "vertical-rl"
     if isinstance(plan, dict):
         schedule = plan.get("schedule", [])
+        paper_grid = plan.get("paperGrid")
         direction = plan.get("direction", "vertical-rl")
     elif plan is not None:
         schedule = getattr(plan, "schedule", [])
+        paper_grid = getattr(plan, "paper_grid", None)
         direction = getattr(plan, "direction", "vertical-rl")
 
     if schedule and "column" in schedule[0] and "row" in schedule[0]:
@@ -1400,7 +1400,7 @@ def get_stamp_placement_for_plan(
         first_box = (round(float(f_e["x"]), 1), round(float(f_e["y"]), 1), round(float(f_e["size"]), 1))
         last_box = (round(float(l_e["x"]), 1), round(float(l_e["y"]), 1), round(float(l_e["size"]), 1))
 
-    grid = compute_paper_grid(
+    grid = paper_grid or compute_paper_grid(
         width,
         height,
         direction=direction,
@@ -1446,13 +1446,14 @@ def _cached_stationery_paper(
     cell_size: float,
     gap: float,
     paper_line_count: Optional[int] = None,
+    paper_grid_json: Optional[str] = None,
 ) -> Tuple[Image.Image, Dict[str, Any]]:
     """Render and cache the stationery paper texture and ruling grid (independent of stamp placement)."""
     r0, g0, b0 = paper_color
     is_dark = (r0 + g0 + b0) / 3.0 < 85.0
     short_side = min(width, height)
 
-    grid = compute_paper_grid(
+    grid = json.loads(paper_grid_json) if paper_grid_json else compute_paper_grid(
         width,
         height,
         direction=direction,
@@ -1620,6 +1621,7 @@ def _cached_xuan_base(
     first_box: Optional[Tuple[float, float, float]],
     last_box: Optional[Tuple[float, float, float]],
     paper_line_count: Optional[int] = None,
+    paper_grid_json: Optional[str] = None,
 ) -> Image.Image:
     """Render the stationery background with line-aligned QR seal stamp using cached paper texture."""
     r0, g0, b0 = paper_color
@@ -1637,6 +1639,7 @@ def _cached_xuan_base(
         cell_size=cell_size,
         gap=gap,
         paper_line_count=paper_line_count,
+        paper_grid_json=paper_grid_json,
     )
 
     has_stamp = bool(stamp_enabled and stamp_url and not is_dark and short_side >= 320)
@@ -1690,12 +1693,15 @@ def render_writing_paper(
     stamp_row = getattr(appearance, "stamp_row", None)
 
     schedule: List[Dict[str, Any]] = []
+    paper_grid = None
     direction = "vertical-rl"
     if isinstance(plan, dict):
         schedule = plan.get("schedule", [])
+        paper_grid = plan.get("paperGrid")
         direction = plan.get("direction", "vertical-rl")
     elif plan is not None:
         schedule = getattr(plan, "schedule", [])
+        paper_grid = getattr(plan, "paper_grid", None)
         direction = getattr(plan, "direction", "vertical-rl")
 
     # Group by logical column/row index if present, otherwise by rounded coordinate
@@ -1752,6 +1758,7 @@ def render_writing_paper(
         first_box,
         last_box,
         getattr(appearance, "paper_line_count", None),
+        json.dumps(paper_grid, sort_keys=True) if paper_grid else None,
     )
     return base.copy()
 

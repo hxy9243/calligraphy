@@ -88,7 +88,13 @@ not rotate the page or swap its dimensions.
 `backend/composition.py` builds the shared `SceneSpec`. Explicit font size keeps
 explicit text lines (including punctuation breaks), with no heuristic wrapping
 of a single line. All glyph cells use the chosen size; `fit=true` shrinks only
-when needed to keep that grid within the shared 7% margin. `fit=false` reports
+when needed to keep that grid within the shared 7% margin and ruled lanes.
+Ruled pages assign one lane to each main-text and inscription line. Their
+resolved `paperGrid` travels with the render plan and is reused by the paper
+renderer, its caches, and stamp placement; those paths do not infer a second grid
+from glyph coordinates. Automatic ruling adds equal numbers of blank lanes
+around the text block; manual ruling honors the chosen count. Zigzag may stagger
+text along a lane but does not shift glyphs across its center. `fit=false` reports
 an actionable overflow error instead of silently clipping or rearranging text.
 Requests and older jobs without `font_size` retain the former whole-page fitting
 and single-line wrapping. Still/video dimensions continue to default to 720×960.

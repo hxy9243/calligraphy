@@ -227,6 +227,7 @@ class RenderPlan:
     glyph_hashes: Dict[str, str] = field(default_factory=dict)
     renderer_version: str = RENDERER_VERSION
     schema_version: int = 1
+    paper_grid: Optional[Dict[str, Any]] = None
 
     @classmethod
     def create(
@@ -238,7 +239,9 @@ class RenderPlan:
         base_plan = create_text_plan(
             scene_spec.text,
             stroke_counts=stroke_counts,
-            layout=scene_spec.layout,
+            layout={**scene_spec.layout,
+                    "ruled": scene_spec.appearance.paper_style not in ("plain", "unruled"),
+                    "paper_line_count": scene_spec.appearance.paper_line_count},
             timing=scene_spec.timing,
             punctuation=scene_spec.punctuation,
             inscription=scene_spec.inscription,
@@ -269,6 +272,7 @@ class RenderPlan:
             glyph_hashes=glyph_hashes or {},
             renderer_version=RENDERER_VERSION,
             schema_version=1,
+            paper_grid=base_plan["paperGrid"],
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -284,4 +288,5 @@ class RenderPlan:
             "schedule": self.schedule,
             "omitted": self.omitted,
             "glyphHashes": self.glyph_hashes,
+            "paperGrid": self.paper_grid,
         }

@@ -60,7 +60,7 @@ def create_text_plan(
     if "gap" in layout:
         layout_args["gap"] = layout["gap"]
 
-    for name in ("font_size", "fit", "zigzag"):
+    for name in ("font_size", "fit", "zigzag", "ruled", "paper_line_count"):
         if name in layout:
             layout_args[name] = layout[name]
 
@@ -138,6 +138,7 @@ def create_text_plan(
         "strokeSeconds": stroke_seconds,
         "duration": total_duration,
         "schedule": schedule,
+        "paperGrid": page["paperGrid"],
         "omitted": omitted,
     }
 

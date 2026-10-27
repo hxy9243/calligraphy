@@ -152,3 +152,9 @@ reports overflow instead of clipping. Explicit-size cells below 8 pixels are
 rejected. Omitting `font_size` preserves the existing 16-pixel minimum,
 whole-page fitting and wrapping behavior. These are Python/studio extensions;
 the legacy JavaScript plan API is unchanged.
+
+Python `RenderPlan` resolves ruled paper and glyph placement together. Its
+`paperGrid` records the frame, lane centers, dividers and lane width for reuse in
+stills, animation, editor previews and stamp metadata. Plain/unruled plans use
+`null` and preserve the free page layout. Paper line count controls available
+lanes; insufficient lanes or oversized glyphs with fitting disabled are rejected.
