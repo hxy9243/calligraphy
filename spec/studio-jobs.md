@@ -79,9 +79,9 @@ accounts, clearing cookies creates a new identity; this is not an IP abuse limit
 
 Canvas dimensions are bounded to 64–1280 pixels per side, with even video sizes.
 After preparation, videos above 120 seconds or 3000 frames are rejected before
-encoding. Ordinary terminal history and output files expire after 7 days (or
-the configured retention); an explicitly shared video receives the 72-hour
-retention lease described below. Cleanup also removes expired files whose
+encoding. Ordinary terminal history and output files expire after 60 days (or
+the configured retention); an explicitly shared video is retained without an
+automatic deadline while sharing remains enabled. Cleanup also removes expired files whose
 history was previously deleted.
 
 ## Browser behavior
@@ -107,8 +107,8 @@ not create extra poll loops or duplicate cards for the same server job ID.
 
 ## Retention shown to owners
 
-The creation and history notes distinguish unshared retention (7 days by
-default), a friends-sharing link (72 hours plus a lease for that video), and a
+The creation and history notes distinguish unshared retention (60 days by
+default), a permanent friends-sharing link, and a
 self-handoff link (at most ten minutes with no retention extension). Both link
 types remain bearer capabilities: “for yourself” describes the intended use,
 not an authenticated self-only restriction. Exact capability expiry, including
@@ -117,8 +117,9 @@ the date and local time zone, remains visible after copying or manual-copy fallb
 Owner job list/detail responses include a `retention` object with Unix timestamps:
 `ordinary_expires_at` is the earlier of terminal completion age and existing output
 file age plus configured cleanup retention; `expires_at` also includes a live
-successful-video sharing lease. `share_expires_at` is only the current live share
-lease, and `output_available` distinguishes a missing artifact from a retained
+successful-video sharing lease. Permanent shares return `is_permanent: true` and
+null `expires_at` / `share_expires_at`, while retaining the ordinary deadline for
+revocation. `output_available` distinguishes a missing artifact from a retained
 record. Active jobs have no expiry yet; failed records use completion age. The
 summary exposes no capability token or digest. `/api/jobs` also reports
 `retention_seconds`, so policy notes follow a configured duration.
@@ -128,7 +129,7 @@ expiry or a guarantee of immediate physical deletion. The legacy nullable
 `jobs.expires_at` field only constrains new share issuance and is not presented as
 the cleanup deadline. Cleanup is asynchronous; history labels elapsed deadlines
 as due for cleanup. History cards and details show the server deadline, identify
-sharing extensions, and never invent a fresh 7-day lifetime for older records.
+sharing extensions, and never invent a fresh 60-day lifetime for older records.
 
 Regression coverage: `tests/python/test_job_retention.py` and
 `tests/frontend-retention.test.mjs`.
@@ -199,14 +200,18 @@ Completed video cards and their detail viewer offer Share. Opening the sharing
 dialog alone does not publish a capability: the owner explicitly creates a link
 after seeing that anyone holding it can watch and download this one video.
 The dialog offers copying, a selectable-link fallback and revocation. Before
-creation it explains the 72-hour lifetime and single-video access granted to
+creation it explains permanent retention until deletion/revocation and single-video access granted to
 anyone holding the link. Creation and both clipboard/manual-copy feedback show
-the actual expiry date/time and repeat that privacy notice.
+permanent status (or the actual finite legacy expiry) and repeat that privacy notice.
 
 `POST /api/jobs/{job_id}/share-link` requires the owning browser session and an
-existing, completed, non-symlink MP4. It returns `/watch.html#job_id.token` and an
-`expires_at` Unix timestamp. The bearer has 256 bits of entropy. SQLite's separate
-`video_shares` table stores only the SHA-256 digest and expiry. Creation defaults
+existing, completed, non-symlink MP4. It returns `/watch.html#job_id.token` and
+`expires_at: null` with `is_permanent: true` for permanent shares. New artwork's
+initial QR token is HMAC-derived; replacement tokens use 256 random bits. The
+pre-existing HMAC secret configuration needs a private stable production value
+(see deployment checklist). SQLite's separate
+`video_shares` table stores the SHA-256 digest, compatibility expiry column and
+explicit permanence flag; no bearer token is stored. Creation defaults
 to refusing an existing active link (409); explicit `{ "replace": true }` is
 required to rotate it, including when another tab created it between reads.
 `POST /api/jobs/{job_id}/share-link/status` is an owner-only, no-store read. Its
@@ -218,11 +223,11 @@ revealing content or token values. The frontend clears cached tokens on
 revocation, expiry, invalid owner validation or explicit history deletion.
 An explicitly requested replacement
 replaces the old one, immediately invalidating its subsequent access and media
-requests. The link lasts 72 hours from creation and grants a retention lease for
-that one completed job and MP4. Unshared jobs retain ordinary 7-day/configured
+requests. The link has no automatic expiry and protects that one completed job
+and MP4 while sharing remains enabled. Unshared jobs retain ordinary 60-day/configured
 retention. An active share lease supersedes ordinary file/completion age and an
 ordinary job expiry without rewriting them. A still-active share can be rotated
-for a fresh 72-hour lease, but an expired unshared artifact cannot be resurrected.
+without adding another storage slot, but an expired unshared artifact cannot be resurrected.
 Sharing never renders another video or extends the lifetime of an existing
 ten-minute export/download capability.
 
@@ -245,7 +250,9 @@ restrictive CSP, no-referrer, private/no-store and noindex headers. Its fragment
 never enters an HTTP URL or Referer header. The viewer posts the bearer in a
 bounded URL-encoded body to `POST /api/shares/{job_id}/access`. Valid access sets
 an HttpOnly, SameSite=Strict capability cookie scoped to `/api/shares/{job_id}`,
-Secure on HTTPS (or when secure cookies are configured), and expiring with the
+Secure on HTTPS (or when secure cookies are configured). Permanent-share media
+cookies last 24 hours; reopening the link exchanges the bearer again without
+expiring or replacing the share. Finite-share cookies expire with their
 capability. This cookie authorizes only this video, never job history or owner
 APIs. Access endpoints never fall back to a browser's owner cookie. Request bodies
 and Cookie/Set-Cookie headers must not be logged by deployment middleware.
@@ -292,9 +299,9 @@ The user explicitly chooses **建立 10 分鐘影片連結** after seeing the pr
 with an existing non-symlink MP4. It creates a 256-bit random capability for that
 single artifact; SQLite stores only its SHA-256 digest and expiration. A new link
 replaces the previous link for that job. Expiry is the earliest of ten minutes,
-ordinary retention (7 days or configured retention, completion age and
+ordinary retention (60 days or configured retention, completion age and
 file age), or an active share's extended retention deadline when applicable.
-A video retained by a live 72-hour share still supports a separate ten-minute
+A video retained by a live permanent share still supports a separate ten-minute
 export link. Export access rechecks the current retention lease; revoking that
 share invalidates exports that depended on its extension, while ordinary retained
 files keep their existing export behavior. Creating an export does not grant or
@@ -304,7 +311,7 @@ The returned relative URL uses `/export.html#job_id.token`. The fragment is not
 sent in HTTP requests or Referer headers; the landing page has no third-party
 resources, a restrictive CSP and no-referrer policy. It opens a standalone artwork
 page with native playback and download controls, using the same player code and
-styles as the 72-hour shared viewer; its copy notice and expiry remain ten minutes. The user copies the link to
+styles as the permanent shared viewer; its copy notice and expiry remain ten minutes. The user copies the link to
 Safari/Chrome or manually uses WeChat's browser menu when available. There is no
 fake “Open Safari” button. The landing page preserves the fragment for that menu
 handoff. A same-origin fetch posts the fragment token in a bounded URL-encoded
@@ -314,7 +321,7 @@ configured, and bounded by the original export capability and retention deadline
 Native GET/HEAD `/api/exports/{job_id}/video` handles playback and Range requests;
 `?download=1` streams an attachment without buffering the MP4 in JavaScript.
 Every media request rechecks the original export digest, expiry and artifact.
-The export cookie never authorizes a 72-hour share, another video, or owner APIs.
+The export cookie never authorizes a permanent share, another video, or owner APIs.
 Opening the page neither creates a share lease nor extends export retention.
 The older body-token POST `/api/exports/{job_id}/download` remains available to
 API clients, but the browser page no longer submits a native form. Under
@@ -335,10 +342,35 @@ Create/revoke actions are serialized across dialog dismissal and reopening.
 
 Regression coverage: `tests/python/test_video_exports.py` and
 `tests/frontend-video-export.test.mjs`; the shared viewer DOM suite runs
-for both 10-minute export and 72-hour share pages. A physical iPhone/WeChat-to-Safari download
+for both 10-minute export and permanent share pages. A physical iPhone/WeChat-to-Safari download
 still needs on-device validation; DOM/API tests cannot verify OS download handling
 or promise that a video will save directly into Photos.
 
 New editor, still and video requests default to `punctuation: "gap"`: each
 punctuation mark reserves a blank cell. Saved jobs retain their explicit policy;
 legacy saved jobs with no policy keep the previous `omit` behavior when reused.
+
+
+## Storage quota and persistence
+
+Every browser cookie identity has 30 server work slots shared by still-image
+saves and video renders, ordinary or shared. Pending/running creations reserve a
+slot atomically with insertion; failed jobs do not consume one. Automatic editor
+previews are transient and do not insert history jobs. Active render deduplication
+runs before quota admission so repeating an accepted request at the cap reuses it.
+New saves at the limit return HTTP 409 and never evict another work. Deleting a
+terminal work frees its slot; making or rotating its share does not allocate one.
+Existing histories above the limit remain intact. Deletion retains the existing
+orphan-file TTL behavior, so this is not a hard disk-byte or abuse-proof cap.
+
+The database write reservation serializes admission across independent SQLite
+connections/processes. `/api/jobs` includes
+`storage_quota: {used, limit: 30, scope: "browser_session"}`. The UI displays the
+server count, including queued saves, and explains the browser-cookie boundary.
+Clearing cookies creates another identity and loses access to prior work; this
+is deliberately not account-based or IP-based protection.
+
+Both SQLite and artifact files must persist. The deployment uses the same `/data`
+volume for `/data/calligraphy.db` and `/data/outputs`, with one replica. Sharing
+protects the actual artifact path during cleanup, not just its database row.
+See [deployment](../docs/deployment.md) for migration, backup and restart checks.

@@ -40,7 +40,7 @@ test('existing shares survive reopen and reload without rotating or extending th
   const d=ui.document, byId=id=>d.getElementById('video-share-'+id);
   assert.equal(d.querySelectorAll('.btn-share-video').length,2);
   d.querySelector('.btn-share-video').click();await flush();
-  assert.equal(byId('notice').open,true);assert.match(byId('notice').textContent,/72 小時/);
+  assert.equal(byId('notice').open,true);assert.match(byId('notice').textContent,/永久有效/);
   assert.equal(ui.requests.some(r=>r.url.endsWith('/share-link')),false);
   byId('create').click();byId('create').click();await flush();
   assert.equal(ui.requests.filter(r=>r.url.endsWith('/share-link')).length,1);
@@ -151,4 +151,27 @@ test('a late still preview cannot reopen a modal after newer navigation',async t
   finish(jsonResponse({svg:'<svg xmlns="http://www.w3.org/2000/svg"></svg>'}));await flush();
   assert.equal(ui.document.getElementById('result-dialog').open,false);
   assert.equal(ui.window.location.hash,'#history');
+});
+
+
+test('permanent share can be created, copied, reopened and revoked without inventing a date', async t => {
+  const permanent = {...link,expires_at:null,is_permanent:true};
+  let active = false;
+  const ui = await createFrontend({jobs,fetch({url,options}) {
+    if(url.endsWith('/share-link/status')) return jsonResponse(active ? {active:true,...permanent} : {active:false});
+    if(url.endsWith('/share-link')) {active=options.method !== 'DELETE'; return jsonResponse(active ? permanent : {});}
+  }}); t.after(ui.close);
+  const d=ui.document, byId=id=>d.getElementById('video-share-'+id);
+  d.querySelector('.btn-share-video').click(); await flush();
+  byId('create').click(); await flush();
+  assert.match(byId('status').textContent,/永久保留/);
+  assert.doesNotMatch(byId('status').textContent,/1970|Invalid Date|有效至/);
+  byId('copy').click(); await flush();
+  assert.match(byId('status').textContent,/永久保留/);
+  byId('notice').close(); d.querySelector('.btn-share-video').click(); await flush();
+  assert.equal(byId('url').value,'http://calligraphy.test'+permanent.url);
+  assert.equal(ui.requests.filter(r=>r.url.endsWith('/share-link')).length,1);
+  byId('revoke').click(); await flush();
+  assert.match(byId('status').textContent,/已停用/);
+  assert.equal(byId('url').value,'');
 });

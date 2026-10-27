@@ -47,26 +47,26 @@ test('expired, missing, active and failed works do not imply a fresh retention l
   assert.doesNotMatch(notice('unknown'), /Invalid Date|24 小時|7 天/);
 });
 
-test('retention notes honor configured durations and distinguish 72-hour sharing from 10-minute handoff', async t => {
+test('retention notes honor configured durations and distinguish permanent sharing from 10-minute handoff', async t => {
   const ui = await createFrontend({ fetch({ url }) {
     if (url === '/api/jobs') return jsonResponse({ jobs: [], retention_seconds: 120 });
   } }); t.after(ui.close);
   for (const label of ui.document.querySelectorAll('[data-retention-duration]')) assert.equal(label.textContent, '2 分鐘');
   const guide = ui.document.querySelector('.retention-guide').textContent;
-  assert.match(guide, /未分享/); assert.match(guide, /72 小時/); assert.match(guide, /10 分鐘/); assert.match(guide, /不延長/);
+  assert.match(guide, /未分享/); assert.match(guide, /永久有效/); assert.match(guide, /10 分鐘/); assert.match(guide, /不延長/);
   const handoff = ui.document.getElementById('video-export-notice').textContent;
   assert.match(handoff, /給自己/); assert.match(handoff, /任何持有連結的人都能觀看及下載/);
   assert.doesNotMatch(handoff, /只有你|僅本人|私人連結/);
 });
 
-test('retention notes show thirty days before and after loading the server default', async t => {
-  for (const retention_seconds of [undefined, 30 * 86400]) {
+test('retention notes show sixty days before and after loading the server default', async t => {
+  for (const retention_seconds of [undefined, 60 * 86400]) {
     const ui = await createFrontend({ fetch({ url }) {
       if (url === '/api/jobs') return jsonResponse({ jobs: [], retention_seconds });
     } }); t.after(ui.close);
     const labels = ui.document.querySelectorAll('[data-retention-duration]');
     assert.equal(labels.length, 2);
-    for (const label of labels) assert.equal(label.textContent, '30 天');
+    for (const label of labels) assert.equal(label.textContent, '60 天');
   }
 });
 
@@ -116,4 +116,27 @@ test('share creation and revocation refresh history and open detail expiry witho
   assert.doesNotMatch(d.querySelector('[data-detail-retention]').textContent,/分享延長/);
   assert.equal(d.querySelector('[data-detail-share-expiry]').hidden,true);
   assert.equal(d.querySelector('#detail-viewer video'),video);
+});
+
+
+test('permanent history and detail never format null as epoch or missing expiry', async t => {
+  const retention = {expires_at:null, share_expires_at:null, ordinary_expires_at:now - 100, is_permanent:true, output_available:true};
+  const ui = await createFrontend({jobs:[makeJob('one',retention)]}); t.after(ui.close);
+  assert.match(ui.document.querySelector('.job-retention').textContent,/永久保留/);
+  ui.document.querySelector('.btn-play-mini').click();
+  assert.equal(ui.document.querySelector('[data-detail-share-expiry]').hidden,false);
+  assert.match(ui.document.querySelector('[data-detail-share-expiry]').textContent,/永久有效/);
+  assert.doesNotMatch(ui.document.getElementById('detail-meta').textContent,/1970|暫未提供/);
+});
+
+test('quota shows all saved works, preserves over-limit history, and explains browser identity', async t => {
+  for (const used of [2,30,35]) {
+    const ui = await createFrontend({fetch({url}) {
+      if (url === '/api/jobs') return jsonResponse({jobs:[],storage_quota:{used,limit:30,scope:'browser_session'}});
+    }}); t.after(ui.close);
+    const note = ui.document.querySelector('[data-storage-quota]').textContent;
+    assert.ok(note.includes(`${used} / 30`));
+    assert.match(note,/未分享與已分享/); assert.match(note,/Cookie/);
+    assert.match(note,used >= 30 ? /現有作品不會自動刪除/ : /分享現有作品不另占名額/);
+  }
 });

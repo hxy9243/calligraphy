@@ -26,10 +26,10 @@ from calligraphy.font_pipeline import registered_styles
 from calligraphy.text.converter import ConversionUnavailableError, convert_text
 from calligraphy.text.input import parse_text
 from .database import Database, get_db
-from .database import AdmissionError
+from .database import AdmissionError, SavedWorkLimitError
 from .public_fonts import allowed_style, public_catalog, private_catalog, validate_style, font_sample
 from .style_catalog import STYLE_ALIASES
-from .retention import PERMANENT_SHARE_TTL_SECONDS, get_retention_seconds, job_share_token, job_share_url
+from .retention import OWNER_SESSION_TTL_SECONDS, get_retention_seconds, job_share_token, job_share_url
 from .worker import execute_job_bounded as execute_job, get_runner
 from .editor_preview import editor_preview
 
@@ -213,6 +213,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": str(exc)},
     )
 
+@app.exception_handler(SavedWorkLimitError)
+async def saved_work_limit_handler(request: Request, exc: SavedWorkLimitError):
+    return JSONResponse(status_code=409, content={"detail": str(exc), "code": "saved_work_limit"})
+
+
 @app.exception_handler(AdmissionError)
 async def admission_error(request, exc):
     return JSONResponse(status_code=429, content={"detail": str(exc)}, headers={"Retry-After": str(exc.retry_after)})
@@ -263,7 +268,7 @@ async def session_middleware(request: Request, call_next):
             value=session_id,
             httponly=True,
             samesite="lax",
-            max_age=PERMANENT_SHARE_TTL_SECONDS + 30 * 86400,
+            max_age=OWNER_SESSION_TTL_SECONDS,
             secure=os.environ.get("CALLIGRAPHY_SECURE_COOKIES") == "1",
         )
     return response
@@ -571,7 +576,7 @@ def job_retention_summary(job, db, retention_seconds):
     not a promise that every owner URL becomes unavailable at this instant.
     """
     summary = {"expires_at": None, "ordinary_expires_at": None,
-               "share_expires_at": None, "output_available": None}
+               "share_expires_at": None, "output_available": None, "is_permanent": False}
     if job["status"] not in ("succeeded", "failed"):
         return summary
     completed = datetime.fromisoformat(job.get("completed_at") or job["created_at"]).timestamp()
@@ -586,6 +591,9 @@ def job_retention_summary(job, db, retention_seconds):
             available = False
         summary["output_available"] = available
     share = db.get_video_share(job["job_id"]) if job["status"] == "succeeded" and job["job_type"] == "render" else None
+    if share and share.get("is_permanent"):
+        summary.update(ordinary_expires_at=ordinary, is_permanent=True)
+        return summary
     lease = share["expires_at"] if share and share["expires_at"] > time.time() else None
     summary.update(ordinary_expires_at=ordinary, share_expires_at=lease,
                    expires_at=max(ordinary, lease) if lease is not None else ordinary)
@@ -606,7 +614,7 @@ def list_session_jobs(request: Request, response: Response):
             j["video_url"] = f"/api/jobs/{j['job_id']}/video"
         elif j.get("status") == "succeeded" and j.get("job_type") == "preview":
             j["download_url"] = f"/api/jobs/{j['job_id']}/image"
-    return {"jobs": jobs, "retention_seconds": retention_seconds}
+    return {"jobs": jobs, "retention_seconds": retention_seconds, "storage_quota": db.storage_quota(session_id)}
 
 
 @app.delete("/api/jobs/{job_id}", status_code=204)
@@ -728,6 +736,18 @@ EXPORT_HEADERS = {
 EXPORT_TTL_SECONDS = 600
 
 
+def share_deadline(share):
+    """Internal deadline only; infinity is never serialized into JSON."""
+    if share and share.get("is_permanent"):
+        return math.inf
+    return share["expires_at"] if share else None
+
+
+def active_share(share):
+    deadline = share_deadline(share)
+    return deadline is not None and deadline > time.time()
+
+
 def export_video_path(job, lease_expires=None):
     """Validate the sole artifact a capability may release, including retention."""
     if not job or job["job_type"] != "render" or job["status"] != "succeeded" or not job.get("output_path"):
@@ -754,7 +774,7 @@ def create_video_export(job_id: str, request: Request):
     if not job or job["session_id"] != request.state.session_id:
         raise HTTPException(404, "Job not found")
     share = db.get_video_share(job_id)
-    _, deadline = export_video_path(job, share["expires_at"] if share else None)
+    _, deadline = export_video_path(job, share_deadline(share))
     token = secrets.token_urlsafe(32)
     expires = min(time.time() + EXPORT_TTL_SECONDS, deadline)
     if not db.set_video_export(job_id, request.state.session_id, hashlib.sha256(token.encode()).hexdigest(), expires):
@@ -787,7 +807,7 @@ def checked_video_export(job_id, token):
         raise HTTPException(404, SHARE_UNAVAILABLE)
     share = db.get_video_share(job_id)
     try:
-        path, deadline = export_video_path(db.get_job(job_id), share["expires_at"] if share else None)
+        path, deadline = export_video_path(db.get_job(job_id), share_deadline(share))
     except (HTTPException, OSError, ValueError, TypeError):
         raise HTTPException(404, SHARE_UNAVAILABLE) from None
     return path, min(capability["expires_at"], deadline)
@@ -825,7 +845,6 @@ def video_export_page():
     })
 
 
-SHARE_TTL_SECONDS = PERMANENT_SHARE_TTL_SECONDS
 SHARE_COOKIE_NAME = "calligraphy_video_share"
 SHARE_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 SHARE_TOKEN = re.compile(r"[A-Za-z0-9_-]{43}\Z")
@@ -890,12 +909,12 @@ def checked_video_share(job_id, token):
         raise HTTPException(404, SHARE_UNAVAILABLE)
     db = get_db()
     capability = db.get_video_share(job_id)
-    if not capability or capability["expires_at"] <= time.time() or not secrets.compare_digest(
+    if not active_share(capability) or not secrets.compare_digest(
         capability["token_hash"], hashlib.sha256(token.encode("ascii")).hexdigest()
     ):
         raise HTTPException(404, SHARE_UNAVAILABLE)
-    path, deadline = shared_video_path(db.get_job(job_id), capability["expires_at"])
-    return path, min(capability["expires_at"], deadline)
+    path, deadline = shared_video_path(db.get_job(job_id), share_deadline(capability))
+    return path, min(share_deadline(capability), deadline)
 
 
 @app.post("/api/jobs/{job_id}/share-link/status")
@@ -924,10 +943,10 @@ async def video_share_status(job_id: str, request: Request):
     except (ValueError, UnicodeError):
         raise HTTPException(404, SHARE_UNAVAILABLE) from None
     capability = db.get_video_share(job_id)
-    if not capability or capability["expires_at"] <= time.time():
+    if not active_share(capability):
         return JSONResponse({"active": False}, headers=EXPORT_HEADERS)
-    shared_video_path(job, capability["expires_at"])
-    result = {"active": True, "expires_at": capability["expires_at"]}
+    shared_video_path(job, share_deadline(capability))
+    result = {"active": True, "expires_at": capability["expires_at"], "is_permanent": capability["is_permanent"]}
     if token and secrets.compare_digest(capability["token_hash"], hashlib.sha256(token.encode("ascii")).hexdigest()):
         result["url"] = f"/watch.html#{job_id}.{token}"
     return JSONResponse(result, headers=EXPORT_HEADERS)
@@ -942,28 +961,19 @@ def create_video_share(job_id: str, request: Request, options: Optional[ShareLin
     db = get_db()
     if not SHARE_ID.fullmatch(job_id):
         raise HTTPException(404, SHARE_UNAVAILABLE)
-    issued = getattr(db, "_issued_share_jobs", None)
-    if issued is None:
-        issued = set()
-        setattr(db, "_issued_share_jobs", issued)
-    existing = db.get_video_share(job_id)
-    if existing is None and job_id not in issued:
-        token = job_share_token(job_id)
-    else:
-        token = secrets.token_urlsafe(32)
-    expires = time.time() + SHARE_TTL_SECONDS
+    expires = None
     def validate(job, previous):
-        shared_video_path(job, previous["expires_at"] if previous else None)
+        shared_video_path(job, share_deadline(previous))
         if previous and not (options and options.replace):
             raise HTTPException(409, "已有有效分享連結；請複製原連結，或明確選擇取代。")
 
-    if not db.set_video_share(
-        job_id, request.state.session_id, hashlib.sha256(token.encode("ascii")).hexdigest(), expires,
-        validate_artifact=validate,
-    ):
+    token = db.set_video_share(
+        job_id, request.state.session_id, None, expires, validate_artifact=validate,
+        issue_token=lambda issued: secrets.token_urlsafe(32) if issued else job_share_token(job_id),
+    )
+    if not token:
         raise HTTPException(404, SHARE_UNAVAILABLE)
-    issued.add(job_id)
-    return JSONResponse({"url": f"/watch.html#{job_id}.{token}", "expires_at": expires}, headers=EXPORT_HEADERS)
+    return JSONResponse({"url": f"/watch.html#{job_id}.{token}", "expires_at": expires, "is_permanent": True}, headers=EXPORT_HEADERS)
 
 
 @app.delete("/api/jobs/{job_id}/share-link", status_code=204)
@@ -971,11 +981,6 @@ def revoke_video_share(job_id: str, request: Request):
     db = get_db()
     if not SHARE_ID.fullmatch(job_id) or not db.revoke_video_share(job_id, request.state.session_id):
         raise HTTPException(404, SHARE_UNAVAILABLE)
-    issued = getattr(db, "_issued_share_jobs", None)
-    if issued is None:
-        issued = set()
-        setattr(db, "_issued_share_jobs", issued)
-    issued.add(job_id)
     return Response(status_code=204, headers=EXPORT_HEADERS)
 
 
@@ -998,9 +1003,14 @@ async def read_video_token(request):
 
 def video_access_response(request, kind, job_id, token, expires, cookie_name):
     path = f"/api/{kind}/{job_id}"
-    response = JSONResponse({"video_url": f"{path}/video", "expires_at": expires}, headers=EXPORT_HEADERS)
+    permanent = math.isinf(expires)
+    metadata = {"video_url": f"{path}/video", "expires_at": None if permanent else expires}
+    if kind == "shares":
+        metadata["is_permanent"] = permanent
+    response = JSONResponse(metadata, headers=EXPORT_HEADERS)
     now = time.time()
-    cookie_expires = max(now + 1, expires)
+    # A permanent bearer does not need an unbounded browser media cookie.
+    cookie_expires = now + 86400 if permanent else max(now + 1, expires)
     response.set_cookie(
         cookie_name, token, httponly=True, samesite="strict",
         secure=request.url.scheme == "https" or os.environ.get("CALLIGRAPHY_SECURE_COOKIES") == "1",

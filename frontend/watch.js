@@ -3,7 +3,7 @@
 // Preserve the fragment for WeChat's browser-menu handoff and explicit copying.
 const isExport = document.body.dataset.videoKind === 'export';
 const apiKind = isExport ? 'exports' : 'shares';
-const ttlMilliseconds = (isExport ? 600 : 72 * 3600) * 1000;
+const maxTimerMilliseconds = 2 ** 31 - 1;
 const video = document.getElementById('watch-video');
 const status = document.getElementById('watch-status');
 const download = document.getElementById('watch-download');
@@ -20,13 +20,14 @@ let controller;
 let expiresTimer;
 let mediaUrl = '';
 let shareExpiresAt = null;
+let shareIsPermanent = false;
 
 function expiryDateTime(timestamp) {
   return new Date(timestamp * 1000).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZoneName: 'short' });
 }
 
 function copyNotice() {
-  const expiry = shareExpiresAt ? `到期時間：${expiryDateTime(shareExpiresAt)}。` : isExport ? '臨時連結最長有效 10 分鐘。' : '連結自建立起有效 72 小時。';
+  const expiry = shareIsPermanent ? '分享連結永久有效。' : shareExpiresAt ? `到期時間：${expiryDateTime(shareExpiresAt)}。` : isExport ? '臨時連結最長有效 10 分鐘。' : '連結有效期限以分享者提供的資訊為準。';
   return `持有連結的人皆可觀看及下載這部影片。${expiry}${isExport ? "臨時瀏覽器連結，不延長作品保留期限，請勿轉傳。" : ""}分享者停用或移除影片後會提早失效。`;
 }
 
@@ -63,6 +64,7 @@ async function loadShare() {
   linkLabel.hidden = true;
   link.value = '';
   shareExpiresAt = null;
+  shareIsPermanent = false;
   const match = location.hash.match(/^#([A-Za-z0-9_-]{1,64})\.([A-Za-z0-9_-]{43})$/);
   if (!match) {
     status.textContent = isExport ? '影片連結不完整。請回原來的微信頁面重新複製完整連結。' : '影片連結不完整。請向分享者重新複製完整連結。';
@@ -89,18 +91,28 @@ async function loadShare() {
     }
     const data = await response.json();
     if (current !== generation) return;
-    if (data.video_url !== expectedUrl || !Number.isFinite(data.expires_at) || data.expires_at * 1000 <= Date.now()) {
+    const permanent = !isExport && data.is_permanent === true && data.expires_at === null;
+    if (data.video_url !== expectedUrl || (!permanent && (!Number.isFinite(data.expires_at) || data.expires_at * 1000 <= Date.now()))) {
       showUnavailable();
       return;
     }
     mediaUrl = expectedUrl;
     shareExpiresAt = data.expires_at;
+    shareIsPermanent = permanent;
     video.src = mediaUrl;
     video.hidden = false;
     download.href = `${mediaUrl}?download=1`;
     download.hidden = false;
-    status.textContent = `點選播放即可觀看。連結有效至 ${expiryDateTime(data.expires_at)}。`;
-    expiresTimer = setTimeout(() => { if (current === generation) showUnavailable(); }, Math.min(data.expires_at * 1000 - Date.now(), ttlMilliseconds));
+    status.textContent = permanent ? '點選播放即可觀看。分享連結永久有效；分享者停用或刪除作品後失效。' : `點選播放即可觀看。連結有效至 ${expiryDateTime(data.expires_at)}。`;
+    if (!permanent) {
+      const checkExpiry = () => {
+        if (current !== generation) return;
+        const remaining = data.expires_at * 1000 - Date.now();
+        if (remaining <= 0) showUnavailable();
+        else expiresTimer = setTimeout(checkExpiry, Math.min(remaining, maxTimerMilliseconds));
+      };
+      checkExpiry();
+    }
   } catch (error) {
     if (current !== generation || error.name === 'AbortError') return;
     status.textContent = '連線不穩或暫時無法讀取影片，請重新載入。';

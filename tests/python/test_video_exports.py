@@ -197,7 +197,7 @@ class VideoExportTests(unittest.TestCase):
         self.assertEqual(self.other.head('/api/exports/one/video').status_code, 200)
         self.assertEqual(self.video(headers={'Range': 'bytes=99999-'}).status_code, 416)
         self.assertNotIn('calligraphy_session', self.other.cookies)
-        self.assertIsNone(self.db.get_video_share('one'), 'access never upgrades to a 72-hour share')
+        self.assertIsNone(self.db.get_video_share('one'), 'access never upgrades to a permanent share')
 
     def test_export_viewer_isolation_no_owner_url_or_share_cookie_fallback(self):
         token, _ = self.issue()

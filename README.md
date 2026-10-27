@@ -137,10 +137,17 @@ Still previews execute synchronously; video requests enter the SQLite-backed
 background queue. See [studio jobs](spec/studio-jobs.md) for job ownership,
 deduplication and browser status behavior.
 
-Finished work and terminal job history are retained for **7 days** by default.
+Finished work and terminal job history are retained for **60 days** by default.
 The frontend shows the retention duration and each work's expiry. Set
-`CALLIGRAPHY_RETENTION_SECONDS` to override the default (604800 seconds).
-Download work before it expires; cleanup removes expired history and output files.
+`CALLIGRAPHY_RETENTION_SECONDS` to override the default (5184000 seconds).
+Each browser cookie identity can store at most **30 works**, including shared works
+and pending creations. Failed jobs do not consume a slot; deleting a work frees one.
+Shared videos have no automatic expiry while sharing remains enabled. Revoking
+sharing restores ordinary retention; deleting a work also revokes its links.
+Download unshared work before it expires; cleanup removes expired history and
+output files. Clearing cookies loses ownership access and starts a new quota; this
+is not an account-based abuse limit. Deployment must keep both the SQLite database
+and artwork files on the persistent `/data` volume; see [deployment](docs/deployment.md).
 
 For the static legacy browser examples (永 and poem couplet):
 

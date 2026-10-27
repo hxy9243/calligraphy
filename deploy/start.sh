@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+python deploy/check_storage.py
 mkdir -p /data/styles /data/outputs/previews /data/outputs/videos
 python deploy/check_fonts.py
 python -m deploy.prepare_samples

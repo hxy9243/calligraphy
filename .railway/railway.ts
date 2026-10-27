@@ -18,6 +18,7 @@ export default defineRailway(() => {
     volumeMounts: { "/data": data },
     env: {
       PORT: "8080",
+      CALLIGRAPHY_PERSISTENT_ROOT: "/data",
       DATABASE_URL: "sqlite:////data/calligraphy.db",
       CALLIGRAPHY_OUTPUT_DIR: "/data/outputs",
       CALLIGRAPHY_STYLE_DIR: "/data/styles",
@@ -26,7 +27,7 @@ export default defineRailway(() => {
       CALLIGRAPHY_ISOLATE_JOBS: "1",
       CALLIGRAPHY_SECURE_COOKIES: "1",
       CALLIGRAPHY_JOB_TIMEOUT_SECONDS: "600",
-      CALLIGRAPHY_RETENTION_SECONDS: "86400",
+      CALLIGRAPHY_RETENTION_SECONDS: "5184000",
       CALLIGRAPHY_MAX_ACTIVE_JOBS: "10",
       CALLIGRAPHY_PUBLIC_STYLES: "",
       CALLIGRAPHY_DEMO_ALL_FONTS: "1",

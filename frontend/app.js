@@ -2083,12 +2083,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeJobStatuses.has(job.status)) return '完成後顯示保留期限';
     const retention = job.retention;
     if (job.status === 'succeeded' && retention?.output_available === false) return '作品檔案已移除，無法下載';
+    if (retention?.is_permanent === true) return '已分享作品永久保留（停用分享或刪除作品後取消）';
     const deadline = expiryDateTime(retention?.expires_at);
     if (!deadline) return job.status === 'succeeded' ? '保留期限暫未提供，請儘早下載作品' : '保留期限暫未提供';
     const subject = job.status === 'failed' ? '記錄' : '作品';
     if (retention.expires_at * 1000 <= Date.now()) return `${subject}已到保留期限（${deadline}），即將清理`;
     const extended = retention.share_expires_at > retention.ordinary_expires_at;
     return `${subject}保留至 ${deadline}${extended ? '（分享延長）' : ''}`;
+  }
+
+  function shareRetentionNotice(retention) {
+    if (retention?.is_permanent === true) return '永久有效；停用分享會取消永久保留';
+    return retention?.share_expires_at ? `有效至 ${expiryDateTime(retention.share_expires_at)}；停用分享會取消延長保留` : '';
   }
 
   function updateRetentionDuration(seconds) {
@@ -2324,7 +2330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ${j.status === 'succeeded' && j.warning_message ? `<dt>成品提醒</dt><dd class="job-warning">${escapeHtml(j.warning_message)}</dd>` : ''}
         <dt>創建時間</dt><dd>${timeStr}</dd>
         <dt>保留期限</dt><dd data-detail-retention>${escapeHtml(jobRetentionNotice(j))}</dd>
-        <dt data-detail-share-label ${j.retention?.share_expires_at ? '' : 'hidden'}>分享連結期限</dt><dd data-detail-share-expiry ${j.retention?.share_expires_at ? '' : 'hidden'}>${j.retention?.share_expires_at ? `有效至 ${escapeHtml(expiryDateTime(j.retention.share_expires_at))}；停用分享會取消延長保留` : ''}</dd>
+        <dt data-detail-share-label ${shareRetentionNotice(j.retention) ? '' : 'hidden'}>分享連結期限</dt><dd data-detail-share-expiry ${shareRetentionNotice(j.retention) ? '' : 'hidden'}>${escapeHtml(shareRetentionNotice(j.retention))}</dd>
         <dt>任務編號</dt><dd>${escapeHtml(j.job_id)}</dd>
       `;
     }
@@ -2573,18 +2579,23 @@ document.addEventListener('DOMContentLoaded', () => {
       if (version !== jobsLoadVersion) return;
 
       updateRetentionDuration(data.retention_seconds);
+      const quota = data.storage_quota;
+      const quotaNote = document.querySelector('[data-storage-quota]');
+      if (quotaNote && Number.isInteger(quota?.used) && quota.used >= 0 && Number.isInteger(quota.limit) && quota.limit > 0) {
+        quotaNote.textContent = `此瀏覽器已儲存 ${quota.used} / ${quota.limit} 件作品（含處理中、未分享與已分享）。${quota.used >= quota.limit ? '已達上限；請先刪除不需要的作品再建立新作，現有作品不會自動刪除。' : '分享現有作品不另占名額；刪除作品可釋放名額。'}清除 Cookie 或換瀏覽器不會沿用此記錄。`;
+      }
       cachedJobs = data.jobs || [];
       if (jobDetail?.open) {
         const current = cachedJobs.find(job => job.job_id === jobDetail.dataset.jobId);
         if (current) {
           const retentionText = detailMeta.querySelector('[data-detail-retention]');
           if (retentionText) retentionText.textContent = jobRetentionNotice(current);
-          const expiry = current.retention?.share_expires_at;
+          const sharingNotice = shareRetentionNotice(current.retention);
           const label = detailMeta.querySelector('[data-detail-share-label]');
           const value = detailMeta.querySelector('[data-detail-share-expiry]');
           if (label && value) {
-            label.hidden = value.hidden = !expiry;
-            value.textContent = expiry ? `有效至 ${expiryDateTime(expiry)}；停用分享會取消延長保留` : '';
+            label.hidden = value.hidden = !sharingNotice;
+            value.textContent = sharingNotice;
           }
         }
       }
@@ -3246,6 +3257,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let shareReady = false;
   let shareActive = false;
   let shareExpiresAt = null;
+  let shareIsPermanent = false;
   const shareLinks = new Map();
   const shareStoragePrefix = 'calligraphy-share:';
   function forgetShareLink(job) {
@@ -3254,11 +3266,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function checkedShareLink(job, data) {
     const url = new URL(data.url, location.origin);
+    const permanent = data.is_permanent === true && data.expires_at === null;
     if (url.origin !== location.origin || url.pathname !== '/watch.html' || url.search ||
         !/^#[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(url.hash) ||
-        url.hash.slice(1).split('.')[0] !== job || !Number.isFinite(data.expires_at) ||
-        data.expires_at * 1000 <= Date.now()) throw new Error('分享連結無效或已到期。');
-    return { url: url.href, expires_at: data.expires_at };
+        url.hash.slice(1).split('.')[0] !== job || (!permanent && (!Number.isFinite(data.expires_at) ||
+        data.expires_at * 1000 <= Date.now()))) throw new Error('分享連結無效或已到期。');
+    return { url: url.href, expires_at: data.expires_at, is_permanent: permanent };
   }
   function cachedShareLink(job) {
     try {
@@ -3273,6 +3286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return link;
   }
   function sharePrivacyNotice() {
+    if (shareIsPermanent) return '任何持有連結的人都能觀看及下載這部影片。分享連結與作品永久保留；你可以隨時停用分享，取消永久保留，或刪除作品。';
     return `任何持有連結的人都能觀看及下載這部影片。分享連結有效至 ${expiryDateTime(shareExpiresAt)}，這部影片至少會保留至此時；你可以隨時停用，取消延長保留。`;
   }
   function updateShareButtons() {
@@ -3285,16 +3299,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function clearShareLink() {
     shareExpiresAt = null;
+    shareIsPermanent = false;
     shareURL.value = '';
     shareURL.hidden = shareCopy.hidden = shareOpen.hidden = true;
     shareOpen.removeAttribute('href');
   }
   function showShareLink(link) {
     shareExpiresAt = link.expires_at;
+    shareIsPermanent = link.is_permanent === true;
     shareURL.value = link.url;
     shareOpen.href = link.url;
     shareURL.hidden = shareCopy.hidden = shareOpen.hidden = false;
-    shareStatus.textContent = `可再次複製原連結；不會延長到期時間。${sharePrivacyNotice()}`;
+    shareStatus.textContent = `可再次複製原連結；${shareIsPermanent ? '不會取代原連結。' : '不會延長到期時間。'}${sharePrivacyNotice()}`;
   }
   async function refreshShareLink() {
     const job = shareJob;
@@ -3328,7 +3344,8 @@ document.addEventListener('DOMContentLoaded', () => {
         forgetShareLink(job);
         if (shareActive) {
           shareExpiresAt = data.expires_at;
-          shareStatus.textContent = `已有分享連結，有效至 ${new Date(data.expires_at * 1000).toLocaleString()}。此分頁未保留原連結；請使用之前複製的連結，或明確取代。取代後，朋友手上的舊連結會立即失效。`;
+          shareIsPermanent = data.is_permanent === true && data.expires_at === null;
+          shareStatus.textContent = `已有分享連結，${shareIsPermanent ? '永久有效' : `有效至 ${expiryDateTime(data.expires_at)}`}。此分頁未保留原連結；請使用之前複製的連結，或明確取代。取代後，朋友手上的舊連結會立即失效。`;
         } else shareStatus.textContent = '尚無有效分享連結。建立後才會開放持有連結的人觀看。';
       }
       return validatedLink;

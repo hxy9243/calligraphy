@@ -7,8 +7,8 @@ from typing import Optional
 
 from calligraphy.paper import get_default_stamp_url
 
-DEFAULT_RETENTION_SECONDS = 30 * 24 * 3600
-PERMANENT_SHARE_TTL_SECONDS = 10 * 365 * 24 * 3600
+DEFAULT_RETENTION_SECONDS = 60 * 24 * 3600
+OWNER_SESSION_TTL_SECONDS = 10 * 365 * 24 * 3600
 
 
 def get_retention_seconds() -> int:

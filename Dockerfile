@@ -2,6 +2,7 @@ FROM python:3.12-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+    CALLIGRAPHY_PERSISTENT_ROOT=/data \
     DATABASE_URL=sqlite:////data/calligraphy.db \
     CALLIGRAPHY_OUTPUT_DIR=/data/outputs \
     CALLIGRAPHY_STYLE_DIR=/data/styles \
@@ -26,7 +27,7 @@ COPY data/calligraphy_fonts.json data/tangshisanbaishou.json ./data/
 COPY data/fonts ./data/fonts
 COPY data/licenses ./data/licenses
 COPY deploy/start.sh ./deploy/start.sh
-COPY deploy/check_fonts.py deploy/font_assets.json deploy/prepare_samples.py ./deploy/
+COPY deploy/check_fonts.py deploy/check_storage.py deploy/font_assets.json deploy/prepare_samples.py ./deploy/
 RUN mkdir -p /data
 EXPOSE 8080
 CMD ["sh", "deploy/start.sh"]

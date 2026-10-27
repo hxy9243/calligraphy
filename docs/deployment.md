@@ -11,6 +11,9 @@ PostgreSQL or Redis service is required for this deployment.
 - `.dockerignore` and `.railwayignore`: explicit runtime file allowlists; no local environments or research outputs.
 - `deploy/requirements-studio.lock`: pinned Linux/Python 3.12 runtime dependencies.
 - `deploy/start.sh`: one Uvicorn process, Railway's `PORT`, graceful shutdown.
+- `deploy/check_storage.py`: with `CALLIGRAPHY_PERSISTENT_ROOT=/data`, refuses
+  startup if SQLite or artwork paths escape that writable root. This guard checks
+  path configuration, not whether the platform actually attached a durable volume.
 - `deploy/check_fonts.py` and `deploy/font_assets.json`: verify SHA-256 for all
   source fonts; restore missing fonts from the private persistent volume.
 - `deploy/prepare_samples.py`: pre-render 永 PNG thumbnails before startup;
@@ -97,6 +100,9 @@ Three new still/video creations per rolling minute per anonymous browser session
 Repeated submissions of an identical active video reuse that job. Deleting a
 history record does not restore the budget. HTTP 429 includes `Retry-After`.
 Clearing cookies creates a new identity; the limit is not account or IP based.
+A separate atomic 30-work storage limit includes ordinary and shared works plus
+in-flight saves. Failed jobs do not consume storage slots. Existing over-limit
+histories are preserved; new saves are rejected until a slot is freed.
 
 Ten active jobs globally, one compute slot, dimensions 64–1280 pixels per side,
 at most 120 output seconds and 3000 frames. A deployment job gets a 600-second
@@ -104,8 +110,8 @@ wall-clock deadline including font preparation. The process group is killed on
 deadline or service shutdown, including FFmpeg. Interrupted jobs are failed with
 a retry message on restart; queued jobs survive. Automatic retries are disabled.
 
-Outputs and terminal history expire after 7 days by default, configurable with
-`CALLIGRAPHY_RETENTION_SECONDS` (default: `604800`). Cleanup also removes expired
+Unshared outputs and terminal history expire after 60 days by default, configurable with
+`CALLIGRAPHY_RETENTION_SECONDS` (default: `5184000`). Cleanup also removes expired
 output files whose history was deleted. Caches are persistent and do not share
 the output TTL. Cookies are Secure, HttpOnly and SameSite=Lax; browser mutation
 requests must be same-origin. Clearing browser data loses access to old jobs.
@@ -220,3 +226,98 @@ dismissal, WeChat detection/copy fallback and header order. The full Python
 suite passed 170 tests; the release-specific suite then passed all 14 tests,
 including the additional missing-private-input regression. Actual phone and
 visual browser verification remains unavailable as described above.
+
+
+## Retention rollout and durability checklist
+
+The 60-day policy requires `CALLIGRAPHY_RETENTION_SECONDS=5184000` (or unset).
+The IaC manifest previously forced **86400 seconds**, overriding the Python
+default; inspect the actual production variable before applying this release.
+Code/config edits alone do not update a deployed service.
+
+- Review the pre-existing QR-token setting `CALLIGRAPHY_SHARE_SECRET`: the source
+  fallback is public, so it is not a production secret. Provision a strong stable
+  value through secret management before relying on QR capability secrecy; never
+  print it in logs. Changing it affects initial links for already-rendered QR
+  stamps, so coordinate that change separately rather than silently rotating it.
+- Back up the existing `/data` volume, including SQLite and outputs, before rollout.
+  Use SQLite's online backup API or stop writes for a consistent database backup;
+  keep the matching artifact tree. Do not copy only a live SQLite main file and
+  discard its WAL.
+- Verify the existing volume remains mounted at `/data`; do not recreate it.
+  `DATABASE_URL=sqlite:////data/calligraphy.db` and
+  `CALLIGRAPHY_OUTPUT_DIR=/data/outputs` must both resolve inside that volume.
+  Container-local disk alone does not survive replacement/redeployment.
+- The additive sharing migration preserves existing records and upgrades live
+  legacy share leases to non-expiring shares. Expired/revoked links are not revived.
+  Existing histories above 30 are not trimmed. No retroactive quota eviction runs.
+  The migration conservatively marks old jobs as previously issued, because the
+  old code did not persist revoked-link history. Existing live links retain their
+  hashes and work; a never-shared pre-upgrade artwork's printed QR may not match
+  its first newly created link. Use the owner's Share dialog link in that case.
+- Retention cleanup remains destructive for eligible unshared records/artifacts.
+  Before enabling a new build against production, inventory expired works and
+  orphan files, review the count/age with the owner, and obtain approval for any
+  destructive cleanup. A backup is not permission to delete existing data.
+- Do not roll old code directly onto the migrated schema: its positional
+  three-column share INSERT is incompatible with the added permanence column.
+  Use a compatible rollback build, or restore the coordinated pre-upgrade
+  database/artifact backup with explicit approval (restoring can discard new work).
+- Verify an ordinary work and shared work (including file checksum), restart the
+  service with the same volume, and verify owner history, output download and
+  shared-link playback again. Local persistence tests prove filesystem behavior,
+  not that Railway has the expected mount or backup policy.
+- Shared retention means no automatic expiration, not protection against explicit
+  deletion, share revocation, disk loss or storage-provider failure. Keep backups
+  and monitor volume capacity. Cookie quotas are bypassable by clearing cookies;
+  the existing rate/global queue limits remain in place.
+
+No object store or additional paid service is required for the existing
+single-replica volume-backed deployment. Scaling beyond one replica needs a new
+storage/queue design rather than mounting independent ephemeral disks.
+
+
+The 30-work limit is a count of owned active/successful records, not a disk-byte
+ceiling. Explicit deletion still leaves orphan output files for ordinary TTL
+cleanup, and failed renders may leave partial artifacts for that same cleanup.
+Repeated save/delete or repeated failures can therefore consume temporary disk
+space; the existing creation rate limit and disk monitoring remain necessary.
+Quota-rejected requests never execute a renderer or create an output artifact.
+
+### Staged release procedure (requires deployment approval)
+
+1. Review the feature-branch diff and local regression results. Publishing this
+   branch or a draft PR is not authorization to merge, deploy or change live data.
+2. Read-only preflight: verify the production service's source branch, single
+   replica, existing `/data` mount and nonsecret path/TTL overrides. Confirm no PR
+   environment will deploy this branch. Record the currently deployed image/revision.
+3. Arrange a maintenance window before stopping writes. Confirm a supported
+   provider volume-backup method, its backup identifier/status and restoration
+   procedure. If using a manual backup, quiesce both API writes and the worker,
+   then snapshot the database and artifact tree together; do not rely on a raw
+   copy of a live SQLite file. These state changes require separate approval.
+4. Restore the backup into an isolated local/staging directory. Inventory rows,
+   active shares, artifact paths/checksums, ordinary works already past 60 days,
+   and orphan outputs. Run the migration against that **copy**, then compare row
+   counts, old active share hashes, ownership and artifact checksums. Verify an
+   existing live link and fresh-process ordinary/shared downloads. Keep production
+   untouched and review the inventory before authorizing cleanup.
+5. With explicit deployment/cleanup approval, retain the same production volume,
+   set the nonsecret paths and 5184000-second retention, and deploy the approved
+   exact commit. The worker runs retention cleanup after startup, so do not treat
+   deployment as a read-only migration trial. Never recreate the volume.
+6. Verify health, owner isolation, 30-slot rejection, ordinary/shared access and
+   artifact checksums. Restart using the same volume and verify them again. If a
+   check fails, stop new writes and use a compatible rollback plan; never blindly
+   restore an old database over work created after the backup.
+
+No production backup, maintenance window, deployment, cleanup, merge or rollback
+has been executed by preparing this change.
+
+Read-only rollout-preparation observation (2026-10-27): the existing production
+`/data` volume and single replica were verified, but existing backup status and
+schedules remain **unknown**. Current Railway MCP does not expose backup reads,
+and the available browser is not authenticated. No backup was created or claimed.
+Verify a whole-volume `/data` snapshot or a consistent SQLite/WAL plus artifact
+backup using an authorized operator session before approving migration. Do not
+interpret unavailable backup visibility as proof that no backups exist.

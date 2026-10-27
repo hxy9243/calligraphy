@@ -2,7 +2,7 @@ import unittest
 import cv2
 import numpy as np
 
-from backend.retention import DEFAULT_RETENTION_SECONDS, PERMANENT_SHARE_TTL_SECONDS, job_share_token, job_share_url
+from backend.retention import DEFAULT_RETENTION_SECONDS, OWNER_SESSION_TTL_SECONDS, job_share_token, job_share_url
 from calligraphy.paper import (
     DEFAULT_STAMP_URL,
     compute_paper_grid,
@@ -155,8 +155,8 @@ class PaperAndQrStampTests(unittest.TestCase):
             self.assertLessEqual(y1, 960.0)
 
     def test_retention_constants_and_deterministic_share_url(self):
-        self.assertEqual(DEFAULT_RETENTION_SECONDS, 30 * 24 * 3600)
-        self.assertGreaterEqual(PERMANENT_SHARE_TTL_SECONDS, 5 * 365 * 24 * 3600)
+        self.assertEqual(DEFAULT_RETENTION_SECONDS, 60 * 24 * 3600)
+        self.assertGreaterEqual(OWNER_SESSION_TTL_SECONDS, 5 * 365 * 24 * 3600)
         tok = job_share_token("vid_test123")
         self.assertEqual(len(tok), 43)
         self.assertTrue(job_share_url("vid_test123").endswith(f"/watch.html#vid_test123.{tok}"))

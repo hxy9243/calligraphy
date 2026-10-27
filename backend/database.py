@@ -1,4 +1,5 @@
 """Database layer supporting SQLite (default) and PostgreSQL for Calligraphy Studio."""
+import hashlib
 import json
 import os
 import sqlite3
@@ -26,6 +27,14 @@ RENDER_PARAMETER_DEFAULTS = {
 
 def now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+SAVED_WORK_LIMIT = 30
+SAVED_WORK_STATES = ("queued", "rendering", "running", "succeeded")
+
+
+class SavedWorkLimitError(Exception):
+    """The browser session has no free server-storage slot."""
 
 
 class AdmissionError(Exception):
@@ -122,8 +131,36 @@ class Database:
                     conn.execute("CREATE TABLE IF NOT EXISTS video_exports (job_id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, expires_at REAL NOT NULL)")
                     # Sharing has its own capability; it never extends an export link.
                     conn.execute("CREATE TABLE IF NOT EXISTS video_shares (job_id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, expires_at REAL NOT NULL)")
+                    share_columns = {row["name"] for row in conn.execute("PRAGMA table_info(video_shares)")}
+                    if "is_permanent" not in share_columns:
+                        # Additive migration: preserve hashes, deadlines and every row.
+                        # Already-live shares gain permanence; expired links stay expired.
+                        conn.execute("ALTER TABLE video_shares ADD COLUMN is_permanent INTEGER NOT NULL DEFAULT 0")
+                        conn.execute("UPDATE video_shares SET is_permanent = 1 WHERE expires_at > ?", (time.time(),))
+                    # Retain issuance history across revocation/restart without storing tokens.
+                    issuance_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'video_share_issuance'").fetchone()
+                    conn.execute("CREATE TABLE IF NOT EXISTS video_share_issuance (job_id TEXT PRIMARY KEY)")
+                    if not issuance_exists:
+                        # Legacy revocation was not persisted: conservatively rotate all
+                        # pre-upgrade jobs rather than ever reissue a revoked QR token.
+                        conn.execute("INSERT OR IGNORE INTO video_share_issuance (job_id) SELECT job_id FROM jobs")
+                    conn.execute("INSERT OR IGNORE INTO video_share_issuance (job_id) SELECT job_id FROM video_shares")
                     conn.execute("CREATE TABLE IF NOT EXISTS creation_events (session_id TEXT NOT NULL, created_at REAL NOT NULL)")
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_creation_events ON creation_events(session_id, created_at)")
+
+    @staticmethod
+    def _saved_work_count(conn, session_id):
+        return conn.execute("SELECT COUNT(*) FROM jobs WHERE session_id = ? AND status IN ('queued', 'rendering', 'running', 'succeeded')", (session_id,)).fetchone()[0]
+
+    def storage_quota(self, session_id):
+        with self._lock:
+            return {"used": self._saved_work_count(self._get_sqlite_conn(), session_id),
+                    "limit": SAVED_WORK_LIMIT, "scope": "browser_session"}
+
+    def _reserve_saved_work(self, conn, session_id, status):
+        # Called only with BEGIN IMMEDIATE held, including across processes.
+        if status in SAVED_WORK_STATES and self._saved_work_count(conn, session_id) >= SAVED_WORK_LIMIT:
+            raise SavedWorkLimitError("伺服器最多儲存 30 件作品，請先刪除作品 / This browser session has 30 saved works. Delete a work before saving another.")
 
     def _admit_creation(self, conn, session_id):
         """Called inside the same write transaction as the new job insertion."""
@@ -156,13 +193,13 @@ class Database:
             conn.execute("BEGIN IMMEDIATE;")
             now = time.time()
             conn.execute("""DELETE FROM jobs WHERE status IN ('succeeded', 'failed')
-                AND COALESCE(completed_at, created_at) < ?
+                AND COALESCE(completed_at, created_at) <= ?
                 AND NOT (status = 'succeeded' AND job_type = 'render' AND EXISTS
-                    (SELECT 1 FROM video_shares WHERE video_shares.job_id = jobs.job_id AND video_shares.expires_at > ?))""", (cutoff, now))
+                    (SELECT 1 FROM video_shares WHERE video_shares.job_id = jobs.job_id AND (video_shares.is_permanent = 1 OR video_shares.expires_at > ?)))""", (cutoff, now))
             conn.execute("DELETE FROM video_exports WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (now,))
-            conn.execute("DELETE FROM video_shares WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (now,))
+            conn.execute("DELETE FROM video_shares WHERE (is_permanent = 0 AND expires_at <= ?) OR job_id NOT IN (SELECT job_id FROM jobs)", (now,))
             rows = conn.execute("""SELECT jobs.output_path FROM jobs JOIN video_shares USING (job_id)
-                WHERE video_shares.expires_at > ? AND jobs.status = 'succeeded'
+                WHERE (video_shares.is_permanent = 1 OR video_shares.expires_at > ?) AND jobs.status = 'succeeded'
                     AND jobs.job_type = 'render' AND jobs.output_path IS NOT NULL""", (now,)).fetchall()
             yield {Path(row["output_path"]).resolve() for row in rows}
 
@@ -205,8 +242,9 @@ class Database:
             conn = self._get_sqlite_conn()
             with self._lock:
                 with conn:
+                    conn.execute("BEGIN IMMEDIATE;")
+                    self._reserve_saved_work(conn, session_id, status)
                     if admit:
-                        conn.execute("BEGIN IMMEDIATE;")
                         self._admit_creation(conn, session_id)
                     self._insert_job(
                         conn, job_id, session_id, job_type, text, style,
@@ -268,6 +306,7 @@ class Database:
                     if {**RENDER_PARAMETER_DEFAULTS, **job["params"]} == identity_params:
                         return job
 
+                self._reserve_saved_work(conn, session_id, "queued")
                 if admit:
                     self._admit_creation(conn, session_id)
                 self._insert_job(
@@ -324,6 +363,11 @@ class Database:
             conn = self._get_sqlite_conn()
             with self._lock:
                 with conn:
+                    conn.execute("BEGIN IMMEDIATE;")
+                    if status in SAVED_WORK_STATES:
+                        previous = conn.execute("SELECT session_id, status FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+                        if previous and previous["status"] not in SAVED_WORK_STATES:
+                            self._reserve_saved_work(conn, previous["session_id"], status)
                     conn.execute(query, values)
         return self.get_job(job_id)
 
@@ -402,7 +446,7 @@ class Database:
         with self._lock, conn:
             conn.execute("DELETE FROM video_exports WHERE job_id = ?", (job_id,))
 
-    def set_video_share(self, job_id, session_id, token_hash, expires_at, validate_artifact=None):
+    def set_video_share(self, job_id, session_id, token_hash, expires_at=None, validate_artifact=None, issue_token=None):
         """Rotate under the same database reservation as retention cleanup.
 
         API issuance supplies validate_artifact, which checks the current file
@@ -411,21 +455,35 @@ class Database:
         conn = self._get_sqlite_conn()
         with self._lock, conn:
             conn.execute("BEGIN IMMEDIATE;")
-            conn.execute("DELETE FROM video_shares WHERE expires_at <= ? OR job_id NOT IN (SELECT job_id FROM jobs)", (time.time(),))
+            conn.execute("DELETE FROM video_shares WHERE (is_permanent = 0 AND expires_at <= ?) OR job_id NOT IN (SELECT job_id FROM jobs)", (time.time(),))
             job = conn.execute("SELECT * FROM jobs WHERE job_id = ? AND session_id = ?", (job_id, session_id)).fetchone()
             if not job or job["status"] != "succeeded" or job["job_type"] != "render":
                 return False
             if validate_artifact is not None:
                 previous = conn.execute("SELECT * FROM video_shares WHERE job_id = ?", (job_id,)).fetchone()
-                validate_artifact(self._decode_job(job), dict(previous) if previous else None)
-            conn.execute("INSERT INTO video_shares VALUES (?, ?, ?) ON CONFLICT(job_id) DO UPDATE SET token_hash = excluded.token_hash, expires_at = excluded.expires_at", (job_id, token_hash, expires_at))
-            return True
+                validate_artifact(self._decode_job(job), self._decode_share(previous) if previous else None)
+            token = None
+            if issue_token is not None:
+                issued = conn.execute("SELECT 1 FROM video_share_issuance WHERE job_id = ?", (job_id,)).fetchone() is not None
+                token = issue_token(issued)
+                token_hash = hashlib.sha256(token.encode("ascii")).hexdigest()
+            conn.execute("INSERT OR IGNORE INTO video_share_issuance (job_id) VALUES (?)", (job_id,))
+            conn.execute("INSERT INTO video_shares (job_id, token_hash, expires_at, is_permanent) VALUES (?, ?, ?, ?) ON CONFLICT(job_id) DO UPDATE SET token_hash = excluded.token_hash, expires_at = excluded.expires_at, is_permanent = excluded.is_permanent", (job_id, token_hash, expires_at if expires_at is not None else 0, int(expires_at is None)))
+            return token if issue_token is not None else True
+
+    @staticmethod
+    def _decode_share(row):
+        data = dict(row)
+        data["is_permanent"] = bool(data["is_permanent"])
+        if data["is_permanent"]:
+            data["expires_at"] = None
+        return data
 
     def get_video_share(self, job_id):
         conn = self._get_sqlite_conn()
         with self._lock:
             row = conn.execute("SELECT * FROM video_shares WHERE job_id = ?", (job_id,)).fetchone()
-            return dict(row) if row else None
+            return self._decode_share(row) if row else None
 
     def revoke_video_share(self, job_id, session_id):
         conn = self._get_sqlite_conn()
@@ -433,6 +491,7 @@ class Database:
             conn.execute("BEGIN IMMEDIATE;")
             if not conn.execute("SELECT 1 FROM jobs WHERE job_id = ? AND session_id = ?", (job_id, session_id)).fetchone():
                 return False
+            conn.execute("INSERT OR IGNORE INTO video_share_issuance (job_id) VALUES (?)", (job_id,))
             conn.execute("DELETE FROM video_shares WHERE job_id = ?", (job_id,))
             return True
 

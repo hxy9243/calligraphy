@@ -285,7 +285,7 @@
           </details>
         </section>
 
-        <p class="creation-note">每分鐘最多創建 3 次 · 未分享作品保留 <span data-retention-duration>30 天</span> · 已分享作品與視頻永久保留</p>
+        <p class="creation-note">每分鐘最多創建 3 次 · 此瀏覽器最多儲存 30 件作品 · 未分享作品保留 <span data-retention-duration>60 天</span> · 已分享作品與視頻永久保留</p>
         <div class="action-bar">
           <button type="button" id="btn-jump-preview" class="btn btn-secondary btn-jump-preview" title="跳至排版預覽" aria-label="跳至排版預覽">
             <span class="jump-icon" aria-hidden="true">↗</span>
@@ -361,7 +361,8 @@
         <input type="search" id="history-search" class="search" placeholder="搜索文字或字體" aria-label="搜索歷史">
       </div>
     </div>
-    <p class="note retention-guide">未分享作品與記錄保留 <span data-retention-duration>30 天</span>。分享給朋友的作品與影片連結永久有效（原 72 小時限制已取消），印章二維碼即對應分享連結；給自己換瀏覽器用的臨時連結最長 10 分鐘，不延長作品保留期限。</p>
+    <p class="note storage-quota" data-storage-quota>此瀏覽器最多儲存 30 件作品（含未分享與已分享）；清除 Cookie 或換瀏覽器不會沿用此記錄。</p>
+    <p class="note retention-guide">未分享作品與記錄保留 <span data-retention-duration>60 天</span>。分享給朋友的作品與影片連結永久有效；舊作品或更換分享連結後，請使用分享視窗複製的連結，原印章二維碼可能不再適用；給自己換瀏覽器用的臨時連結最長 10 分鐘，不延長作品保留期限。</p>
     <div id="jobs-list" class="history-grid jobs-list"></div>
     <div id="history-empty" class="empty" hidden>
       <p>暫無記錄</p>
@@ -554,7 +555,7 @@
   <div class="sheet-inner">
     <header class="sheet-head"><h2 id="video-share-title">分享給朋友</h2><button type="button" class="icon-btn" data-close aria-label="關閉" autofocus>✕</button></header>
     <div class="share-body">
-      <p id="video-share-description">分享連結與已分享作品永久有效（原 72 小時限制已取消），作品上的朱砂印章二維碼即對應此分享連結。任何持有連結的人都能觀看及下載這部影片；請只交給你願意分享的人。刪除影片或停用分享會立即使連結失效。只有明確取代才會使舊連結失效。</p>
+      <p id="video-share-description">分享連結與已分享作品永久有效。舊作品、停用後重建或取代連結後，原印章二維碼可能無效，請以此視窗複製的連結為準。任何持有連結的人都能觀看及下載這部影片；請只交給你願意分享的人。刪除影片或停用分享會立即使連結失效。只有明確取代才會使舊連結失效。</p>
       <p class="note">微信中如無法播放或下載，請複製連結，手動貼到 Safari／Chrome 開啟，無需重新生成影片。</p>
       <input id="video-share-url" type="text" readonly hidden aria-label="影片分享連結" />
       <p id="video-share-status" role="status" aria-live="polite"></p>

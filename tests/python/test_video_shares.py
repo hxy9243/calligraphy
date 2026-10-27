@@ -12,7 +12,7 @@ from unittest.mock import patch
 from urllib.parse import urlsplit
 
 from fastapi.testclient import TestClient
-from backend.app import app, ShareAccessLimiter, SHARE_COOKIE_NAME, SHARE_TTL_SECONDS, shared_video_path
+from backend.app import app, ShareAccessLimiter, SHARE_COOKIE_NAME, shared_video_path
 from backend.database import Database
 from backend.worker import cleanup_expired_outputs
 
@@ -55,8 +55,8 @@ class VideoShareTests(unittest.TestCase):
         self.assertEqual(url.path, '/watch.html')
         self.assertFalse(url.query)
         self.assertFalse(url.netloc)
-        self.assertLessEqual(data['expires_at'], time.time() + SHARE_TTL_SECONDS)
-        self.assertGreater(data['expires_at'], time.time() + SHARE_TTL_SECONDS - 5)
+        self.assertIsNone(data['expires_at'])
+        self.assertTrue(data['is_permanent'])
         self.assertIn('no-store', response.headers['cache-control'])
         token = url.fragment.split('.')[1]
         self.assertEqual(len(token), 43)
@@ -86,7 +86,7 @@ class VideoShareTests(unittest.TestCase):
         self.assertEqual(self.db.get_video_share('one'), before)
         self.assertEqual(self.access(token).status_code, 200)
         metadata = self.owner.post('/api/jobs/one/share-link/status', json={}).json()
-        self.assertEqual(metadata, {'active': True, 'expires_at': issued['expires_at']})
+        self.assertEqual(metadata, {'active': True, 'expires_at': issued['expires_at'], 'is_permanent': True})
         self.assertNotIn('token_hash', metadata)
         self.assertEqual(self.owner.post('/api/jobs/one/share-link').status_code, 409)
         self.assertEqual(self.db.get_video_share('one'), before)
@@ -109,8 +109,8 @@ class VideoShareTests(unittest.TestCase):
         self.owner.delete('/api/jobs/one/share-link')
         self.assertEqual(self.owner.post(path, json={'token': new}).json(), {'active': False})
         new, _ = self.issue()
-        with patch('backend.app.time.time', return_value=time.time() + SHARE_TTL_SECONDS + 3600):
-            self.assertEqual(self.owner.post(path, json={'token': new}).json(), {'active': False})
+        with patch('backend.app.time.time', return_value=time.time() + 25 * 365 * 86400):
+            self.assertTrue(self.owner.post(path, json={'token': new}, headers={'Cookie': f'calligraphy_session={self.session}'}).json()['active'])
         self.owner.delete('/api/jobs/one')
         self.assertUnavailable(self.owner.post(path, json={'token': new}))
 
@@ -238,7 +238,7 @@ class VideoShareTests(unittest.TestCase):
         old = time.time() - 86350
         os.utime(self.path, (old, old))
         token, data = self.issue()
-        self.assertGreater(data['expires_at'], time.time() + 72 * 3600 - 5)
+        self.assertIsNone(data['expires_at'])
         self.access(token)
         old = time.time() - 86401
         os.utime(self.path, (old, old))
@@ -251,12 +251,12 @@ class VideoShareTests(unittest.TestCase):
         os.utime(self.path, None)
         with patch.dict(os.environ, {'CALLIGRAPHY_RETENTION_SECONDS': '30'}):
             token, data = self.issue()
-            self.assertGreater(data['expires_at'], time.time() + 72 * 3600 - 5)
+            self.assertIsNone(data['expires_at'])
         with self.db._get_sqlite_conn() as conn:
             conn.execute('UPDATE jobs SET completed_at = ?, expires_at = ? WHERE job_id = ?', (
                 datetime.now(timezone.utc).isoformat(), datetime.fromtimestamp(time.time() + 10, timezone.utc).isoformat(), 'one'))
         token, data = self.issue()
-        self.assertGreater(data['expires_at'], time.time() + 72 * 3600 - 5)
+        self.assertIsNone(data['expires_at'])
         self.access(token)
         with self.db._get_sqlite_conn() as conn:
             conn.execute('UPDATE jobs SET completed_at = ? WHERE job_id = ?', (datetime.fromtimestamp(time.time() - 86401, timezone.utc).isoformat(), 'one'))
@@ -269,7 +269,7 @@ class VideoShareTests(unittest.TestCase):
         export_token = urlsplit(exported['url']).fragment.split('.')[1]
         share_token, shared = self.issue()
         self.assertLessEqual(exported['expires_at'], time.time() + 600)
-        self.assertGreater(shared['expires_at'], exported['expires_at'] + 1000)
+        self.assertIsNone(shared['expires_at'])
         self.assertUnavailable(self.access(export_token))
         self.assertEqual(self.viewer.post('/api/exports/one/download', data={'token': share_token}).status_code, 404)
         self.owner.delete('/api/jobs/one/share-link')
@@ -377,6 +377,27 @@ class VideoShareTests(unittest.TestCase):
         second.prune_history('2000-01-01T00:00:00+00:00')
         self.assertIsNone(self.db.get_video_share('one'))
 
+    def test_revoke_restart_reissue_never_revives_original_qr_token(self):
+        original, _ = self.issue()
+        self.owner.delete('/api/jobs/one/share-link')
+        second = Database(self.db_url)
+        with patch('backend.database._DB_INSTANCE', second):
+            replacement, _ = self.issue()
+            self.assertNotEqual(replacement, original)
+            self.assertUnavailable(self.access(original))
+            self.assertEqual(self.access(replacement).status_code, 200)
+        self.assertEqual(second._get_sqlite_conn().execute(
+            'SELECT COUNT(*) FROM video_share_issuance WHERE job_id = ?', ('one',)).fetchone()[0], 1)
+
+    def test_permanent_media_cookie_is_bounded_independently_of_share(self):
+        token, _ = self.issue()
+        response = self.access(token)
+        self.assertIsNone(response.json()['expires_at'])
+        self.assertTrue(response.json()['is_permanent'])
+        cookie = next(c for c in self.viewer.cookies.jar if c.name == SHARE_COOKIE_NAME)
+        self.assertLessEqual(cookie.expires, time.time() + 86401)
+        self.assertGreater(cookie.expires, time.time() + 86398)
+
     def test_exchange_rate_limit_never_blocks_native_seeking(self):
         token, _ = self.issue()
         for _ in range(60):
@@ -423,16 +444,15 @@ class VideoShareTests(unittest.TestCase):
         self.assertIsNone(self.db.get_job('ordinary'))
         self.assertFalse(ordinary.exists())
         self.assertFalse(orphan.exists())
-        # A full 72-hour lease is readable after ordinary 24-hour retention.
-        with patch('backend.app.time.time', return_value=data['expires_at'] - 1):
+        # Sharing has no time horizon, unlike the bounded media-cookie exchange.
+        with patch('backend.app.time.time', return_value=time.time() + 25 * 365 * 86400):
+            self.assertEqual(self.access(token).status_code, 200)
             self.assertEqual(self.video().status_code, 200)
-        with patch('backend.app.time.time', return_value=data['expires_at'] + 1):
-            self.assertUnavailable(self.video())
             with patch('backend.worker.output_root', return_value=root):
                 cleanup_expired_outputs(self.db)
-        self.assertFalse(self.path.exists())
-        self.assertIsNone(self.db.get_job('one'))
-        self.assertIsNone(self.db.get_video_share('one'))
+        self.assertTrue(self.path.exists())
+        self.assertIsNotNone(self.db.get_job('one'))
+        self.assertTrue(self.db.get_video_share('one')['is_permanent'])
 
     def test_revocation_ends_extended_retention_and_cleanup_removes_old_video(self):
         root = self.cleanup_fixture()

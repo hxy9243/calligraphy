@@ -13,6 +13,7 @@
 !deploy/requirements-studio.lock
 !deploy/start.sh
 !deploy/check_fonts.py
+!deploy/check_storage.py
 !deploy/prepare_samples.py
 !deploy/font_assets.json
 !data/

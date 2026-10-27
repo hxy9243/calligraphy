@@ -93,6 +93,36 @@ for (const exportMode of [false, true]) {
     }
   });
 
+  test(`${pageName}: permanent access is explicit, never expires in the viewer, and is forbidden for exports`, async t => {
+    const timers = [];
+    const ui = await viewer(t, { setup(window) {
+      window.setTimeout = (callback, delay) => { timers.push({callback, delay}); return timers.length; };
+    }, fetch: () => response({...valid(), expires_at:null, is_permanent:true}) });
+    assert.equal(ui.get('video').hidden, exportMode);
+    assert.equal(timers.length, 0);
+    if (!exportMode) {
+      assert.match(ui.get('status').textContent, /永久有效/);
+      ui.get('copy').click(); await flush();
+      assert.match(ui.get('copy-status').textContent, /永久有效/);
+      assert.doesNotMatch(ui.get('copy-status').textContent, /1970|72 小時/);
+      ui.window.dispatchEvent(new ui.window.PageTransitionEvent('pagehide'));
+      assert.equal(ui.get('video').hidden, true);
+    }
+    const missingFlag = await viewer(t, {fetch: () => response({...valid(), expires_at:null})});
+    assert.equal(missingFlag.get('video').hidden, true);
+  });
+
+  test(`${pageName}: long finite legacy links do not expire at the browser timer ceiling`, async t => {
+    const timers = [];
+    const ui = await viewer(t, {setup(window) {
+      window.setTimeout = (callback, delay) => {timers.push({callback,delay}); return timers.length;};
+    }, fetch: () => response({...valid(),expires_at:Date.now()/1000 + 100*86400})});
+    assert.equal(timers[0].delay,2**31-1);
+    timers[0].callback();
+    assert.equal(ui.get('video').hidden,false);
+    assert.equal(timers.length,2);
+  });
+
   test(`${pageName}: malformed fragments never make a request or expose media`, async t => {
     for (const hash of ['', '#bad', `#vid.one.${token}`, `#${'a'.repeat(65)}.${token}`, `#vid_one.${token}x`, `#vid_one.${token}?tracking=1`]) {
       const ui = await viewer(t, { hash });
@@ -211,7 +241,7 @@ for (const exportMode of [false, true]) {
     assert.match(ui.get('copy-status').textContent, /已複製/);
     assert.match(ui.get('copy-status').textContent, /持有連結的人皆可觀看及下載/);
     assert.match(ui.get('copy-status').textContent, /到期時間/);
-    assert.match(ui.document.querySelector('footer').textContent, exportMode ? /10 分鐘/ : /72 小時/);
+    assert.match(ui.document.querySelector('footer').textContent, exportMode ? /10 分鐘/ : /永久有效/);
     if (exportMode) {
       assert.match(ui.document.querySelector('footer').textContent, /不延長作品保留期限/);
       assert.match(ui.get('copy-status').textContent, /不延長作品保留期限/);
@@ -253,6 +283,7 @@ for (const exportMode of [false, true]) {
     await flush();
     firstTimer();
     assert.equal(ui.get('video').hidden, false);
+    ui.window.Date.now = () => Date.now() + 7200 * 1000;
     timers.at(-1)();
     assert.equal(ui.get('video').hidden, true);
     assert.equal(ui.get('download').hidden, true);

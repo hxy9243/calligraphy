@@ -201,7 +201,7 @@ class DemoReleaseTests(unittest.TestCase):
         root = Path(self.temp.name) / 'outputs'
         (root / 'videos').mkdir(parents=True)
         old = root / 'videos/orphan.mp4'; old.write_bytes(b'old')
-        os.utime(old, (time.time()-35*86400,)*2)
+        os.utime(old, (time.time()-65*86400,)*2)
         recent = root / 'videos/recent.mp4'; recent.write_bytes(b'new')
         self.db.create_job('old', 'user-a', 'render', '永', 'kai', {}, status='succeeded')
         with self.db._get_sqlite_conn() as conn:

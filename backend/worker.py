@@ -76,7 +76,7 @@ def cleanup_expired_outputs(db):
         # Include orphaned outputs whose history was explicitly deleted.
         for folder in ("previews", "videos"):
             for path in (root / folder).glob("*"):
-                if path.is_file() and not path.is_symlink() and path.resolve() not in protected and path.stat().st_mtime < cutoff:
+                if path.is_file() and not path.is_symlink() and path.resolve() not in protected and path.stat().st_mtime <= cutoff:
                     path.unlink(missing_ok=True)
 
 
