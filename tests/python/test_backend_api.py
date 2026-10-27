@@ -227,8 +227,8 @@ class BackendApiTests(unittest.TestCase):
         data = res_excess.json()
         self.assertIn("20", data["detail"])
 
-    def test_punctuation_option_default_omit(self):
-        # By default, punctuation is ignored/omitted
+    def test_punctuation_option_default_gap(self):
+        # By default, punctuation reserves a blank cell
         res_omit = self.client.post(
             "/api/previews",
             json={"text": "明，月。", "style": "kai"},
@@ -245,14 +245,14 @@ class BackendApiTests(unittest.TestCase):
         )
         self.assertEqual(res_break.status_code, 200)
 
-        # Video render with default punctuation omit
+        # Video render persists the same gap policy
         res_render = self.client.post(
             "/api/renders",
             json={"text": "明，月。", "style": "kai"},
         )
         self.assertEqual(res_render.status_code, 202)
         job = self.db.get_job(res_render.json()["job_id"])
-        self.assertEqual(job["params"].get("punctuation"), "omit")
+        self.assertEqual(job["params"].get("punctuation"), "gap")
 
 
 if __name__ == "__main__":

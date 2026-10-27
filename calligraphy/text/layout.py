@@ -144,6 +144,8 @@ def layout_text(
         for line_index, line in enumerate(wrapped):
             col_x = left + total_w - cell - line_index * cell * (1 + gap)
             for index, character in enumerate(line):
+                if character == " ":
+                    continue
                 col = columns - 1 - line_index
                 row = index
                 x = col_x
@@ -176,6 +178,8 @@ def layout_text(
                 col_y_start = top + y_offset
 
                 for char_idx, character in enumerate(line):
+                    if character == " ":
+                        continue
                     placements.append(
                         {
                             "character": character,
@@ -234,6 +238,8 @@ def layout_text(
         placements = []
         for line_index, line in enumerate(wrapped):
             for index, character in enumerate(line):
+                if character == " ":
+                    continue
                 col = index
                 row = line_index
                 x = left + col * cell * (1 + gap)
@@ -265,6 +271,8 @@ def layout_text(
                 row_x_start = main_right - line_w
                 row_y = top + main_h + cell * 0.5 + row_idx * s * (1 + gap)
                 for char_idx, character in enumerate(line):
+                    if character == " ":
+                        continue
                     placements.append(
                         {
                             "character": character,

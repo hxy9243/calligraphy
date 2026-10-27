@@ -27,7 +27,7 @@ export function validateGlyph(character, glyph) {
 
 /** Explicit preparation step; scene rendering itself never performs network I/O. */
 export async function resolveGlyphs(text, { glyphs = bundledGlyphs, fetchMissing = false,
-  fetchImpl = globalThis.fetch, punctuation = 'break' } = {}) {
+  fetchImpl = globalThis.fetch, punctuation = 'gap' } = {}) {
   const { uniqueCharacters } = parseText(text, { punctuation });
   const result = {};
   const missing = [];

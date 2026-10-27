@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-DEFAULT_STAMP_URL = "https://calligraphy-demo-production.up.railway.app"
+DEFAULT_STAMP_URL = "https://calligraphy.kevinhu.me"
 
 
 def get_default_stamp_url() -> str:
@@ -400,10 +400,10 @@ def render_qr_seal_stamp(
     cinnabar_g = 28.0
     cinnabar_b = 22.0
 
-    if n_mod <= 33:
-        # For standard/short URLs (<=33 modules, versions 1-4):
-        # Exact integer module scaling eliminates fractional Moiré and phase distortion,
-        # ensuring 100% scannability across all canvas sizes.
+    if n_mod <= 33 or n_mod * 2 + 16 <= size_px:
+        # Use integer modules whenever two pixels per module leave room for
+        # the quiet margin and seal border, including longer share URLs.
+        # Integer scaling avoids fractional edges that hinder small QR scans.
         m = 2
         if n_mod * 3 + 24 <= size_px:
             m = 3

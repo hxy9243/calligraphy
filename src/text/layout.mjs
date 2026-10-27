@@ -67,6 +67,6 @@ export function layoutText(lines, { width = 1080, height = 1440, direction = 've
       }
     }
     return { character, line: lineIndex, column, row, x, y, size: cell };
-  }));
+  }).filter(placement => placement.character !== ' '));
   return { width, height, direction, charactersPerLine: perLine, columns, rows, zigzag, placements };
 }

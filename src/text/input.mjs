@@ -2,9 +2,9 @@ const HAN = /\p{Script=Han}/u;
 const PUNCTUATION = /[，。！？、；：,.!?;:「」『』（）()“”‘’《》〈〉…—·]/u;
 
 /** Parse writing order without converting simplified/traditional characters. */
-export function parseText(text, { punctuation = 'break' } = {}) {
+export function parseText(text, { punctuation = 'gap' } = {}) {
   if (typeof text !== 'string' || !text.trim()) throw new TypeError('text must be a non-empty string');
-  if (!['break', 'omit'].includes(punctuation)) throw new TypeError('punctuation must be break or omit');
+  if (!['gap', 'break', 'omit'].includes(punctuation)) throw new TypeError('punctuation must be gap, break or omit');
   const lines = [[]];
   const omitted = new Set();
   const unsupported = new Set();
@@ -16,13 +16,15 @@ export function parseText(text, { punctuation = 'break' } = {}) {
     else if (PUNCTUATION.test(character)) {
       omitted.add(character);
       if (punctuation === 'break') lineBreak();
+      else if (punctuation === 'gap') lines.at(-1).push(' ');
     } else unsupported.add(character);
   }
   if (unsupported.size) throw new TypeError(`Unsupported characters: ${[...unsupported].join(' ')}. Use Han text, whitespace and supported punctuation.`);
-  const nonempty = lines.filter(line => line.length);
-  const characters = nonempty.flat();
+  const nonempty = lines.filter(line => line.some(c => c !== ' '));
+  const characters = nonempty.flat().filter(c => c !== ' ');
   if (!characters.length) throw new TypeError('text must contain at least one Han character');
   if (characters.length > 512) throw new RangeError('text exceeds the 512-character single-page limit');
+  if (nonempty.flat().length > 512) throw new RangeError('text exceeds the 512-cell single-page limit including punctuation gaps');
   return { lines: nonempty, characters, uniqueCharacters: [...new Set(characters)], omitted: [...omitted] };
 }
 

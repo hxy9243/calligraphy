@@ -34,10 +34,11 @@ def is_punctuation(char: str) -> bool:
     return char in PUNCTUATION_CHARS
 
 
-def parse_text(text: str, punctuation: str = "break") -> dict:
+def parse_text(text: str, punctuation: str = "gap") -> dict:
     """Parse writing order into lines of Han characters, omitted symbols and unique characters.
     
     Supports punctuation policies:
+      - 'gap': each punctuation mark reserves one blank layout cell (the default)
       - 'break': punctuation starts a new line if the current line has characters, but is omitted from glyphs
       - 'omit': punctuation is omitted without breaking lines
     """
@@ -45,8 +46,8 @@ def parse_text(text: str, punctuation: str = "break") -> dict:
         raise TypeError("text must be a non-empty string")
     if not text.strip():
         raise ValueError("text must be a non-empty string")
-    if punctuation not in ("break", "omit"):
-        raise ValueError("punctuation must be break or omit")
+    if punctuation not in ("gap", "break", "omit"):
+        raise ValueError("punctuation must be gap, break or omit")
 
     lines = [[]]
     omitted = []
@@ -80,6 +81,8 @@ def parse_text(text: str, punctuation: str = "break") -> dict:
             record_omitted(character)
             if punctuation == "break":
                 line_break()
+            elif punctuation == "gap":
+                lines[-1].append(" ")
         else:
             record_unsupported(character)
 
@@ -88,12 +91,14 @@ def parse_text(text: str, punctuation: str = "break") -> dict:
             f"Unsupported characters: {' '.join(unsupported)}. Use Han text, whitespace and supported punctuation."
         )
 
-    nonempty = [line for line in lines if line]
-    characters = [c for line in nonempty for c in line]
+    nonempty = [line for line in lines if any(c != " " for c in line)]
+    characters = [c for line in nonempty for c in line if c != " "]
     if not characters:
         raise ValueError("text must contain at least one Han character")
     if len(characters) > 512:
         raise ValueError("text exceeds the 512-character single-page limit")
+    if sum(len(line) for line in nonempty) > 512:
+        raise ValueError("text exceeds the 512-cell single-page limit including punctuation gaps")
 
     unique_characters = list(dict.fromkeys(characters))
     return {

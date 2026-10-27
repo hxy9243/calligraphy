@@ -19,7 +19,7 @@ Output:  --output FILE                   .svg, .png, or .mp4 (default outputs/te
          --width N --height N            native page size (default 1080 x 1440)
 Layout:  --direction vertical-rl|horizontal-lr (default vertical-rl)
          --per-line N                   wrap after N characters; otherwise automatic
-         --punctuation break|omit        punctuation is not drawn (default break)
+         --punctuation gap|break|omit        punctuation is not drawn (default gap)
 Style:   --style kai|yan|lishu|liu|yan-contact|"lishu hanwang"
          Registered font styles prepare missing characters with --fetch or --glyphs.
          kai uses fitted Stroke IR; yan uses templates; the others use prepared contact glyphs (PNG/MP4).
@@ -61,7 +61,7 @@ async function main() {
   const layout = { width: values.width ?? 1080, height: values.height ?? 1440,
     direction: values.direction ?? 'vertical-rl', charactersPerLine: values['per-line'] };
   const timing = { strokeSeconds: values['stroke-seconds'], characterGap: values.gap, intro: values.intro, outro: values.outro };
-  const punctuation = values.punctuation ?? 'break';
+  const punctuation = values.punctuation ?? 'gap';
   if (!['kai', 'yan'].includes(style)) {
     if (format === '.svg') throw new Error('Contact brush styles export PNG or MP4, not SVG');
     if (CONTACT_STYLES.includes(style) && (values.fetch || values.glyphs)) throw new Error('Prepared contact collections cannot be extended; --fetch and --glyphs are template-only for these built-in styles');

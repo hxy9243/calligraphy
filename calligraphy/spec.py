@@ -165,7 +165,7 @@ class SceneSpec:
     style: str = "kai"
     layout: Dict[str, Any] = field(default_factory=dict)
     timing: Dict[str, Any] = field(default_factory=dict)
-    punctuation: str = "break"
+    punctuation: str = "gap"
     appearance: Appearance = field(default_factory=Appearance)
     transforms: Transforms = field(default_factory=Transforms)
     inscription: Optional[str] = None
@@ -205,7 +205,7 @@ class SceneSpec:
             style=data.get("style", "kai"),
             layout=data.get("layout", {}),
             timing=data.get("timing", {}),
-            punctuation=data.get("punctuation", "break"),
+            punctuation=data.get("punctuation", "gap"),
             appearance=Appearance.from_dict(data.get("appearance")),
             transforms=Transforms.from_dict(data.get("transforms")),
             inscription=data.get("inscription"),

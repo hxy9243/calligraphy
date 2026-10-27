@@ -8,7 +8,7 @@ import yanPreset from '../../assets/presets/yan-inspired.json' with { type: 'jso
 const STYLES = Object.freeze({ kai: 0, yan: yanPreset.width_offset_px * 4 });
 
 /** A deterministic text scene. Glyph preparation/network access is separate. */
-export function createTextScene({ text, glyphs = bundledGlyphs, style = 'kai', layout = {}, timing = {}, punctuation = 'break' } = {}) {
+export function createTextScene({ text, glyphs = bundledGlyphs, style = 'kai', layout = {}, timing = {}, punctuation = 'gap' } = {}) {
   if (!Object.hasOwn(STYLES, style)) throw new TypeError(`Unknown template style: ${style}. Expected kai or yan.`);
   const parsed = parseText(text, { punctuation });
   const missing = parsed.uniqueCharacters.filter(character => !Object.hasOwn(glyphs, character));

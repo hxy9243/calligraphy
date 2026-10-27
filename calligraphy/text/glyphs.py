@@ -83,7 +83,7 @@ def resolve_glyphs(
     text: str,
     glyphs: Optional[Dict[str, Any]] = None,
     fetch_missing: bool = False,
-    punctuation: str = "break",
+    punctuation: str = "gap",
     fetch_func=None,
 ) -> Dict[str, Any]:
     """Resolve Han characters to stroke/median template records."""

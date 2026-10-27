@@ -19,11 +19,31 @@ function assertInside(plan) {
 }
 
 test('text preserves repeated glyphs and explicit lines, with a declared punctuation policy', () => {
-  assert.deepEqual(parseText(' 明明，月\r\n永。').lines, [['明', '明'], ['月'], ['永']]);
+  assert.deepEqual(parseText(' 明明，月\r\n永。').lines, [['明', '明', ' ', '月'], ['永', ' ']]);
   assert.deepEqual(parseText('明，月', { punctuation: 'omit' }).lines, [['明', '月']]);
+  assert.deepEqual(parseText('明，月', { punctuation: 'break' }).lines, [['明'], ['月']]);
+  assert.deepEqual(parseText('，明！？月。\n，！').lines, [[' ', '明', ' ', ' ', '月', ' ']]);
+  assert.deepEqual(parseText('明，月').uniqueCharacters, ['明', '月']);
+  assert.throws(() => parseText('永' + '，'.repeat(512)), /512-cell/);
   assert.deepEqual(parseText('明明月').uniqueCharacters, ['明', '月']);
   for (const text of ['', ' ，。 ', '明A', '明🙂', '永'.repeat(513)]) assert.throws(() => parseText(text));
   assert.throws(() => parseText('永', { punctuation: 'draw' }), /punctuation/);
+});
+
+test('punctuation leaves a blank cell in both directions without a drawing event', () => {
+  for (const [direction, axis, cross] of [['vertical-rl', 'y', 'x'], ['horizontal-lr', 'x', 'y']]) {
+    const layout = { direction, charactersPerLine: 8 };
+    const p = createTextPlan({ text: '明，月', strokeCounts: counts, layout });
+    const plain = createTextPlan({ text: '明月', strokeCounts: counts, layout });
+    assert.deepEqual(p.schedule.map(v => v.character), ['明', '月']);
+    assert.equal(p.duration, plain.duration);
+    const [a, b] = p.schedule;
+    assert.equal(a[cross], b[cross]);
+    assert.ok(Math.abs(b[axis] - a[axis] - a.size * 1.18 * 2) < 1e-8);
+    assertInside(p);
+    const wrapped = createTextPlan({ text: '明，月', strokeCounts: counts, layout: { direction, charactersPerLine: 2 } });
+    assert.deepEqual(wrapped.schedule.map(v => v.line), [0, 1]);
+  }
 });
 
 test('plan wraps vertical text into distinct right-to-left columns and keeps input order', () => {

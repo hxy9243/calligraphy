@@ -127,9 +127,15 @@ Disabling Secure cookies is only for local HTTP testing. Keep them enabled on
 Railway HTTPS. Test two-session isolation, font URLs returning 404, rate-limit
 responses, actual PNG and H.264 exports, reload during work and restart recovery.
 
+## Public URL
+
+Artwork QR seals and generated job share URLs default to
+`https://calligraphy.kevinhu.me`. `CALLIGRAPHY_STAMP_URL` can override it for
+another deployment.
+
 ## Release validation — 2026-10-09
 
-Public demo: https://calligraphy-demo-production.up.railway.app
+Original public demo: https://calligraphy-demo-production.up.railway.app
 
 Railway deployment: `1f7640e2-e5f8-4197-960a-aedad2442885`, uploaded locally
 to service `8d2735fa-99b2-4d60-9509-ec52b8f28037`. Railway reported SUCCESS,

@@ -20,6 +20,9 @@ for (const direction of ['vertical-rl', 'horizontal-lr']) {
       element.value = value;
       element.dispatchEvent(new window.Event('input', { bubbles: true }));
     };
+    set('text-input', '明，月');
+    assert.equal(document.getElementById('punctuation-select').value, 'gap');
+    assert.equal(document.getElementById('calligraphy-text').textContent, '明\u3000月');
     set('size-slider', '110');
     set('spacing-slider', '0.4');
     document.getElementById('fit-toggle').checked = false;
@@ -30,6 +33,8 @@ for (const direction of ['vertical-rl', 'horizontal-lr']) {
     const bodies = endpoints.map(url => ui.requests.filter(r => r.url === url).at(-1)?.body);
     for (const body of bodies) {
       assert.ok(body);
+      assert.equal(body.punctuation, 'gap');
+      assert.equal(body.text, '明，月');
       assert.equal(body.font_size, 110);
       assert.equal(body.fit, false);
       assert.equal(body.spacing, 0.4);

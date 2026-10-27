@@ -50,7 +50,7 @@ class PreviewRequest(BaseModel):
     paper_line_count: Optional[int] = Field(default=None, ge=1, le=32, strict=True)
     format: str = Field(default="auto")
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
-    punctuation: str = Field(default="omit")
+    punctuation: str = Field(default="gap")
     width: Optional[int] = Field(default=None, ge=64, le=2400)
     height: Optional[int] = Field(default=None, ge=64, le=2400)
     # None retains legacy whole-page fitting for older clients and saved jobs.
@@ -111,7 +111,7 @@ class RenderRequest(BaseModel):
     fps: int = Field(default=24, ge=1, le=60)
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     spacing: float = Field(default=0.18, ge=0.0, le=2.0)
-    punctuation: str = Field(default="omit")
+    punctuation: str = Field(default="gap")
     width: Optional[int] = Field(default=None, ge=64, le=2400)
     height: Optional[int] = Field(default=None, ge=64, le=2400)
     # None retains legacy whole-page fitting for older clients and saved jobs.
@@ -347,7 +347,7 @@ def health():
 def generate_preview(req: PreviewRequest, request: Request, response: Response):
     """Generate a quick still preview."""
     session_id = request.state.session_id
-    chosen_punct = req.punctuation if req.punctuation in ("break", "omit") else "omit"
+    chosen_punct = req.punctuation if req.punctuation in ("gap", "break", "omit") else "gap"
     try:
         parsed = parse_text(req.text, punctuation=chosen_punct)
         if len(parsed["characters"]) > MAX_INPUT_CHARACTERS:
@@ -472,7 +472,7 @@ def render_editor_preview(req: EditorPreviewRequest):
 def submit_render(req: RenderRequest, request: Request, response: Response):
     """Submit asynchronous video generation job."""
     session_id = request.state.session_id
-    chosen_punct = req.punctuation if req.punctuation in ("break", "omit") else "omit"
+    chosen_punct = req.punctuation if req.punctuation in ("gap", "break", "omit") else "gap"
     try:
         parsed = parse_text(req.text, punctuation=chosen_punct)
         if len(parsed["characters"]) > MAX_INPUT_CHARACTERS:

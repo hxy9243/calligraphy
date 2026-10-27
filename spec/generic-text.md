@@ -41,11 +41,16 @@ Source: [input.mjs](../src/text/input.mjs).
 - Preserve character order and repeats. Simplified/traditional forms are distinct.
 - Normalize CRLF/CR to newlines. Nonempty explicit lines remain separate.
 - Ignore other whitespace, reporting it in `omitted`; it is not a blank glyph cell.
-- Default `punctuation: 'break'` uses supported punctuation as line boundaries.
-  With `'omit'`, punctuation is skipped without introducing a boundary. Neither
-  policy paints punctuation. The supported set is explicit in the parser.
+- Default `punctuation: 'gap'` reserves one blank character cell per supported
+  punctuation mark, including consecutive and leading/trailing marks. A gap
+  participates in fitting and wrapping in either writing direction, including
+  inscriptions, but never requests a glyph or adds a writing event. Parser
+  `lines` represent these cells as spaces; `characters` and `uniqueCharacters`
+  contain only Han characters. Lines containing only punctuation are discarded.
+  `'break'` uses punctuation as line boundaries; `'omit'` skips it entirely.
+  No policy paints punctuation. The supported set is explicit in the parser.
 - Reject unsupported characters (including Latin letters and emoji), empty Han
-  input and more than 512 Han characters. Do not silently substitute glyphs.
+  input, more than 512 Han characters or more than 512 layout cells. Do not silently substitute glyphs.
 - Report every distinct missing glyph before rendering.
 
 ## Layout and schedule

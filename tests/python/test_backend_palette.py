@@ -63,7 +63,7 @@ class BackendPaletteTests(unittest.TestCase):
                                  {'punctuation': 'omit'})
         ids = []
         for changes in ({}, {'palette': 'light'}, {'palette': 'dark'}, {'palette': 'dark'}):
-            response = self.client.post('/api/renders', json={'text': '永', **changes})
+            response = self.client.post('/api/renders', json={'text': '永', 'punctuation': 'omit', **changes})
             self.assertEqual(response.status_code, 202, response.text)
             ids.append(response.json()['job_id'])
         self.assertEqual(ids[:2], [old['job_id']] * 2)

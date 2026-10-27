@@ -30,7 +30,7 @@ class TextPipelineTests(unittest.TestCase):
 
     def test_parse_text_preserves_repeated_glyphs_and_lines(self):
         res = parse_text(" 明明，月\r\n永。")
-        self.assertEqual(res["lines"], [["明", "明"], ["月"], ["永"]])
+        self.assertEqual(res["lines"], [["明", "明", " ", "月"], ["永", " "]])
         self.assertEqual(res["characters"], ["明", "明", "月", "永"])
         self.assertEqual(res["uniqueCharacters"], ["明", "月", "永"])
         self.assertIn("，", res["omitted"])
@@ -38,6 +38,8 @@ class TextPipelineTests(unittest.TestCase):
 
         omit_res = parse_text("明，月", punctuation="omit")
         self.assertEqual(omit_res["lines"], [["明", "月"]])
+        self.assertEqual(parse_text("明，月", punctuation="break")["lines"], [["明"], ["月"]])
+        self.assertEqual(parse_text("，明！？月。\n，！")["lines"], [[" ", "明", " ", " ", "月", " "]])
 
         for bad in ["", "   ", " ，。 ", "明A", "明🙂"]:
             with self.assertRaises(ValueError):
@@ -48,6 +50,26 @@ class TextPipelineTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             parse_text("永", punctuation="invalid")
+
+        with self.assertRaisesRegex(ValueError, "512-cell"):
+            parse_text("永" + "，" * 512)
+
+    def test_punctuation_reserves_cells_without_glyphs_or_timing(self):
+        for direction, axis, cross_axis in [("vertical-rl", "y", "x"), ("horizontal-lr", "x", "y")]:
+            with self.subTest(direction=direction):
+                layout = {"direction": direction, "charactersPerLine": 8, "font_size": 64}
+                plan = create_text_plan("明，月", self.counts, layout=layout, inscription="永、清")
+                plain = create_text_plan("明月", self.counts, layout=layout, inscription="永清")
+                self.assertEqual([p["character"] for p in plan["schedule"]], list("明月永清"))
+                self.assertEqual(plan["duration"], plain["duration"])
+                for first, second in [plan["schedule"][:2], plan["schedule"][2:]]:
+                    self.assertEqual(first[cross_axis], second[cross_axis])
+                    self.assertAlmostEqual(second[axis] - first[axis], first["size"] * 1.18 * 2)
+
+    def test_punctuation_gaps_count_toward_wrapping(self):
+        plan = create_text_plan("明，月", self.counts, layout={"charactersPerLine": 2})
+        self.assertEqual([p["line"] for p in plan["schedule"]], [0, 1])
+        self.assertEqual([p["row"] for p in plan["schedule"]], [0, 0])
 
     def test_layout_vertical_right_to_left(self):
         p = create_text_plan(

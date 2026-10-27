@@ -338,3 +338,7 @@ Regression coverage: `tests/python/test_video_exports.py` and
 for both 10-minute export and 72-hour share pages. A physical iPhone/WeChat-to-Safari download
 still needs on-device validation; DOM/API tests cannot verify OS download handling
 or promise that a video will save directly into Photos.
+
+New editor, still and video requests default to `punctuation: "gap"`: each
+punctuation mark reserves a blank cell. Saved jobs retain their explicit policy;
+legacy saved jobs with no policy keep the previous `omit` behavior when reused.

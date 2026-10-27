@@ -19,9 +19,10 @@ from calligraphy.text.layout import layout_text
 class PaperAndQrStampTests(unittest.TestCase):
     def test_qr_matrix_structure_and_finder_patterns(self):
         matrix = encode_qr_matrix(DEFAULT_STAMP_URL, ecc="M")
-        self.assertEqual(matrix.shape, (33, 33))
+        self.assertEqual(matrix.shape, (29, 29))
         self.assertEqual(matrix.dtype, np.bool_)
-        for r, c in ((0, 0), (0, 26), (26, 0)):
+        edge = matrix.shape[0] - 7
+        for r, c in ((0, 0), (0, edge), (edge, 0)):
             finder = matrix[r : r + 7, c : c + 7]
             self.assertTrue(np.all(finder[0, :]))
             self.assertTrue(np.all(finder[6, :]))
@@ -203,7 +204,7 @@ class PaperAndQrStampTests(unittest.TestCase):
         self.assertIn('class="seal-stamp-vector"', svg)
         self.assertIn('shape-rendering="crispEdges"', svg)
         self.assertIn('fill="#ba1c16"', svg)
-        self.assertIn('data-url="https://calligraphy-demo-production.up.railway.app"', svg)
+        self.assertIn('data-url="https://calligraphy.kevinhu.me"', svg)
         self.assertIn('mask="url(#seal-mask-seal)"', svg)
 
         # Dense URL test

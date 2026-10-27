@@ -29,6 +29,16 @@ function assertSegment(ui, id, key, value) {
   assert.equal(active[0].getAttribute('aria-pressed'), 'true');
 }
 
+test('reuse retains punctuation gaps for new saved jobs', async t => {
+  const ui = await createFrontend({ jobs: [makeJob('gaps', { ...complete, punctuation: 'gap' })], fetch: exportResponse });
+  t.after(ui.close);
+  await reuse(ui, 'gaps');
+  assert.equal(byId(ui, 'punctuation-select').value, 'gap');
+  assert.equal(byId(ui, 'calligraphy-text').textContent, '明月\u3000清泉');
+  await ui.tickTimeouts(800);
+  assert.equal(ui.requests.filter(r => r.url === '/api/editor-preview').at(-1).body.punctuation, 'gap');
+});
+
 test('reuse restores the whole editor and keeps saved dimensions through edits and export', async t => {
   const ui = await createFrontend({ jobs: [makeJob('full', complete)], fetch: exportResponse });
   t.after(ui.close);

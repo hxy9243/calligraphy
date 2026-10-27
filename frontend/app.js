@@ -574,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         signal: editorAbortController?.signal,
         body: JSON.stringify({ text: textInput.value.trim(), style: styleSelect.value || 'kai',
-          direction: currentDirection, punctuation: punctuationSelect?.value || 'omit',
+          direction: currentDirection, punctuation: punctuationSelect?.value || 'gap',
           ...compositionSettings(), separate_stamp: true }),
       });
       if (revision !== editorRevision) return;
@@ -762,12 +762,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSimp = document.getElementById('btn-simp');
   const btnConvertCurrent = document.getElementById('btn-convert-current');
 
-  // Strip punctuation for live stage preview when punctuation mode is 'omit'
-  function stripPunctuationForStage(str) {
-    if (!str) return '';
-    return str.replace(/[，。！？、；：,.!?;:「」『』（）()“”‘’《》〈〉…—·【】〔〕［］｛｝～~—\-'"\s]/g, (match) => {
-      // Preserve newlines for deliberate line breaks
-      return match === '\n' ? '\n' : '';
+  // Match the shared layout policy in the text fallback preview.
+  function punctuationForStage(str) {
+    const policy = punctuationSelect?.value || 'gap';
+    return str.replace(/\r\n?/g, '\n').replace(/[，。！？、；：,.!?;:「」『』（）()“”‘’《》〈〉…—·\s]/g, match => {
+      if (match === '\n') return '\n';
+      if (/\s/u.test(match)) return '';
+      return policy === 'gap' ? '\u3000' : policy === 'break' ? '\n' : '';
     });
   }
 
@@ -777,8 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const len = rawText.length;
     if (charCountEl) charCountEl.textContent = len;
 
-    const ignorePunct = !punctuationSelect || punctuationSelect.value === 'omit';
-    const displayText = ignorePunct ? stripPunctuationForStage(rawText) : rawText;
+    const displayText = punctuationForStage(rawText);
 
     // Update real-time calligraphy stage text
     if (calligraphyText) {
@@ -1856,7 +1856,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showStatus('正在生成高精度靜圖預覽...', 'info');
 
     try {
-      const punctuation = punctuationSelect ? punctuationSelect.value : 'omit';
+      const punctuation = punctuationSelect ? punctuationSelect.value : 'gap';
       const res = await fetch('/api/previews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1941,7 +1941,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hideStatus();
 
     try {
-      const punctuation = punctuationSelect ? punctuationSelect.value : 'omit';
+      const punctuation = punctuationSelect ? punctuationSelect.value : 'gap';
       const res = await fetch('/api/renders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2207,8 +2207,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (spacingVal) spacingVal.textContent = `${spacing}em`;
     if (calligraphyText) calligraphyText.style.letterSpacing = `${spacing}em`;
     const punctuation = params.punctuation ?? 'omit';
-    if (!['omit', 'break'].includes(punctuation)) notices.push('標點設定無效，改用忽略標點');
-    if (punctuationSelect) punctuationSelect.value = ['omit', 'break'].includes(punctuation) ? punctuation : 'omit';
+    if (!['gap', 'omit', 'break'].includes(punctuation)) notices.push('標點設定無效，改用忽略標點');
+    if (punctuationSelect) punctuationSelect.value = ['gap', 'omit', 'break'].includes(punctuation) ? punctuation : 'omit';
     else notices.push('標點控制項不可用');
     restoreOutput(speedSelect, speedSeg, 'speed', readNumber('speed', 1, 0.25, 4), '視頻速度');
     restoreOutput(fpsSelect, fpsSeg, 'fps', readNumber('fps', 24, 1, 60, true), '幀率');

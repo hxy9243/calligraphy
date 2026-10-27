@@ -48,8 +48,9 @@ calligraphy --help
 Rendering is offline by default. `--fetch` explicitly downloads missing character
 records from Hanzi Writer Data; `--glyphs file.json` supplies a saved dictionary. No network
 requests occur while drawing frames. Newlines start columns/rows; supported punctuation
-starts a new line by default and is not drawn (`--punctuation omit` skips it
-without a line break). Missing glyphs and unsupported text produce explicit errors.
+leaves one blank character cell by default and is not drawn. Use
+`--punctuation break` to start a new line or `--punctuation omit` to skip it.
+Missing glyphs and unsupported text produce explicit errors.
 
 Use `--width`, `--height`, `--per-line`, `--stroke-seconds` and `--gap` to control
 the page and cadence. MP4 also accepts `--fps` and `--speed` and requires FFmpeg.

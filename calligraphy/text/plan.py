@@ -20,7 +20,7 @@ def create_text_plan(
     stroke_counts: Dict[str, int],
     layout: Optional[Dict[str, Any]] = None,
     timing: Optional[Dict[str, Any]] = None,
-    punctuation: str = "break",
+    punctuation: str = "gap",
     inscription: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create a timing and placement plan (schemaVersion 1)."""

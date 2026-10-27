@@ -28,7 +28,7 @@ def parse_args(args: Optional[list] = None) -> argparse.Namespace:
     parser.add_argument("--height", type=int, default=1440, help="Page height (default 1440)")
     parser.add_argument("--direction", choices=["vertical-rl", "horizontal-lr"], default="vertical-rl", help="Writing direction")
     parser.add_argument("--per-line", type=int, default=None, help="Characters per line (wrapping)")
-    parser.add_argument("--punctuation", choices=["break", "omit"], default="break", help="Punctuation policy")
+    parser.add_argument("--punctuation", choices=["gap", "break", "omit"], default="gap", help="Punctuation policy")
     parser.add_argument("--stroke-seconds", type=float, default=0.18, help="Seconds per stroke")
     parser.add_argument("--gap", type=float, default=0.15, help="Seconds between characters")
     parser.add_argument("--intro", type=float, default=0.5, help="Intro pause in seconds")

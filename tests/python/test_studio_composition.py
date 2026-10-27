@@ -150,6 +150,32 @@ class StudioCompositionTests(unittest.TestCase):
                 np.testing.assert_array_equal(preview, still)
                 self.assertTrue((np.asarray(preview)[:, :, 0] < 120).any())
 
+    def test_default_punctuation_gap_stays_blank_in_preview_and_animation(self):
+        for direction, axis in [('vertical-rl', 'y'), ('horizontal-lr', 'x')]:
+            with self.subTest(direction=direction):
+                self.client.cookies.set('calligraphy_session', 'gap-' + direction)
+                params = {**self.params(), 'text': '十，十', 'direction': direction,
+                          'font_size': 48, 'stamp_enabled': False, 'paper_style': 'plain'}
+                params.pop('punctuation')  # Exercise the API default.
+                preview = Image.open(io.BytesIO(self.submit('/api/editor-preview', params).content)).convert('RGB')
+                still, job = self.still(params)
+                self.assertEqual(job['params']['punctuation'], 'gap')
+                np.testing.assert_array_equal(preview, still)
+                spec = scene_spec_from_params(params['text'], 'kai', job['params'])
+                plan = RenderPlan.create(spec, {'十': 2})
+                first, second = plan.schedule
+                self.assertAlmostEqual(second[axis] - first[axis], first['size'] * 2.5)
+                x, y = first['x'], first['y']
+                if axis == 'x':
+                    x += first['size'] * 1.25
+                else:
+                    y += first['size'] * 1.25
+                box = (math.ceil(x), math.ceil(y), math.floor(x + first['size']), math.floor(y + first['size']))
+                scene = self.create_scene(spec)
+                for time in (first['end'], second['start'] + .1, scene.duration):
+                    self.assertFalse((np.asarray(scene.frame(time).crop(box))[:, :, 0] < 128).any())
+                np.testing.assert_array_equal(scene.frame(scene.duration), still)
+
     def test_font_preview_uses_export_cell_positions_scale_and_ink_without_fitting(self):
         for direction in ('vertical-rl', 'horizontal-lr'):
             params = {**self.params(), 'style': 'fixture', 'direction': direction}
@@ -224,8 +250,10 @@ class StudioCompositionTests(unittest.TestCase):
     def test_legacy_defaults_preserve_page_fit_and_deduplication(self):
         old = self.db.enqueue_render('legacy', 'legacy-user', '十十', 'kai', {'punctuation': 'omit'})
         self.client.cookies.set('calligraphy_session', 'legacy-user')
-        response = self.submit('/api/renders', {'text': '十十', 'style': 'kai'})
+        response = self.submit('/api/renders', {'text': '十十', 'style': 'kai', 'punctuation': 'omit'})
         self.assertEqual(response.json()['job_id'], old['job_id'])
+        new_default = self.submit('/api/renders', {'text': '十十', 'style': 'kai'})
+        self.assertNotEqual(new_default.json()['job_id'], old['job_id'])
         spec = scene_spec_from_params('十十', 'kai', old['params'])
         plan = RenderPlan.create(spec, {'十': 2})
         self.assertEqual((plan.width, plan.height), (720, 960))

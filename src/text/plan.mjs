@@ -3,7 +3,7 @@ import { parseText } from './input.mjs';
 import { layoutText } from './layout.mjs';
 
 /** Geometry-independent page and timing contract for current/future renderers. */
-export function createTextPlan({ text, strokeCounts, layout = {}, timing = {}, punctuation = 'break' } = {}) {
+export function createTextPlan({ text, strokeCounts, layout = {}, timing = {}, punctuation = 'gap' } = {}) {
   const parsed = parseText(text, { punctuation });
   if (!strokeCounts || typeof strokeCounts !== 'object') throw new TypeError('strokeCounts must map each character to a positive stroke count');
   const missing = parsed.uniqueCharacters.filter(character => !Object.hasOwn(strokeCounts, character));
