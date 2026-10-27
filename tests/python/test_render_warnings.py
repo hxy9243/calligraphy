@@ -47,9 +47,9 @@ class RenderWarningTests(unittest.TestCase):
         bank['metrics'].setdefault(character, {})['guide_fallback_strokes'] = [1]
         path.write_text(json.dumps(bank))
 
-    def job(self, name):
-        return self.db.create_job(name, self.owner, 'preview', '十', 'fixture',
-            {'format': 'png', 'width': 96, 'height': 96, 'font_size': 32})
+    def job(self, name, job_type='preview'):
+        return self.db.create_job(name, self.owner, job_type, '十', 'fixture',
+            {'format': 'png', 'width': 96, 'height': 96, 'font_size': 32, 'fps': 2, 'speed': 4})
 
     def test_warning_only_for_requested_fallback_glyph_and_warm_bank(self):
         spec = SceneSpec(text='十', style='fixture', layout={'width': 96, 'height': 96})
@@ -64,7 +64,7 @@ class RenderWarningTests(unittest.TestCase):
     def test_success_warning_persists_on_worker_result_api_and_restart(self):
         self.mark_fallback()
         for name in ('first', 'warm'):
-            self.assertTrue(execute_job(self.job(name), self.db))
+            self.assertTrue(execute_job(self.job(name, job_type='render'), self.db))
             row = self.db.get_job(name)
             self.assertEqual(row['status'], 'succeeded')
             self.assertIsNone(row['error_message'])
@@ -78,14 +78,15 @@ class RenderWarningTests(unittest.TestCase):
             self.assertEqual(stranger.get('/api/jobs/warm').status_code, 404)
             self.assertEqual(stranger.get('/api/jobs').json()['jobs'], [])
 
-    def test_still_export_response_includes_success_caveat(self):
+    def test_exact_still_export_has_no_stroke_fitting_caveat(self):
         self.mark_fallback()
         with patch('backend.app.checked_style', return_value='fixture'), \
              patch('backend.app.execute_job', side_effect=execute_job):
             response = self.client.post('/api/previews', json={
                 'text': '十', 'style': 'fixture', 'width': 96, 'height': 96, 'format': 'png'})
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()['warning_message'], WARNING)
+        # Static font exports use exact outlines, not the bank's inferred motion.
+        self.assertIsNone(response.json()['warning_message'])
         self.assertTrue(response.json()['preview_url'])
 
     def test_normal_success_has_no_warning(self):
