@@ -287,3 +287,47 @@ history, job details and the immediate still-export result, separate from errors
 glyphs trigger it; loading a previously prepared bank or geometry cache preserves
 the warning. A nullable additive database column keeps historical jobs readable
 and records the warning from the scene that actually produced that artifact.
+
+## Collapsed traversal recovery
+
+Font registration now checks support along ordered guide progress, not just the
+completed silhouette. A long interior interval losing support while both ends
+survive can otherwise leave a hooked stroke's tail scheduled before its body
+(which unrelated strokes have absorbed). The check compares 20 phase bins to
+the affine guide, excludes terminal taper, and requires at least four contiguous
+interior bins below 15% of the supported scale. It contains no character or
+font-name allowlist. A stronger optical-flow coupling is tried only for such
+collapses, and accepted only if collapse decreases, no new stroke collapses,
+and registration silhouette IoU does not decrease. Normal registrations remain
+unchanged; this is still inferred motion rather than historical brush recovery.
+
+Existing registered banks are not overwritten. In the derived contact cache,
+a source stroke with a large interior segment-schedule gap can nominate a
+recovery using the bank's preserved template and its already rendered geometry.
+The collapse must be confirmed by registration, and the stronger candidate
+must remove it and close the scheduled gap. Since old geometry can itself be
+distorted, this migration independently gates the fitted result: at least .95
+whole-glyph retention IoU and no missing solid ink farther than five canonical
+pixels from the new contacts. Sparse alpha clips and timed edge patches then
+preserve the previous completed glyph **exactly**, while the new contact rails
+provide traversal. Patches inherit nearby contact arrival; they are not delayed
+until the whole glyph finishes. Source font files and network access are not
+required for existing-bank recovery.
+
+Existing ownership corrections, missing templates, ambiguous/remaining collapses,
+new compact-dot fallbacks, fitting failures or failed shape guards retain the original contacts with a skipped diagnostic.
+`continuityRepair` reports candidate strokes, status, method, retention and
+exact final-alpha preservation. Templates participate in derived-cache identity;
+engine source hashing invalidates older caches. Authored contact collections,
+explicit `font_layers` mode and static font output are unaffected.
+
+Validation (2026-10-27): the pinned legacy MasaFont 風 fixture repairs stroke 2's
+body/curve/hook order while keeping complete glyph alpha byte-identical. Five
+solid probe points now arrive sequentially within stroke 2 (38%, 46%, 59%, 70%,
+81%), instead of being split across strokes 2, 3, 7 and 9. Partial frames, full
+playback and a 480px/24fps video were visually inspected. Fresh MasaFont 風 fits
+also recover continuous stroke-2 ownership; normal LXGW 風/九, EduKai 風 and
+MasaFont 永 registration fields remain byte-identical. Additional real-font
+smokes cover MasaFont 凡 and LongCang 风. Main checks: 319 Python and 207
+JavaScript tests passed; pinned lab `7026ede9cfd53d0c11959c365f03a5c4ed3963bd`
+stroke-ownership, Liu brush and Lishu transfer suites passed (3 + 5 + 16 tests).

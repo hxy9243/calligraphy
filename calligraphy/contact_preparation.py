@@ -9,9 +9,10 @@ from .engine_metadata import engine_metadata
 from .stroke_crossings import smooth_kai_contacts
 from .contact_ownership import apply_reviewed_ownership
 from .automatic_contact_ownership import automatic_ownership
+from .contact_continuity import repair_contact_continuity
 
 
-def prepare_contacts(glyphs, *, source, inferred_corners=False, cache_path=None):
+def prepare_contacts(glyphs, *, source, inferred_corners=False, cache_path=None, templates=None):
     metadata = engine_metadata('font-contact')
     cache = ArtifactCache(cache_path or os.environ.get('CALLIGRAPHY_CONTACT_CACHE',
         str(Path.home() / '.local/share/calligraphy/contact-geometry.db')))
@@ -19,6 +20,7 @@ def prepare_contacts(glyphs, *, source, inferred_corners=False, cache_path=None)
     for character, strokes in glyphs.items():
         identity = {'source': source, 'character': character, 'strokes': strokes,
                     'inferred_corners': inferred_corners,
+                    'template': (templates or {}).get(character),
                     'engine_source_sha256': metadata['engine_source_sha256']}
         digest = sha256(json.dumps(identity, sort_keys=True, ensure_ascii=False,
                                    allow_nan=False).encode()).hexdigest()
@@ -33,6 +35,10 @@ def prepare_contacts(glyphs, *, source, inferred_corners=False, cache_path=None)
                     if ownership is not None:
                         report['reviewedOwnership'] = ownership
                     smoothed, report['automaticOwnership'] = automatic_ownership(smoothed)
+                    smoothed, continuity = repair_contact_continuity(
+                        character, strokes, smoothed, (templates or {}).get(character))
+                    if continuity is not None:
+                        report['continuityRepair'] = continuity
                 document = {'schemaVersion': 'smoothed-contact/1', 'identity': digest,
                             'strokes': smoothed, 'report': report,
                             'provenance': {'source': source, 'engine': metadata}}
