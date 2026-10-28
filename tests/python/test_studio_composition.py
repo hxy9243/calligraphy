@@ -334,7 +334,10 @@ class StudioCompositionTests(unittest.TestCase):
                         svg_image.attrib['href'].split(',', 1)[1]))).convert('RGB')
                     for output in (preview, still, svg_pixels):
                         self.assert_palette_pixels(output, palette)
-                    np.testing.assert_array_equal(svg_pixels, still)
+                    self.assertEqual(svg_pixels.size, (960, 1280))
+                    high_spec = scene_spec_from_params(params['text'], style, {**params, 'preview_scale': 4})
+                    high_scene = self.create_scene(high_spec)
+                    np.testing.assert_array_equal(svg_pixels, high_scene.frame(high_scene.duration))
                     if style in ('kai', 'yan'):
                         np.testing.assert_array_equal(preview, still)
                     else:
@@ -426,9 +429,11 @@ class StudioCompositionTests(unittest.TestCase):
                     svg = self.submit('/api/previews', params).json()['svg']
                     embedded = ET.fromstring(svg).find('{http://www.w3.org/2000/svg}image')
                     svg_pixels = Image.open(io.BytesIO(base64.b64decode(embedded.attrib['href'].split(',', 1)[1]))).convert('RGB')
-                    for image in (editor, still, svg_pixels):
+                    for image in (editor, still):
                         self.assertEqual(image.size, expected)
-                    np.testing.assert_array_equal(still, svg_pixels)
+                    self.assertEqual(svg_pixels.size, (960, 1280))
+                    if scale == 4:
+                        np.testing.assert_array_equal(still, svg_pixels)
                     # New samples come from original glyph masks, not stretching
                     # the old page bitmap. Normalized ink remains in the same cells.
                     self.assertFalse(np.array_equal(editor, standard.resize(expected, Image.Resampling.LANCZOS)))
@@ -474,9 +479,10 @@ class StudioCompositionTests(unittest.TestCase):
                     self.assertGreater(np.ptp(np.asarray(frame)), 100)
                 self.assertEqual(scene.frame(.65).tobytes(), self.create_scene(spec).frame(.65).tobytes())
 
-    def test_quality_validation_precedes_rendering_and_legacy_defaults_remain(self):
+    def test_quality_validation_precedes_rendering_and_svg_default_is_highest(self):
         from backend.app import PreviewRequest, EditorPreviewRequest
-        self.assertEqual(PreviewRequest(text='十').preview_scale, 1)
+        self.assertEqual(PreviewRequest(text='十').preview_scale, 4)
+        self.assertEqual(PreviewRequest(text='十', format='png').preview_scale, 1)
         self.assertEqual(EditorPreviewRequest(text='十').preview_scale, 1)
         with patch('backend.app.execute_job') as worker, patch('backend.app.editor_preview') as editor:
             for endpoint in ('/api/previews', '/api/editor-preview'):
@@ -484,11 +490,39 @@ class StudioCompositionTests(unittest.TestCase):
                     expected = 400 if type(scale) is int else 422
                     self.assertEqual(self.client.post(endpoint, json={**self.params(), 'preview_scale': scale}).status_code, expected)
                 for width, height in ((2400, 1280), (2200, 320)):
-                    response = self.client.post(endpoint, json={**self.params(), 'width': width, 'height': height, 'preview_scale': 4})
+                    response = self.client.post(endpoint, json={**self.params(), 'format': 'png', 'width': width, 'height': height, 'preview_scale': 4})
                     self.assertEqual(response.status_code, 400)
                     self.assertIn('Lower preview quality', response.text)
             worker.assert_not_called()
             editor.assert_not_called()
+
+    def test_svg_always_uses_highest_bounded_resolution_and_persists_it(self):
+        from backend.app import PreviewRequest
+        for output_format in ('auto', 'svg'):
+            for requested in (1, 2, 4):
+                for width, height, expected in ((720, 960, 4), (768, 1000, 4),
+                                               (768, 1001, 2), (2048, 320, 4),
+                                               (2049, 320, 2), (2400, 1280, 2)):
+                    req = PreviewRequest(text='十', format=output_format, width=width,
+                                         height=height, preview_scale=requested)
+                    self.assertEqual(req.preview_scale, expected)
+        # Real endpoint + worker, including a canvas that cannot fit at 4x.
+        for width, height, expected in ((240, 320, 4), (900, 900, 2)):
+            images = []
+            for requested in (1, 2, 4):
+                self.client.cookies.set('calligraphy_session', f'svg-max-{width}-{requested}')
+                params = {**self.params(), 'width': width, 'height': height, 'preview_scale': requested}
+                response = self.submit('/api/previews', params).json()
+                job = Database(self.db.db_url).get_job(response['job_id'])
+                self.assertEqual(job['params']['preview_scale'], expected)
+                root = ET.fromstring(response['svg'])
+                image = root.find('{http://www.w3.org/2000/svg}image')
+                data = base64.b64decode(image.attrib['href'].split(',', 1)[1])
+                pixels = Image.open(io.BytesIO(data))
+                self.assertEqual(pixels.size, (width * expected, height * expected))
+                images.append(data)
+            self.assertEqual(images[0], images[1])
+            self.assertEqual(images[1], images[2])
 
     def test_quality_editor_transport_limit_and_static_font_export(self):
         from calligraphy.renderer import StaticFontScene

@@ -33,6 +33,7 @@ from .style_catalog import STYLE_ALIASES
 from .retention import PERMANENT_SHARE_TTL_SECONDS, get_retention_seconds, job_share_token, job_share_url
 from .worker import execute_job_bounded as execute_job, get_runner
 from .editor_preview import editor_preview
+from .composition import highest_svg_scale
 
 MAX_INPUT_CHARACTERS = 256
 MAX_LINE_CHARACTERS = 20
@@ -43,7 +44,7 @@ class ConvertRequest(BaseModel):
 
 
 class PreviewRequest(BaseModel):
-    preview_scale: int = Field(default=1, strict=True)
+    preview_scale: int = Field(default=1, strict=True, description="PNG quality: 1, 2 or 4. SVG exports automatically use the highest supported quality.")
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
@@ -72,8 +73,16 @@ class PreviewRequest(BaseModel):
     def bounded_canvas(self):
         if (self.width or 720) * (self.height or 960) > 2400 * 1280:
             raise ValueError("畫布面積過大 / Canvas must not exceed 3,072,000 pixels.")
+        # Validate the requested enum even when SVG will override its value.
+        validate_pixel_scale(64, 64, self.preview_scale)
+        self.preview_scale = self.resolved_preview_scale()
         validate_pixel_scale(self.width or 720, self.height or 960, self.preview_scale)
         return self
+
+    def resolved_preview_scale(self):
+        if self.format != 'png':
+            return highest_svg_scale(self.width or 720, self.height or 960)
+        return self.preview_scale
 
     @field_validator("text")
     @classmethod
@@ -104,6 +113,9 @@ class EditorPreviewRequest(PreviewRequest):
     height: int = Field(default=640, ge=64, le=2400)
     font_size: int = Field(default=48, ge=8, le=160)
     fit: bool = True
+
+    def resolved_preview_scale(self):
+        return self.preview_scale
 
 
 class RenderRequest(BaseModel):

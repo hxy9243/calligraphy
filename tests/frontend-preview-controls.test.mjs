@@ -202,7 +202,7 @@ for (const [button, endpoint, result] of [
   });
 }
 
-test('preview quality changes resolution requests without changing composition or video', async t => {
+test('preview quality changes only editor resolution; SVG quality stays automatic', async t => {
   const ui = await createFrontend({fetch: ({url}) => {
     if (url === '/api/previews') return jsonResponse({svg: '<svg viewBox="0 0 320 480"></svg>'});
     if (url === '/api/renders') return jsonResponse({job_id:'quality-video',status:'queued'},202);
@@ -219,7 +219,7 @@ test('preview quality changes resolution requests without changing composition o
     assert.deepEqual(editor, {...baseline, preview_scale:scale});
     d.getElementById('btn-preview').click(); await flush();
     const still = ui.requests.filter(r => r.url === '/api/previews').at(-1).body;
-    assert.equal(still.preview_scale, scale);
+    assert.equal(still.preview_scale, undefined);
     assert.equal(still.width, baseline.width);
     assert.equal(still.font_size, baseline.font_size);
   }

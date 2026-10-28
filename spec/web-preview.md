@@ -111,12 +111,17 @@ admission, deadlines, frame counts and video-duration limits remain in force.
 
 ### Preview quality
 
-The preview toolbar offers 1× (default), 2× and 4× quality for the live preview
-and newly exported still PNG/SVG images. This is independent of artwork zoom;
-zooming alone does not request new pixels. Video resolution is unchanged.
+The preview toolbar offers 1× (default), 2× and 4× quality for the live preview.
+Studio SVG exports always select the highest supported quality independently:
+4× when it fits the pixel budget, otherwise 2× for larger supported canvases.
+The server enforces this for both `auto` and `svg` requests even if an older
+client sends a lower `preview_scale`. The resolved quality is persisted in the
+job parameters. Existing downloaded/history SVGs are not regenerated.
+This is independent of artwork zoom; zooming alone does not request new pixels.
+Video resolution and the explicit PNG API's quality setting are unchanged.
 `preview_scale` accepts only integer 1, 2 or 4 in `/api/editor-preview` and
-`/api/previews`; omitted values retain the previous behavior. Still jobs persist
-the selection and editor cache keys include it. Large requests are rejected
+`/api/previews`; omitted values mean 1× for editor/PNG and automatic maximum for
+SVG. Editor cache keys include the selection. Oversized editor/PNG requests are rejected
 before rendering with an instruction to reduce quality or canvas size: the
 scaled page may not exceed 12,288,000 pixels or 8192 pixels on either side.
 
@@ -141,6 +146,11 @@ Node runtime), and 24 downstream lab regressions passed. A local browser check
 loaded the 4× live image at 2276×2560 and exported a 640×720 logical page as an
 SVG containing a 2560×2880 PNG. A same-zoom source-font comparison visibly
 resolved finer glyph edges than enlarging the standard preview.
+
+The automatic maximum-quality SVG follow-up passed 325 Python and 210
+JavaScript tests. Actual endpoint exports were decoded to verify identical
+maximum-resolution pixels for requests carrying 1×, 2× and 4×, plus automatic
+2× fallback above the 4× pixel budget and persistence of the resolved scale.
 
 Kai/Yan editor pixels use the same completed contact frame as exports. The
 lightweight source-font preview keeps source silhouettes, normalized with the

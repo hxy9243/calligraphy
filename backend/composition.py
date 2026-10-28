@@ -1,5 +1,15 @@
 """Canonical studio composition shared by editor, still and video render paths."""
-from calligraphy.spec import Appearance, SceneSpec, Transforms
+from calligraphy.spec import Appearance, SceneSpec, Transforms, validate_pixel_scale
+
+
+def highest_svg_scale(width, height):
+    """Select the highest supported quality within the existing pixel budget."""
+    for scale in (4, 2, 1):
+        try:
+            return validate_pixel_scale(width, height, scale)
+        except ValueError:
+            continue
+    raise ValueError('No supported SVG resolution')
 
 
 def appearance_from_params(params):

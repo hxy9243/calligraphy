@@ -1870,7 +1870,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/previews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, style, format: 'auto', ...compositionSettings(), preview_scale: previewScale(), direction: currentDirection, punctuation })
+        body: JSON.stringify({ text, style, format: 'auto', ...compositionSettings(), direction: currentDirection, punctuation })
       });
 
       if (!res.ok) {
