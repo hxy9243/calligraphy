@@ -131,7 +131,8 @@ overlap, independent cache identities, invalid and oversized admission, unchange
 placements and timing in both writing directions, seal placement, partial-frame
 replay, and frontend payloads/error messages.
 
-Validated on 2026-10-27: 309 Python tests, 209 JavaScript tests (bundled modern
+Validated on 2026-10-27 after integrating the latest font-continuity changes:
+323 Python tests, 209 JavaScript tests (bundled modern
 Node runtime), and 24 downstream lab regressions passed. A local browser check
 loaded the 4× live image at 2276×2560 and exported a 640×720 logical page as an
 SVG containing a 2560×2880 PNG. A same-zoom source-font comparison visibly
