@@ -94,6 +94,20 @@ class StudioCompositionTests(unittest.TestCase):
         self.assertEqual(job['status'], 'succeeded')
         return Image.open(job['output_path']).convert('RGB'), job
 
+    def test_still_preserves_inscription_and_matches_editor_pixels(self):
+        for direction in ('vertical-rl', 'horizontal-lr'):
+            for inscription in (None, '', '十', '十\n十十'):
+                with self.subTest(direction=direction, inscription=inscription):
+                    self.client.cookies.clear()
+                    self.client.cookies.set('calligraphy_session', f'{direction}-{len(inscription or "")}')
+                    params = dict(self.params(), direction=direction, inscription=inscription,
+                                  stamp_enabled=False)
+                    still, job = self.still(params)
+                    expected = Image.open(io.BytesIO(render_pixels(params))).convert('RGB')
+                    np.testing.assert_array_equal(np.asarray(still), np.asarray(expected))
+                    self.assertEqual(job['params'].get('inscription'), inscription or None)
+
+
     def test_manual_paper_ruling_aligns_text_in_all_render_paths(self):
         from calligraphy.paper import compute_paper_grid, render_writing_paper
         from calligraphy.spec import Appearance

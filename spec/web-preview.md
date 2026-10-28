@@ -7,6 +7,10 @@ The creation canvas contains only the live layout preview; there is no latest-re
 Generated still previews open in a modal. Completed history images/videos open in a
 work modal without navigating away from history or changing its filter/search state.
 
+Still jobs preserve the supplied inscription (including Chinese text and line
+breaks) in their parameters, just like video jobs. Editor, PNG and SVG exports
+use the same inscription layout; omitted or empty inscriptions add no signature.
+
 ## Media lifecycle
 
 The still-preview modal keeps a persistent image node and a separate inline-SVG

@@ -413,6 +413,9 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
     if req.height:
         params["height"] = req.height
 
+    if req.inscription:
+        params["inscription"] = req.inscription
+
     job = db.create_job(
         job_id=job_id,
         session_id=session_id,
