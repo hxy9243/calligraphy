@@ -81,7 +81,7 @@ create distinct render requests even when their text and style match.
 The editor, still and video requests carry the same logical `width`, `height`,
 `font_size`, `fit`, spacing, direction and punctuation. Viewport changes only
 resize the display. The editor rasterizes the logical page first and downsamples
-the completed image to at most 640 pixels per axis, so scaling cannot alter line
+the completed image to at most 640 pixels per axis at standard quality, so scaling cannot alter line
 breaks, margins, glyph size or brush rounding. Selecting horizontal writing does
 not rotate the page or swap its dimensions.
 
@@ -104,6 +104,38 @@ pixels, covering the existing long-canvas controls. Videos additionally require
 even dimensions. This increases the maximum RGB page buffer from 4.9 MB to
 9.2 MB; editor transport remains bounded to 640×640 and existing single-job
 admission, deadlines, frame counts and video-duration limits remain in force.
+
+### Preview quality
+
+The preview toolbar offers 1× (default), 2× and 4× quality for the live preview
+and newly exported still PNG/SVG images. This is independent of artwork zoom;
+zooming alone does not request new pixels. Video resolution is unchanged.
+`preview_scale` accepts only integer 1, 2 or 4 in `/api/editor-preview` and
+`/api/previews`; omitted values retain the previous behavior. Still jobs persist
+the selection and editor cache keys include it. Large requests are rejected
+before rendering with an instruction to reduce quality or canvas size: the
+scaled page may not exceed 12,288,000 pixels or 8192 pixels on either side.
+
+The shared render plan first resolves the logical layout, then scales the
+positions, glyph sizes, bounds and paper grid without recomputing wrapping,
+fitting or timing. Glyph patches are rendered from the original 480-pixel masks
+at the larger size. Paper texture and decoration retain their logical composition;
+seals are rendered at higher resolution at the same normalized positions.
+The editor transport limit is 640 × quality per axis (1280 at 2×, 2560 at 4×).
+Its in-memory PNG cache holds at most eight entries to bound the larger images.
+The SVG embeds the higher-resolution PNG; it does not become vector lettering,
+and the original glyph masks still limit recoverable detail.
+
+Resolution regressions check decoded editor/still/SVG pixels, normalized ink
+overlap, independent cache identities, invalid and oversized admission, unchanged
+placements and timing in both writing directions, seal placement, partial-frame
+replay, and frontend payloads/error messages.
+
+Validated on 2026-10-27: 309 Python tests, 209 JavaScript tests (bundled modern
+Node runtime), and 24 downstream lab regressions passed. A local browser check
+loaded the 4× live image at 2276×2560 and exported a 640×720 logical page as an
+SVG containing a 2560×2880 PNG. A same-zoom source-font comparison visibly
+resolved finer glyph edges than enlarging the standard preview.
 
 Kai/Yan editor pixels use the same completed contact frame as exports. The
 lightweight source-font preview keeps source silhouettes, normalized with the

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#faf9f4">
   <title>墨韵书法工坊 | Calligraphy Workbench</title>
   <script src="/analytics.js" defer></script>
-  <link rel="stylesheet" href="/style.css?v=paper-studio-headers-7">
+  <link rel="stylesheet" href="/style.css?v=preview-quality-8">
 </head>
 <body class="theme-xuan" data-view="create">
 
@@ -315,6 +315,13 @@
         <!-- live stage -->
         <div id="pane-live" class="pane">
           <div class="preview-toolbar"><p class="stage-hint">字體預覽 · 滾輪捲動 · Ctrl + 滾輪縮放畫作</p>
+            <label class="preview-quality">預覽與靜圖畫質
+              <select id="preview-quality" aria-label="預覽與靜圖畫質">
+                <option value="1">1× 標準</option>
+                <option value="2">2× 清晰</option>
+                <option value="4">4× 精細</option>
+              </select>
+            </label>
             <div class="preview-zoom" role="group" aria-label="預覽縮放">
               <button type="button" id="preview-zoom-out" aria-label="縮小預覽">−</button>
               <button type="button" id="preview-zoom-reset" aria-label="重設預覽縮放">100%</button>
@@ -588,6 +595,6 @@
 <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
 <script src="/vendor/opencc.js"></script>
-<script src="/app.js?v=paper-studio-6"></script>
+<script src="/app.js?v=preview-quality-7"></script>
 </body>
 </html>

@@ -201,3 +201,41 @@ for (const [button, endpoint, result] of [
     assert.equal(overlay.hidden, true);
   });
 }
+
+test('preview quality changes resolution requests without changing composition or video', async t => {
+  const ui = await createFrontend({fetch: ({url}) => {
+    if (url === '/api/previews') return jsonResponse({svg: '<svg viewBox="0 0 320 480"></svg>'});
+    if (url === '/api/renders') return jsonResponse({job_id:'quality-video',status:'queued'},202);
+  }}); t.after(ui.close);
+  const {document:d, window:w} = ui;
+  await ui.tickTimeouts(800);
+  const baseline = ui.requests.filter(r => r.url === '/api/editor-preview').at(-1).body;
+  assert.equal(baseline.preview_scale, 1);
+  for (const scale of [2, 4, 1]) {
+    const select = d.getElementById('preview-quality');
+    select.value = String(scale); select.dispatchEvent(new w.Event('change'));
+    await ui.tickTimeouts(0);
+    const editor = ui.requests.filter(r => r.url === '/api/editor-preview').at(-1).body;
+    assert.deepEqual(editor, {...baseline, preview_scale:scale});
+    d.getElementById('btn-preview').click(); await flush();
+    const still = ui.requests.filter(r => r.url === '/api/previews').at(-1).body;
+    assert.equal(still.preview_scale, scale);
+    assert.equal(still.width, baseline.width);
+    assert.equal(still.font_size, baseline.font_size);
+  }
+  d.getElementById('btn-render').click(); await flush();
+  assert.equal(ui.requests.filter(r => r.url === '/api/renders').at(-1).body.preview_scale, undefined);
+});
+
+test('oversized high-quality preview shows actionable API validation errors', async t => {
+  const message = 'Lower preview quality or canvas size';
+  const ui = await createFrontend({fetch: ({url}) => {
+    if (url === '/api/editor-preview' || url === '/api/previews')
+      return jsonResponse({detail:[{msg:message}]},422);
+  }}); t.after(ui.close);
+  await ui.tickTimeouts(800);
+  assert.match(ui.document.getElementById('editor-preview-status').textContent, /Lower preview quality/);
+  ui.document.getElementById('btn-preview').click(); await flush();
+  assert.ok(ui.document.body.textContent.includes(message));
+  assert.ok(!ui.document.body.textContent.includes('[object Object]'));
+});

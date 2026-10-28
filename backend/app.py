@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from calligraphy.font_pipeline import registered_styles
 from calligraphy.text.converter import ConversionUnavailableError, convert_text
 from calligraphy.text.input import parse_text
+from calligraphy.spec import validate_pixel_scale
 from .database import Database, get_db
 from .database import AdmissionError
 from .public_fonts import allowed_style, public_catalog, private_catalog, validate_style, font_sample
@@ -42,6 +43,7 @@ class ConvertRequest(BaseModel):
 
 
 class PreviewRequest(BaseModel):
+    preview_scale: int = Field(default=1, strict=True)
     text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARACTERS)
     style: str = Field(default="kai")
     direction: Literal["vertical-rl", "horizontal-lr"] = "vertical-rl"
@@ -70,6 +72,7 @@ class PreviewRequest(BaseModel):
     def bounded_canvas(self):
         if (self.width or 720) * (self.height or 960) > 2400 * 1280:
             raise ValueError("畫布面積過大 / Canvas must not exceed 3,072,000 pixels.")
+        validate_pixel_scale(self.width or 720, self.height or 960, self.preview_scale)
         return self
 
     @field_validator("text")
@@ -377,6 +380,7 @@ def generate_preview(req: PreviewRequest, request: Request, response: Response):
     chosen_style = checked_style(req.style)
     params = {
         "format": req.format,
+        "preview_scale": req.preview_scale,
         "spacing": req.spacing,
         "direction": req.direction,
         "palette": req.palette,

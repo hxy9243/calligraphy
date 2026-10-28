@@ -405,6 +405,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let verifiedMissingGlyphs = [];
   let verifiedGlyphKey = '';
   let editorTimer, editorDisplayedRevision = -1, editorRevision = 0, editorInFlight = false, editorURL = null, currentStampMeta = null, draggingStamp = false;
+  const previewQuality = document.getElementById('preview-quality');
+  const previewScale = () => Number(previewQuality?.value || 1);
+  const previewError = (detail, fallback) => Array.isArray(detail)
+    ? detail.map(item => item.msg).filter(Boolean).join(' · ') || fallback
+    : String(detail || fallback);
+  previewQuality?.addEventListener('change', () => scheduleEditorPreview({ immediate: true }));
 
   // One logical page contract for editor pixels, stills and videos. Display size
   // never changes composition; the editor endpoint only downsamples the image.
@@ -579,13 +585,13 @@ document.addEventListener('DOMContentLoaded', () => {
         signal: editorAbortController?.signal,
         body: JSON.stringify({ text: textInput.value.trim(), style: styleSelect.value || 'kai',
           direction: currentDirection, punctuation: punctuationSelect?.value || 'gap',
-          ...compositionSettings(), separate_stamp: true }),
+          ...compositionSettings(), preview_scale: previewScale(), separate_stamp: true }),
       });
       if (revision !== editorRevision) return;
       if (!res.ok) {
         const error = await res.json();
         if (revision !== editorRevision) return;
-        const detailStr = String(error.detail || '');
+        const detailStr = previewError(error.detail, '字體預覽暫時不可用');
         const missing = detailStr.match(/(?:Missing (?:font |prepared [^ ]* )?|Empty (?:font )?)glyphs?: ([^\.\n]+)/i);
         if (missing) {
           const isEmpty = /Empty/i.test(detailStr);
@@ -599,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.status === 503) {
           editorTimer = setTimeout(refreshEditorPreview, 250);
         }
-        throw new Error(error.detail || '字體預覽暫時不可用');
+        throw new Error(detailStr);
       }
       if (res.headers && typeof res.headers.get === 'function') {
         const boundsHdr = res.headers.get('X-Stamp-Bounds');
@@ -1864,12 +1870,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/previews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, style, format: 'auto', ...compositionSettings(), direction: currentDirection, punctuation })
+        body: JSON.stringify({ text, style, format: 'auto', ...compositionSettings(), preview_scale: previewScale(), direction: currentDirection, punctuation })
       });
 
       if (!res.ok) {
         const err = await res.json();
-        const detail = err.detail || '預覽失敗';
+        const detail = previewError(err.detail, '預覽失敗');
         if (/(?:missing|empty).*glyph/i.test(detail)) {
           const isEmpty = /empty/i.test(detail);
           const match = detail.match(/(?:Missing (?:font |prepared [^ ]* )?|Empty (?:font )?)glyphs?: ([^\.]+)/i);
@@ -1903,7 +1909,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultWarning.textContent = data.warning_message || '';
         resultWarning.hidden = !data.warning_message;
       }
-      showStatus('矢量靜圖生成完畢', 'success');
+      showStatus('靜圖生成完畢', 'success');
       setTimeout(hideStatus, 3000);
     } catch (e) {
       showStatus(`預覽失敗: ${e.message}`, 'error');

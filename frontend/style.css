@@ -742,6 +742,8 @@ textarea, .search, select, .font-current, .chip-row { min-width: 0; max-width: 1
 
 /* Preview controls stay at UI scale; only the artwork responds to zoom. */
 .preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.preview-quality { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.preview-quality select { width: auto; min-height: 32px; padding: 4px 8px; }
 .preview-zoom { display: flex; border: 1px solid var(--line); }
 .preview-zoom button { background: var(--surface); border: 0; min-width: 32px; min-height: 32px; cursor: pointer; font-size: 12px; }
 .preview-zoom button + button { border-left: 1px solid var(--line); }

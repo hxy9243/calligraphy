@@ -1344,6 +1344,11 @@ def get_stamp_placement_for_plan(
     plan: Optional[Any] = None,
 ) -> Optional[Tuple[int, int, int]]:
     """Compute (sx, sy, stamp_sz) for the given scene appearance and plan."""
+    logical = plan.get('logicalPlan') if isinstance(plan, dict) else getattr(plan, 'logical_plan', None)
+    if logical:
+        placement = get_stamp_placement_for_plan(logical['width'], logical['height'], appearance, logical)
+        scale = width // logical['width']
+        return tuple(v * scale for v in placement) if placement else None
     stamp_enabled = bool(getattr(appearance, "stamp_enabled", True))
     if not stamp_enabled:
         return None
@@ -1852,6 +1857,23 @@ def render_writing_paper(
     include_stamp: Optional[bool] = None,
 ) -> Image.Image:
     """Create the writing paper background for a scene or preview frame."""
+    logical = plan.get('logicalPlan') if isinstance(plan, dict) else getattr(plan, 'logical_plan', None)
+    if logical:
+        # Preserve the paper texture and exact ruling/decoration composition;
+        # glyphs are painted later from their original masks at the larger size.
+        page = render_writing_paper(logical['width'], logical['height'], appearance,
+                                    logical, include_stamp=False).resize((width, height), Image.Resampling.LANCZOS)
+        placement = get_stamp_placement_for_plan(width, height, appearance, plan)
+        if include_stamp is not False and placement:
+            sx, sy, size = placement
+            color = appearance.paper_color
+            paper_rgb = tuple(max(lo, min(hi, c - offset)) for c, lo, hi, offset in
+                              zip(color, (226, 216, 200), (246, 238, 226), (8, 11, 16)))
+            stamp = render_qr_seal_stamp(getattr(appearance, 'stamp_url', None) or get_default_stamp_url(),
+                                        size_px=size, paper_rgb=paper_rgb)
+            page.paste(stamp, (sx, sy), stamp)
+        page.putpixel((0, 0), appearance.paper_color)
+        return page
     paper_style = getattr(appearance, "paper_style", "xuan")
     stamp_enabled = bool(getattr(appearance, "stamp_enabled", True))
     if include_stamp is not None:

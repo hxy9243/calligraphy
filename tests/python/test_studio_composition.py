@@ -396,3 +396,99 @@ class StudioCompositionTests(unittest.TestCase):
         np.testing.assert_array_equal(still[0, 0], (240, 224, 208))
         self.assertGreater(np.all(still == (18, 52, 86), axis=2).sum(), 20)
         np.testing.assert_array_equal(Image.open(io.BytesIO(render_pixels(params))), still)
+
+    def test_preview_quality_renders_more_pixels_in_editor_png_and_svg(self):
+        for style in ('kai', 'yan', 'fixture'):
+            base = {**self.params(), 'style': style, 'stamp_enabled': False}
+            standard = Image.open(io.BytesIO(render_pixels(base))).convert('RGB')
+            for scale in (2, 4):
+                with self.subTest(style=style, scale=scale):
+                    self.client.cookies.set('calligraphy_session', f'quality-{style}-{scale}')
+                    params = {**base, 'preview_scale': scale}
+                    expected = (240 * scale, 320 * scale)
+                    editor = Image.open(io.BytesIO(self.submit('/api/editor-preview', params).content)).convert('RGB')
+                    still, job = self.still(params)
+                    self.assertEqual(job['params']['preview_scale'], scale)
+                    svg = self.submit('/api/previews', params).json()['svg']
+                    embedded = ET.fromstring(svg).find('{http://www.w3.org/2000/svg}image')
+                    svg_pixels = Image.open(io.BytesIO(base64.b64decode(embedded.attrib['href'].split(',', 1)[1]))).convert('RGB')
+                    for image in (editor, still, svg_pixels):
+                        self.assertEqual(image.size, expected)
+                    np.testing.assert_array_equal(still, svg_pixels)
+                    # New samples come from original glyph masks, not stretching
+                    # the old page bitmap. Normalized ink remains in the same cells.
+                    self.assertFalse(np.array_equal(editor, standard.resize(expected, Image.Resampling.LANCZOS)))
+                    reduced = editor.resize(standard.size, Image.Resampling.LANCZOS)
+                    a, b = self.palette_ink(standard, 'light'), self.palette_ink(reduced, 'light')
+                    self.assertGreater((a & b).sum() / (a | b).sum(), .9)
+        payloads = []
+        with patch('backend.editor_preview.cached_preview', side_effect=lambda p: payloads.append(p) or b'png'):
+            for scale in (1, 2, 4):
+                editor_preview({**base, 'preview_scale': scale})
+        self.assertEqual(len(set(payloads)), 3)
+
+    def test_quality_keeps_logical_plan_timing_ruling_and_stamp_placement(self):
+        from calligraphy.paper import get_stamp_placement_for_plan
+        from backend.editor_preview import stamp_preview_layer
+        for direction in ('vertical-rl', 'horizontal-lr'):
+            base = {**self.params(), 'direction': direction, 'width': 480, 'height': 640,
+                    'inscription': '十', 'paper_line_count': 6}
+            spec = scene_spec_from_params(base['text'], 'kai', base)
+            normal = RenderPlan.create(spec, {'十': 2})
+            normal_stamp = get_stamp_placement_for_plan(normal.width, normal.height, spec.appearance, normal)
+            for scale in (2, 4):
+                spec = scene_spec_from_params(base['text'], 'kai', {**base, 'preview_scale': scale})
+                plan = RenderPlan.create(spec, {'十': 2})
+                self.assertEqual(plan.duration, normal.duration)
+                self.assertEqual(plan.width, normal.width * scale)
+                for old, new in zip(normal.schedule, plan.schedule):
+                    for key in ('character', 'start', 'end', 'strokeCount', 'row', 'column', 'is_inscription'):
+                        self.assertEqual(old[key], new[key])
+                    for key in ('x', 'y', 'size'):
+                        self.assertEqual(old[key] * scale, new[key])
+                self.assertEqual(plan.paper_grid['n_lanes'], normal.paper_grid['n_lanes'])
+                self.assertEqual(plan.paper_grid['lane_centers'], [v * scale for v in normal.paper_grid['lane_centers']])
+                stamp = get_stamp_placement_for_plan(plan.width, plan.height, spec.appearance, plan)
+                self.assertEqual(stamp, tuple(v * scale for v in normal_stamp))
+                # Separate live seal preserves logical positioning and adds pixels.
+                layer = Image.open(io.BytesIO(stamp_preview_layer({**base, 'preview_scale': scale})))
+                self.assertEqual(layer.size, (normal_stamp[2] * scale,) * 2)
+                scene = self.create_scene(spec)
+                for time in (.65, scene.duration):
+                    frame = scene.frame(time)
+                    self.assertEqual(frame.size, (480 * scale, 640 * scale))
+                    self.assertGreater(np.ptp(np.asarray(frame)), 100)
+                self.assertEqual(scene.frame(.65).tobytes(), self.create_scene(spec).frame(.65).tobytes())
+
+    def test_quality_validation_precedes_rendering_and_legacy_defaults_remain(self):
+        from backend.app import PreviewRequest, EditorPreviewRequest
+        self.assertEqual(PreviewRequest(text='十').preview_scale, 1)
+        self.assertEqual(EditorPreviewRequest(text='十').preview_scale, 1)
+        with patch('backend.app.execute_job') as worker, patch('backend.app.editor_preview') as editor:
+            for endpoint in ('/api/previews', '/api/editor-preview'):
+                for scale in (0, 3, 8, True, '2', 2.0):
+                    expected = 400 if type(scale) is int else 422
+                    self.assertEqual(self.client.post(endpoint, json={**self.params(), 'preview_scale': scale}).status_code, expected)
+                for width, height in ((2400, 1280), (2200, 320)):
+                    response = self.client.post(endpoint, json={**self.params(), 'width': width, 'height': height, 'preview_scale': 4})
+                    self.assertEqual(response.status_code, 400)
+                    self.assertIn('Lower preview quality', response.text)
+            worker.assert_not_called()
+            editor.assert_not_called()
+
+    def test_quality_editor_transport_limit_and_static_font_export(self):
+        from calligraphy.renderer import StaticFontScene
+        base = {**self.params(), 'width': 720, 'height': 960, 'style': 'fixture', 'stamp_enabled': False}
+        for scale in (1, 2, 4):
+            params = {**base, 'preview_scale': scale}
+            preview = Image.open(io.BytesIO(render_pixels(params)))
+            self.assertEqual(preview.size, (480 * scale, 640 * scale))
+            spec = scene_spec_from_params(base['text'], 'fixture', params)
+            plan = RenderPlan.create(spec, {'十': 1})
+            scene = StaticFontScene(plan, self.root / 'data/fonts/fixture.ttf')
+            frame = scene.frame()
+            svg = ET.fromstring(scene.frame_svg())
+            embedded = svg.find('{http://www.w3.org/2000/svg}image')
+            pixels = Image.open(io.BytesIO(base64.b64decode(embedded.attrib['href'].split(',', 1)[1])))
+            self.assertEqual(pixels.size, (720 * scale, 960 * scale))
+            np.testing.assert_array_equal(pixels, frame)

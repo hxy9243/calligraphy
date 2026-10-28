@@ -11,6 +11,15 @@ from .text.plan import create_text_plan
 RENDERER_VERSION = "calligraphy-engine-v1"
 
 
+def validate_pixel_scale(width, height, scale):
+    """Bound optional high-resolution previews before allocating page buffers."""
+    if type(scale) is not int or scale not in (1, 2, 4):
+        raise ValueError('preview_scale must be 1, 2 or 4')
+    if scale > 1 and (max(width, height) * scale > 8192 or width * height * scale ** 2 > 12_288_000):
+        raise ValueError('畫布過大，請降低預覽畫質或縮小畫布 / Lower preview quality or canvas size (maximum 12,288,000 rendered pixels and 8192 per side).')
+    return scale
+
+
 def _parse_color(color: Any, name: str) -> Tuple[int, int, int]:
     """Parse hex string or RGB tuple into (r, g, b)."""
     if isinstance(color, (list, tuple)) and len(color) == 3:
@@ -235,6 +244,7 @@ class RenderPlan:
     renderer_version: str = RENDERER_VERSION
     schema_version: int = 1
     paper_grid: Optional[Dict[str, Any]] = None
+    logical_plan: Optional[Dict[str, Any]] = None
 
     @classmethod
     def create(
@@ -267,10 +277,24 @@ class RenderPlan:
             )
             schedule.append({**entry, "transformedBounds": list(bounds)})
 
+        scale = validate_pixel_scale(base_plan['width'], base_plan['height'], scene_spec.layout.get('pixel_scale', 1))
+        logical_plan = None
+        grid = base_plan['paperGrid']
+        if scale != 1:
+            # Resolve wrapping, fitting, ruling and timing once at logical size.
+            logical_plan = {**base_plan, 'schedule': schedule}
+            schedule = [{**entry, **{key: entry[key] * scale for key in ('x', 'y', 'size')},
+                         'transformedBounds': [v * scale for v in entry['transformedBounds']]}
+                        for entry in schedule]
+            if grid:
+                grid = {**grid, 'lane_width': grid['lane_width'] * scale,
+                        **{key: [v * scale for v in grid[key]] for key in
+                           ('outer_box', 'inner_box', 'dividers', 'lane_centers')}}
+
         return cls(
             scene_spec=scene_spec,
-            width=base_plan["width"],
-            height=base_plan["height"],
+            width=base_plan["width"] * scale,
+            height=base_plan["height"] * scale,
             direction=base_plan["direction"],
             stroke_seconds=base_plan["strokeSeconds"],
             duration=base_plan["duration"],
@@ -279,7 +303,8 @@ class RenderPlan:
             glyph_hashes=glyph_hashes or {},
             renderer_version=RENDERER_VERSION,
             schema_version=1,
-            paper_grid=base_plan["paperGrid"],
+            paper_grid=grid,
+            logical_plan=logical_plan,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -296,4 +321,5 @@ class RenderPlan:
             "omitted": self.omitted,
             "glyphHashes": self.glyph_hashes,
             "paperGrid": self.paper_grid,
+            **({'logicalPlan': self.logical_plan} if self.logical_plan else {}),
         }

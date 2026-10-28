@@ -95,7 +95,7 @@ def stamp_preview_layer(params):
     paper_rgb = tuple(max(lo, min(hi, c - offset)) for c, lo, hi, offset in
                       zip(color, (226, 216, 200), (246, 238, 226), (8, 11, 16)))
     stamp = render_qr_seal_stamp(params.get('stamp_url') or get_default_stamp_url(),
-                                 size_px=meta['sz'], paper_rgb=paper_rgb)
+                                 size_px=meta['sz'] * params.get('preview_scale', 1), paper_rgb=paper_rgb)
     output = io.BytesIO()
     stamp.save(output, format='PNG', compress_level=1)
     return output.getvalue()
@@ -143,13 +143,14 @@ def render_pixels(params):
 
     # Rasterize the same logical page as exports, then downsample for transport.
     # Scaling geometry first changes wrapping, rounding, margins and brush ink.
-    image.thumbnail((640, 640), Image.Resampling.LANCZOS)
+    edge = 640 * params.get('preview_scale', 1)
+    image.thumbnail((edge, edge), Image.Resampling.LANCZOS)
     output = io.BytesIO()
     image.save(output, format='PNG', compress_level=1)
     return output.getvalue()
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=8)
 def cached_preview(payload):
     # A child process bounds font parsing / built-in rendering time and memory lifetime.
     with tempfile.TemporaryDirectory(prefix='calligraphy-editor-') as temp:

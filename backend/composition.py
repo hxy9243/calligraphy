@@ -47,6 +47,7 @@ def scene_spec_from_params(text, style, params):
             "font_size": params.get("font_size"),
             "fit": params.get("fit", True),
             "zigzag": bool(params.get("zigzag", False)),
+            **({'pixel_scale': params['preview_scale']} if params.get('preview_scale', 1) != 1 else {}),
         },
         timing={
             "stroke_seconds": params.get("stroke_seconds", 0.18),
