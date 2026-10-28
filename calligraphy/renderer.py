@@ -496,7 +496,8 @@ def create_scene(
     if mode != "font_layers":
         prepared, reports = prepare_contacts(
             {c: bank['glyphs'][c] for c in scene_spec.unique_characters},
-            source={'style': style, 'font': bank['font']}, inferred_corners=True)
+            source={'style': style, 'font': bank['font']}, inferred_corners=True,
+            templates=bank.get('templates'))
         scene = StyledContactScene(plan.to_dict(), prepared, scene_spec.appearance, scene_spec.transforms)
         scene.smoothing_reports = reports
         # Read the source bank on both first preparation and warm-cache renders.

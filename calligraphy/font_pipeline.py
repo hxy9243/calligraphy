@@ -186,10 +186,12 @@ def fit_layer(layer, progress, name, fallback_direction=None):
     return stroke
 
 
-def fit_glyph(character, target, glyph):
+def fit_glyph(character, target, glyph, *, tightness_candidates=None):
     validate_template(glyph)
     gray = np.uint8(np.clip(255 * (1 - cv2.resize(target, (160, 160))), 0, 255))
-    tightness_candidates = TIGHTNESS_CANDIDATES
+    tightness_candidates = TIGHTNESS_CANDIDATES if tightness_candidates is None else tuple(tightness_candidates)
+    if not tightness_candidates:
+        raise ValueError('Expected at least one registration tightness')
     for attempt, tightness in enumerate(tightness_candidates):
         try:
             warped, phase = registered_fields(gray, glyph, tightness=tightness)

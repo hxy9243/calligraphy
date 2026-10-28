@@ -69,17 +69,77 @@ def fit_template(layers, progress, ink):
     phase = np.stack([ndi.map_coordinates(a,coords,order=1,mode='nearest') for a in progress])
     return fitted, phase
 
-def registered_fields(gray, glyph, tightness=.3):
+def collapsed_progress_intervals(layers, phase, reference_layers, reference_phase):
+    """Find long interior losses of registered support, relative to its guide.
+
+    Comparing equal progress bins (rather than raw area or component count)
+    protects naturally tapering strokes and genuinely disconnected source ink.
+    Terminal bins are excluded: a font may legitimately shorten an entry/hook.
+    This only nominates a retry; it does not assign ink or change stroke order.
+    """
+    edges = np.linspace(0, 1, 21)
+    found = []
+    for index, (ink, timing, original, original_timing) in enumerate(
+            zip(layers, phase, reference_layers, reference_phase)):
+        before = np.histogram(original_timing[original > .2], edges)[0]
+        after = np.histogram(timing[ink > .2], edges)[0]
+        eligible = before >= 3
+        ratio = after / np.maximum(before, 1)
+        interior = eligible.copy()
+        interior[:2] = interior[-2:] = False
+        if np.count_nonzero(interior) < 8:
+            continue
+        scale = np.quantile(ratio[interior], .75)
+        if scale <= 0:
+            continue
+        collapsed = interior & (ratio < .15 * scale)
+        groups = np.flatnonzero(np.diff(np.r_[False, collapsed, False])).reshape(-1, 2)
+        for start, end in groups:
+            # At least one fifth of the traversal disappeared, with surviving
+            # support on BOTH sides. Small dots and endpoint taper do not qualify.
+            if end - start >= 4 and np.any(ratio[2:start] >= .5 * scale) and np.any(ratio[end:18] >= .5 * scale):
+                found.append((index, int(start), int(end)))
+    return found
+
+
+def registered_fields(gray, glyph, tightness=.3, *, diagnostics=None):
     layers, phase = template(glyph)
     target = (255-gray)/255.
     layers, phase = fit_template(layers, phase, gray < 150)
-    flow = optical_flow_tvl1(ndi.gaussian_filter(target,1.5),
-                            ndi.gaussian_filter(layers.max(0),1.5),
-                            attachment=12,tightness=tightness,num_warp=8,num_iter=12)
     yy,xx=np.mgrid[:S,:S]
-    coords=np.array([yy+flow[0],xx+flow[1]])
-    warped=np.stack([ndi.map_coordinates(a,coords,order=1,mode='constant') for a in layers])
-    progress=np.stack([ndi.map_coordinates(a,coords,order=1,mode='nearest') for a in phase])
+
+    def register(coupling):
+        flow = optical_flow_tvl1(ndi.gaussian_filter(target,1.5),
+                                ndi.gaussian_filter(layers.max(0),1.5),
+                                attachment=12,tightness=coupling,num_warp=8,num_iter=12)
+        coords=np.array([yy+flow[0],xx+flow[1]])
+        warped=np.stack([ndi.map_coordinates(a,coords,order=1,mode='constant') for a in layers])
+        progress=np.stack([ndi.map_coordinates(a,coords,order=1,mode='nearest') for a in phase])
+        return warped, progress
+
+    warped, progress = register(tightness)
+    collapsed = collapsed_progress_intervals(warped, progress, layers, phase)
+    if diagnostics is not None:
+        diagnostics.update(collapsed_intervals=[list(item) for item in collapsed],
+                           continuity_retry=False, continuity_repaired=False,
+                           selected_tightness=float(tightness))
+    if collapsed and tightness < 2:
+        candidate, candidate_phase = register(2.)
+        if diagnostics is not None:
+            diagnostics['continuity_retry'] = True
+        remaining = collapsed_progress_intervals(candidate, candidate_phase, layers, phase)
+        old_loss = sum(end - start for _, start, end in collapsed)
+        new_loss = sum(end - start for _, start, end in remaining)
+        # Stronger coupling can escape a local fit in which a curved stroke's
+        # body collapses into whitespace while unrelated strokes steal its ink.
+        # Never trade silhouette alignment for this continuity heuristic.
+        if (new_loss < old_loss
+                and {index for index, _, _ in remaining} <= {index for index, _, _ in collapsed}
+                and iou(candidate.max(0), target) >= iou(warped.max(0), target)):
+            warped, progress = candidate, candidate_phase
+            if diagnostics is not None:
+                diagnostics.update(continuity_repaired=True, selected_tightness=2.,
+                                   remaining_intervals=[list(item) for item in remaining])
     return warped,progress
 
 def ribbon_envelope(support, phase, shape):
